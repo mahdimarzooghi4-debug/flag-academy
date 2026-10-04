@@ -31,7 +31,9 @@ class AppError(Exception):
         super().__init__(message)
 
 
-async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, AppError):
+        raise exc
     trace_id = getattr(request.state, "trace_id", "unknown")
     body = ErrorResponse(
         code=exc.code,
