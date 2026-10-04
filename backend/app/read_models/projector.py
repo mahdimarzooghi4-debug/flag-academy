@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -193,8 +194,8 @@ async def rebuild_candidate_home(
             },
         )
 
-    units: list[LearningUnit] = []
-    assignments: list[Assignment] = []
+    units: Sequence[LearningUnit] = []
+    assignments: Sequence[Assignment] = []
     if class_ids:
         units = (
             await db.execute(
@@ -218,7 +219,7 @@ async def rebuild_candidate_home(
         ).scalars().all()
 
     assignment_ids = [item.id for item in assignments]
-    submissions: list[Submission] = []
+    submissions: Sequence[Submission] = []
     if assignment_ids:
         submissions = (
             await db.execute(
