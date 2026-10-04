@@ -2,13 +2,13 @@ from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ErrorResponse(BaseModel):
     code: str
     message: str
-    details: dict[str, Any] = {}
+    details: dict[str, Any] = Field(default_factory=dict)
     trace_id: str
     retryable: bool = False
 

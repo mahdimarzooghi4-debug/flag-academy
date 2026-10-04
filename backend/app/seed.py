@@ -14,7 +14,13 @@ from app.academy.models import (
     Session,
 )
 from app.curriculum.domain import CAPABILITY_CODES
-from app.curriculum.models import Capability, CapabilityVersion, Curriculum, CurriculumWave, WaveCapability
+from app.curriculum.models import (
+    Capability,
+    CapabilityVersion,
+    Curriculum,
+    CurriculumWave,
+    WaveCapability,
+)
 from app.db import SessionFactory
 from app.identity.models import Organization, OrganizationMembership, Person
 from app.journey.models import CandidateJourney
