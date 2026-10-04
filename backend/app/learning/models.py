@@ -93,7 +93,12 @@ class InstructorFeedback(Base):
 class PracticeAttempt(Base):
     __tablename__ = "practice_attempts"
     __table_args__ = (
-        UniqueConstraint("learning_unit_id", "candidate_id"),
+        UniqueConstraint(
+            "learning_unit_id",
+            "candidate_id",
+            "attempt_number",
+            name="uq_practice_attempt_unit_candidate_number",
+        ),
         {"schema": "learning"},
     )
 
@@ -103,6 +108,10 @@ class PracticeAttempt(Base):
         ForeignKey("learning.learning_units.id")
     )
     candidate_id: Mapped[UUID]
+    attempt_number: Mapped[int] = mapped_column(Integer)
+    replay_of_attempt_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("learning.practice_attempts.id"), nullable=True
+    )
     response_text: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(32))
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

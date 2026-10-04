@@ -106,10 +106,10 @@ async def _latest_feedback_by_submission(
     return result
 
 
-async def _latest_practice_feedback(
+async def _practice_feedback_history(
     db: AsyncSession,
     attempt_ids: list[UUID],
-) -> dict[UUID, PracticeFeedback]:
+) -> dict[UUID, list[PracticeFeedback]]:
     if not attempt_ids:
         return {}
     rows = (
@@ -119,9 +119,9 @@ async def _latest_practice_feedback(
             .order_by(PracticeFeedback.created_at)
         )
     ).scalars().all()
-    result: dict[UUID, PracticeFeedback] = {}
+    result: dict[UUID, list[PracticeFeedback]] = {}
     for row in rows:
-        result[row.practice_attempt_id] = row
+        result.setdefault(row.practice_attempt_id, []).append(row)
     return result
 
 
@@ -263,16 +263,21 @@ async def rebuild_candidate_home(
     if practice_unit_ids:
         practice_attempts = (
             await db.execute(
-                select(PracticeAttempt).where(
+                select(PracticeAttempt)
+                .where(
                     PracticeAttempt.learning_unit_id.in_(practice_unit_ids),
                     PracticeAttempt.candidate_id == person_id,
                 )
+                .order_by(
+                    PracticeAttempt.learning_unit_id,
+                    PracticeAttempt.attempt_number,
+                )
             )
         ).scalars().all()
-    practice_attempt_by_unit = {
-        item.learning_unit_id: item for item in practice_attempts
-    }
-    practice_feedback = await _latest_practice_feedback(
+    practice_attempts_by_unit: dict[UUID, list[PracticeAttempt]] = {}
+    for attempt in practice_attempts:
+        practice_attempts_by_unit.setdefault(attempt.learning_unit_id, []).append(attempt)
+    practice_feedback_history = await _practice_feedback_history(
         db, [item.id for item in practice_attempts]
     )
 
@@ -346,6 +351,13 @@ async def rebuild_candidate_home(
             if unit.phase == "PRACTICE"
             else unit.unit_type
         )
+        unit_attempts = practice_attempts_by_unit.get(unit.id, [])
+        latest_attempt = unit_attempts[-1] if unit_attempts else None
+        latest_feedback = (
+            practice_feedback_history.get(latest_attempt.id, [])
+            if latest_attempt is not None
+            else []
+        )
         learning_tasks.append(
             {
                 "id": str(unit.id),
@@ -361,16 +373,38 @@ async def rebuild_candidate_home(
                 "body": unit.body,
                 "due_at": None,
                 "submission_id": (
-                    str(practice_attempt_by_unit[unit.id].id)
-                    if unit.id in practice_attempt_by_unit
-                    else None
+                    str(latest_attempt.id) if latest_attempt is not None else None
                 ),
                 "feedback_text": (
-                    practice_feedback[practice_attempt_by_unit[unit.id].id].feedback_text
-                    if unit.id in practice_attempt_by_unit
-                    and practice_attempt_by_unit[unit.id].id in practice_feedback
-                    else None
+                    latest_feedback[-1].feedback_text if latest_feedback else None
                 ),
+                "replay_available": (
+                    latest_attempt is not None
+                    and latest_attempt.status == "FEEDBACK_PROVIDED"
+                ),
+                "practice_attempts": [
+                    {
+                        "id": str(attempt.id),
+                        "attempt_number": attempt.attempt_number,
+                        "replay_of_attempt_id": (
+                            str(attempt.replay_of_attempt_id)
+                            if attempt.replay_of_attempt_id is not None
+                            else None
+                        ),
+                        "response_text": attempt.response_text,
+                        "status": attempt.status,
+                        "submitted_at": attempt.submitted_at.isoformat(),
+                        "feedback_history": [
+                            {
+                                "id": str(feedback.id),
+                                "feedback_text": feedback.feedback_text,
+                                "created_at": feedback.created_at.isoformat(),
+                            }
+                            for feedback in practice_feedback_history.get(attempt.id, [])
+                        ],
+                    }
+                    for attempt in unit_attempts
+                ],
             }
         )
 
@@ -515,10 +549,14 @@ async def rebuild_instructor_home(
                         [item.id for item in practice_units]
                     )
                 )
-                .order_by(PracticeAttempt.submitted_at)
+                .order_by(
+                    PracticeAttempt.candidate_id,
+                    PracticeAttempt.learning_unit_id,
+                    PracticeAttempt.attempt_number,
+                )
             )
         ).scalars().all()
-    practice_feedback = await _latest_practice_feedback(
+    practice_feedback_history = await _practice_feedback_history(
         db, [item.id for item in practice_attempts]
     )
     practice_unit_by_id = {item.id: item for item in practice_units}
@@ -617,13 +655,28 @@ async def rebuild_instructor_home(
                         if item.candidate_id in person_by_id
                         else str(item.candidate_id)
                     ),
+                    "attempt_number": item.attempt_number,
+                    "replay_of_attempt_id": (
+                        str(item.replay_of_attempt_id)
+                        if item.replay_of_attempt_id is not None
+                        else None
+                    ),
                     "response_text": item.response_text,
                     "status": item.status,
                     "feedback_text": (
-                        practice_feedback[item.id].feedback_text
-                        if item.id in practice_feedback
+                        practice_feedback_history[item.id][-1].feedback_text
+                        if item.id in practice_feedback_history
+                        and practice_feedback_history[item.id]
                         else None
                     ),
+                    "feedback_history": [
+                        {
+                            "id": str(feedback.id),
+                            "feedback_text": feedback.feedback_text,
+                            "created_at": feedback.created_at.isoformat(),
+                        }
+                        for feedback in practice_feedback_history.get(item.id, [])
+                    ],
                 }
                 for item in practice_attempts
             ],

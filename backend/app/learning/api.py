@@ -72,6 +72,8 @@ class PracticeAttemptResponse(BaseModel):
     id: UUID
     learning_unit_id: UUID
     candidate_id: UUID
+    attempt_number: int
+    replay_of_attempt_id: UUID | None
     status: str
     submitted_at: datetime
 
@@ -434,20 +436,23 @@ async def submit_practice_attempt(
             status_code=422,
         )
 
-    existing = (
+    latest_attempt = (
         await db.execute(
-            select(PracticeAttempt).where(
+            select(PracticeAttempt)
+            .where(
                 PracticeAttempt.learning_unit_id == unit.id,
                 PracticeAttempt.candidate_id == actor.person_id,
             )
+            .order_by(PracticeAttempt.attempt_number.desc())
+            .limit(1)
         )
     ).scalar_one_or_none()
-    if existing is not None:
+    if latest_attempt is not None and latest_attempt.status != "FEEDBACK_PROVIDED":
         raise AppError(
-            "PRACTICE_ATTEMPT_ALREADY_EXISTS",
-            "This practice activity already has an attempt.",
+            "PRACTICE_REPLAY_REQUIRES_FEEDBACK",
+            "The latest practice attempt must receive feedback before replay.",
             status_code=409,
-            details={"practice_attempt_id": str(existing.id)},
+            details={"practice_attempt_id": str(latest_attempt.id)},
         )
 
     now = datetime.now(UTC)
@@ -480,6 +485,10 @@ async def submit_practice_attempt(
         id=uuid4(),
         learning_unit_id=unit.id,
         candidate_id=actor.person_id,
+        attempt_number=(
+            1 if latest_attempt is None else latest_attempt.attempt_number + 1
+        ),
+        replay_of_attempt_id=latest_attempt.id if latest_attempt is not None else None,
         response_text=body.response_text.strip(),
         status="SUBMITTED",
         submitted_at=now,
@@ -502,6 +511,12 @@ async def submit_practice_attempt(
                 "practice_attempt_id": str(attempt.id),
                 "learning_unit_id": str(unit.id),
                 "candidate_id": str(actor.person_id),
+                "attempt_number": attempt.attempt_number,
+                "replay_of_attempt_id": (
+                    str(attempt.replay_of_attempt_id)
+                    if attempt.replay_of_attempt_id is not None
+                    else None
+                ),
                 "class_offering_id": str(unit.class_offering_id),
                 "cohort_id": str(cohort.id),
             },
@@ -514,6 +529,8 @@ async def submit_practice_attempt(
         id=attempt.id,
         learning_unit_id=attempt.learning_unit_id,
         candidate_id=attempt.candidate_id,
+        attempt_number=attempt.attempt_number,
+        replay_of_attempt_id=attempt.replay_of_attempt_id,
         status=attempt.status,
         submitted_at=attempt.submitted_at,
     )

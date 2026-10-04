@@ -50,6 +50,22 @@ class ProveItem(BaseModel):
     proof_state: str
 
 
+class PracticeFeedbackHistoryItem(BaseModel):
+    id: str
+    feedback_text: str
+    created_at: datetime
+
+
+class CandidatePracticeAttempt(BaseModel):
+    id: str
+    attempt_number: int
+    replay_of_attempt_id: str | None = None
+    response_text: str
+    status: str
+    submitted_at: datetime
+    feedback_history: list[PracticeFeedbackHistoryItem]
+
+
 class LearningTask(BaseModel):
     id: str
     task_type: str
@@ -61,6 +77,8 @@ class LearningTask(BaseModel):
     due_at: datetime | None = None
     submission_id: str | None = None
     feedback_text: str | None = None
+    replay_available: bool = False
+    practice_attempts: list[CandidatePracticeAttempt] = []
 
 
 class ProfileSummary(BaseModel):
@@ -107,9 +125,12 @@ class InstructorPracticeAttempt(BaseModel):
     practice_title: str
     candidate_id: str
     candidate_name: str
+    attempt_number: int
+    replay_of_attempt_id: str | None = None
     response_text: str
     status: str
     feedback_text: str | None = None
+    feedback_history: list[PracticeFeedbackHistoryItem]
 
 
 class InstructorSubmission(BaseModel):

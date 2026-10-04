@@ -22,3 +22,10 @@ def test_learning_business_contract_is_exposed() -> None:
     assert "/api/v1/submissions/{submission_id}/feedback" in paths
     assert "post" in paths["/api/v1/assignments/{assignment_id}/submissions"]
     assert "post" in paths["/api/v1/submissions/{submission_id}/feedback"]
+
+
+def test_practice_attempt_contract_exposes_replay_lineage() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["PracticeAttemptResponse"]["properties"]
+    assert "attempt_number" in props
+    assert "replay_of_attempt_id" in props

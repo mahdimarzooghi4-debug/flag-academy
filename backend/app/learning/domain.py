@@ -34,3 +34,8 @@ class SubmissionStatus(StrEnum):
 class PracticeAttemptStatus(StrEnum):
     SUBMITTED = "SUBMITTED"
     FEEDBACK_PROVIDED = "FEEDBACK_PROVIDED"
+
+
+class PracticeReplayState(StrEnum):
+    WAITING_FOR_FEEDBACK = "WAITING_FOR_FEEDBACK"
+    REPLAY_AVAILABLE = "REPLAY_AVAILABLE"

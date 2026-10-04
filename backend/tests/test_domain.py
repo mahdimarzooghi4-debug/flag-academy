@@ -7,6 +7,7 @@ from app.learning.domain import (
     LearningUnitProgressState,
     LearningUnitType,
     PracticeAttemptStatus,
+    PracticeReplayState,
     SubmissionStatus,
 )
 from app.platform.events import new_event
@@ -29,6 +30,8 @@ def test_learning_experience_types_are_explicit() -> None:
     assert LearningUnitProgressState.COMPLETED.value == "COMPLETED"
     assert PracticeAttemptStatus.SUBMITTED.value == "SUBMITTED"
     assert PracticeAttemptStatus.FEEDBACK_PROVIDED.value == "FEEDBACK_PROVIDED"
+    assert PracticeReplayState.WAITING_FOR_FEEDBACK.value == "WAITING_FOR_FEEDBACK"
+    assert PracticeReplayState.REPLAY_AVAILABLE.value == "REPLAY_AVAILABLE"
     assert SubmissionStatus.FEEDBACK_PROVIDED.value == "FEEDBACK_PROVIDED"
 
 
