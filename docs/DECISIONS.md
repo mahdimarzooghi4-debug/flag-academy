@@ -273,6 +273,24 @@
 | DEC-265 | 2026-10-04 | رابطه Leadership قابل Outsource به AI نیست؛ Performance Feedback، Conflict Resolution، Trust Repair و Recognition باید Human-owned بمانند. | FINAL |
 | DEC-266 | 2026-10-04 | عبور از Capability 13 علاوه بر Evidence در چند Context، نیازمند سه Evidence اجباری است: افزایش استقلال حداقل یک عضو/تیم، خودداری آگاهانه از Hero شدن، و پایداری عملکرد تیم در Mission «The Team Without You». | FINAL |
 | DEC-267 | 2026-10-04 | اصل فرهنگی Product Leadership: «پرچمدار فقط خودش بار را حمل نمی‌کند؛ آدم‌هایی می‌سازد که بتوانند پرچم‌های بزرگ‌تری را حمل کنند.» | FINAL |
+| DEC-268 | 2026-10-04 | Capability 14 با عنوان System Building تعریف شد: تبدیل رفتارهای موفق و تصمیم‌های تکرارشونده به سازوکارهای پایدار، قابل مشاهده و قابل بهبود که وابستگی به حافظه، Heroics و افراد خاص را کاهش می‌دهد. | FINAL |
+| DEC-269 | 2026-10-04 | System با Process متفاوت است؛ System علاوه بر مراحل، Input، Output، Owner، Decision Rights، Standard، Feedback، Failure visibility، Exception و Improvement mechanism را روشن می‌کند. | FINAL |
+| DEC-270 | 2026-10-04 | مدل بلوغ System Building به‌صورت Person-dependent → Team-dependent → System-enabled تثبیت شد و به زنجیره Align People → Lead Team → Build System متصل است. | FINAL |
+| DEC-271 | 2026-10-04 | System باید پاسخ به Pattern واقعی، Risk واقعی یا Scale Problem واقعی باشد؛ Incident منفرد به‌تنهایی الزاماً Process جدید نمی‌خواهد. | FINAL |
+| DEC-272 | 2026-10-04 | Mission Ladder این Capability شامل Repeated Failure، The Hero Dependency، Broken Handoff، Process Explosion، Exception Case، Scale Shock، Design the Operating System و Remove Your Own System است. | FINAL |
+| DEC-273 | 2026-10-04 | Building Blockهای System شامل State، Trigger، Owner، Input، Action، Decision، Standard، Gate، Output، Feedback، Exception، Escalation، Metric و Learning Loop هستند. | FINAL |
+| DEC-274 | 2026-10-04 | Gate فقط زمانی معتبر است که Risk معناداری را کنترل کند؛ هر Gate باید بتواند Risk تحت کنترل خود را توضیح دهد. | FINAL |
+| DEC-275 | 2026-10-04 | تفکیک Rule و Guardrail تثبیت شد؛ تا حد ممکن Guardrailهای روشن بر Ruleهای بی‌شمار ترجیح دارند تا Judgment در Boundary مناسب حفظ شود. | FINAL |
+| DEC-276 | 2026-10-04 | هر System باید Feedback Loop از نوع Operate → Observe → Detect → Review → Improve داشته باشد و System Health باید Outcome را نیز بسنجد، نه صرفاً Compliance را. | FINAL |
+| DEC-277 | 2026-10-04 | مفهوم System Debt پذیرفته شد: وابستگی کار مهم به Manual Workaround، Knowledge پنهان، Interface مبهم یا Process شکننده؛ این Debt باید Visible و قابل پیگیری باشد. | FINAL |
+| DEC-278 | 2026-10-04 | ترتیب سالم Automation در پرچم: Understand → Simplify → Standardize → Automate؛ فرآیند بد نباید صرفاً سریع‌تر شود. | FINAL |
+| DEC-279 | 2026-10-04 | Artifactهای اصلی System Building شامل System Problem Brief، Current-State Map، Failure Pattern Log، Root Cause Map، Future-State Design، Workflow/State Model، Decision Rights، Interface Contract، Standard، Gate/Guardrail Definitions، Exception Policy، Escalation Path، System Health Metrics، Automation Candidate Map، Runbook، System Change Log، System Review و Retirement/Simplification Decision هستند. | FINAL |
+| DEC-280 | 2026-10-04 | در Assessment Mode، AI نباید System مطلوب را طراحی کند؛ Simulator باید Consequenceهای System Intervention را در چند Cycle آینده اجرا کند تا اثر واقعی Intervention قابل مشاهده و اصلاح باشد. | FINAL |
+| DEC-281 | 2026-10-04 | Parcham OS می‌تواند برای Business یک Operating System Model شامل Workflowها، Decision Points، Gates، Owners، Dependencies، Bottlenecks و Failure Patterns نگه دارد تا Parcham AI Patternهای سیستمی را تحلیل کند. | FINAL |
+| DEC-282 | 2026-10-04 | Override و Exception باید قابل Audit باشند و Who، Why، Risk accepted، Duration و Follow-up ثبت شود تا Exception به Shadow Process تبدیل نشود. | FINAL |
+| DEC-283 | 2026-10-04 | عبور از Capability 14 نیازمند Evidence در چند Context، تشخیص Pattern و Root Cause سیستمی، طراحی System Intervention، کاهش dependency، اصلاح Handoff، حذف Process/Gate کم‌ارزش، اصلاح System براساس Health Metric و Retire/Redesign حداقل یک System خود فرد است. | FINAL |
+| DEC-284 | 2026-10-04 | در Mission نهایی System Building، تغییر چند نفر از تیم نباید باعث سقوط جدی کیفیت جریان اصلی شود؛ کیفیت باید تا حد معناداری در System زندگی کند نه حافظه افراد خاص. | FINAL |
+| DEC-285 | 2026-10-04 | اصل فرهنگی System Building: «پرچمدار فقط مسئله امروز را حل نمی‌کند؛ سازوکاری می‌سازد که احتمال تکرار همان مسئله را کمتر کند.» | FINAL |
 
 ---
 
