@@ -395,6 +395,36 @@
 | DEC-387 | 2026-10-04 | WORLD FAILURE، CANDIDATE OUTCOME و SYSTEM FAILURE باید از هم جدا باشند؛ System Failure نباید Candidate Failure محسوب شود. | FINAL |
 | DEC-388 | 2026-10-04 | Action/Eventهای مهم باید idempotency_key داشته باشند و Runtime Contractها شامل Action/Event/Consequence/Actor/World Model versioning باشند. | FINAL |
 | DEC-389 | 2026-10-04 | اصل نهایی Runtime: «LLM proposes. Engine validates. Rules mutate. Events record. Observations preserve. Evidence interprets. Humans remain accountable.» | FINAL |
+| DEC-390 | 2026-10-04 | Evidence Engine ماشین امتیازدهی نیست؛ ماشین تبدیل Observationهای قابل ممیزی به Claimهای قابل دفاع است و زنجیره آن Observation → Interpretation → Review → Accepted Evidence → Pattern → Profile Claim → Gate Review → Responsibility Recommendation است. | FINAL |
+| DEC-391 | 2026-10-04 | مرز رسمی: Mission Engine مالک Fact/Observation و Evidence Engine مالک Interpretation است؛ Fact immutable و meaning revisable است. | FINAL |
+| DEC-392 | 2026-10-04 | Evidence Engine باید Entityهای Observation، EvidenceInterpretation، EvidenceLink، EvidenceSource، EvidenceReview، EvidenceConflict، PatternCandidate، BehaviourPattern، CapabilityClaim، CompetencyClaim، GateAssessment، ReplayRequirement، ProfileSnapshot، ResponsibilityRecommendation، CalibrationCase و AuditEntry را پشتیبانی کند. | FINAL |
+| DEC-393 | 2026-10-04 | Observation ingestion فقط با Provenance مشخص معتبر است و Observation باید factual باشد، نه Judgment درباره شخص. | FINAL |
+| DEC-394 | 2026-10-04 | Interpretationها Versioned هستند؛ Observation immutable می‌ماند و Interpretation قبلی می‌تواند SUPERSEDED شود. | FINAL |
+| DEC-395 | 2026-10-04 | Confidence درباره اعتبار Interpretation است و از Signal مثبت/منفی مستقل می‌ماند؛ EvidenceLink نیز برای هر Target سیگنال، Scope، Relevance و Confidence مستقل دارد. | FINAL |
+| DEC-396 | 2026-10-04 | Evidence Review State Machine شامل DRAFT → SUBMITTED → UNDER_REVIEW → ACCEPTED/REJECTED/NEEDS_CONTEXT است و Evidence ردشده حذف نمی‌شود؛ فقط از Profile computation خارج می‌شود. | FINAL |
+| DEC-397 | 2026-10-04 | Parcham AI می‌تواند Interpretation و Mapping پیشنهاد دهد، Contradiction/Contamination/Gap را کشف کند، اما حق Fail کردن Gate، تعیین Level نهایی، Flag Board Decision یا فعال‌کردن Responsibility را ندارد. | FINAL |
+| DEC-398 | 2026-10-04 | Review Policy سه Tier دارد: Developmental با AI-assisted review، Progression با Human Review و Consequential با Human Reviewer مشخص و accountable. | FINAL |
+| DEC-399 | 2026-10-04 | Evidence Strength باید چندبعدی و شامل Source Reliability/Independence، Behavioural Directness، Context Difficulty، Scope، Repetition، Prompt Purity، Mode، Recency و Outcome Proximity باشد و به Score واحد تقلیل پیدا نکند. | FINAL |
+| DEC-400 | 2026-10-04 | Contradiction یک First-class Entity است و برای تمیزشدن Profile حذف یا Average نمی‌شود؛ EvidenceConflict باید Context/Scope/Recency/Severity و Review Status را نگه دارد. | FINAL |
+| DEC-401 | 2026-10-04 | Pattern Engine مسیر Evidence → Evidence Set → Pattern Candidate → Reviewed Pattern را طی می‌کند و Pattern Statusهای EMERGING، REPEATED، STABLE، CONTRADICTED، REGRESSED و RECOVERING را پشتیبانی می‌کند. | FINAL |
+| DEC-402 | 2026-10-04 | Single Critical Evidence مانند جعل، دروغ عمدی، دستکاری Assessment، پنهان‌کاری جدی Risk یا نقض جدی Trust می‌تواند Immediate Gate Review ایجاد کند اما مستقیماً Gate Failure نمی‌سازد. | FINAL |
+| DEC-403 | 2026-10-04 | CapabilityClaim باید State، Level، Proven Scope، Supporting/Contradictory Patterns، Recency، Claim Confidence، Reviewer و Next Evidence Needed را نگه دارد؛ Level و Scope مستقل‌اند. | FINAL |
+| DEC-404 | 2026-10-04 | Promotion نیازمند Evidence requirement سطح بعدی، Context کافی، Scope واقعی، نبود Contradiction unresolved مهم، Replay لازم و Gate سالم است؛ Downgrade رسمی نیز Human-reviewed و Evidence-based است. | FINAL |
+| DEC-405 | 2026-10-04 | Gate Assessment State Machine به‌صورت UNPROVEN → PASS → AT_RISK → REVIEW_REQUIRED → PASS_CONFIRMED/FAIL و در صورت FAIL سپس REMEDIATION → REASSESSMENT → PASS/FAIL تعریف شد؛ AI یا Event منفرد نمی‌تواند مستقیم Fail ایجاد کند. | FINAL |
+| DEC-406 | 2026-10-04 | Candidate باید Profile Transparency داشته باشد و Evidence مهم، Unproven Area، Gate Risk، Next Evidence Needed و Behaviour Commitment را ببیند؛ Assessment Secrecy درباره Hidden Triggerها جدا باقی می‌ماند. | FINAL |
+| DEC-407 | 2026-10-04 | Candidate حق Response/Dispute برای افزودن Context به Evidence مهم دارد اما حق بازنویسی Evidence را ندارد. | FINAL |
+| DEC-408 | 2026-10-04 | Calibration State Machine شامل OPEN → INDEPENDENT_REVIEWS → DISAGREEMENT_DETECTED → CALIBRATION → RESOLVED است؛ Calibration درباره معنای Evidence است، نه حس کلی درباره Candidate، و Independent Review باید قبل از دیدن نظر Reviewer دیگر انجام شود. | FINAL |
+| DEC-409 | 2026-10-04 | Flag Profile Living است اما در Admission، Real Project Entry، Ownership Trial، Flag Board و Appointment باید ProfileSnapshot immutable ساخته شود تا Decision به Evidence Set زمان خودش متصل بماند. | FINAL |
+| DEC-410 | 2026-10-04 | Profile Updateهای Consequential باید مسیر Profile Update Proposal → Human Review → Apply را طی کنند؛ Developmental updateهای کم‌ریسک می‌توانند Automation بیشتری داشته باشند. | FINAL |
+| DEC-411 | 2026-10-04 | ResponsibilityDefinition Requirementهای Capability/Competency/Gate/Scope/Freshness را تعریف می‌کند و ResponsibilityRecommendation یکی از READY، READY WITH CONDITIONS، DIFFERENT SCOPE، NOT YET یا BLOCKED BY GATE است و باید Explainable باشد. | FINAL |
+| DEC-412 | 2026-10-04 | Responsibility Recommendation با Appointment Decision یکی نیست؛ Appointment/Promotion/Reduced Scope نیازمند Explicit Human Decision است و Override خلاف Recommendation باید با Reason و Accountable Decision Maker ثبت شود. | FINAL |
+| DEC-413 | 2026-10-04 | Flag Board State Machine شامل DRAFT_CASE → EVIDENCE_FREEZE → INDEPENDENT_REVIEW → CONFLICT_RESOLUTION → BOARD_READY → BOARD_DECISION → DECISION_ACKNOWLEDGED است؛ Decision یکی از READY/NOT_YET/DIFFERENT_SCOPE و Appointment تصمیمی جداست. | FINAL |
+| DEC-414 | 2026-10-04 | NOT YET باید Actionable باشد و Blocking Evidence Gaps، Required Behaviours، Recommended Experience، Replay Requirements و Review Horizon تولید کند. | FINAL |
+| DEC-415 | 2026-10-04 | Learning Loop باید در Evidence Engine به‌صورت Learning Claim → Replay Opportunity → Behaviour Evidence قابل ردیابی باشد تا Recovery و Sustained Change در Profile دیده شود. | FINAL |
+| DEC-416 | 2026-10-04 | Data Lineage کامل از Claim → Pattern → Evidence Links → Interpretations → Observations → Mission/Real Project Source الزامی است؛ اصل «No claim without lineage» قطعی شد. | FINAL |
+| DEC-417 | 2026-10-04 | Black-box score منبع حقیقت شایستگی نیست؛ embedding/latent score فقط می‌تواند Retrieval/Detection را کمک کند و هیچ Responsibility Assignment نباید از Black-box Score انجام شود. | FINAL |
+| DEC-418 | 2026-10-04 | خود Assessment System باید با Performance واقعی ارزیابی شود: Assessment Decision → Real Performance → Outcome → Calibration of Assessment System. | FINAL |
+| DEC-419 | 2026-10-04 | سه اصل نهایی Evidence Engine: No claim without lineage؛ No gate failure without accountable human review؛ No responsibility assignment from a black-box score. | FINAL |
 
 ---
 
