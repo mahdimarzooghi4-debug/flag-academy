@@ -46,7 +46,8 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
     "مالکیت Outcome را از تعریف مسئله تا بازیابی نتیجه نگه می‌دارم و نقطه Escalation را شفاف می‌کنم.",
   );
   await practiceCard.getByRole("button", { name: "ثبت تمرین" }).click();
-  await expect(practiceCard.getByText("ATTEMPT_SUBMITTED")).toBeVisible();
+  await expect(practiceCard.getByText("1 ATTEMPT")).toBeVisible();
+  await expect(practiceCard.getByText("در انتظار بازخورد مدرس.")).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
   await page.getByLabel("پاسخ تکلیف").fill(
