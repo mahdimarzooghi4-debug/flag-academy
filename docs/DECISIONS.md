@@ -327,6 +327,23 @@
 | DEC-319 | 2026-10-04 | خروجی Curriculum یک Certification عمومی نیست؛ Flag Profile، Gate Status، Proven Capability Levels/Scopes و Recommended Responsibility خروجی رسمی هستند. | FINAL |
 | DEC-320 | 2026-10-04 | Curriculum بعد از Appointment پایان نمی‌یابد؛ Growth Loop به‌صورت Performance → Evidence → Reflection → Larger Mission → New Scope Proof ادامه دارد و Academy یک Leadership Development Operating System است. | FINAL |
 | DEC-321 | 2026-10-04 | اصل Curriculum Operating Model: «پرچم مسیر آموزشی نمی‌سازد که افراد آن را تمام کنند؛ مسیر اثباتی می‌سازد که سازمان بفهمد چه مسئولیتی را می‌تواند با اطمینان به هر فرد بسپارد.» | FINAL |
+| DEC-322 | 2026-10-04 | Prerequisite Map سه نوع رابطه Hard Prerequisite، Co-requisite و Cross-cutting دارد؛ Hard Prerequisite فقط برای Missionهای اثباتی پیشرفته اعمال می‌شود، نه Learning Content. | FINAL |
+| DEC-323 | 2026-10-04 | Gate Matrix رسمی شامل Gate A Foundation Readiness، Gate B Product Judgment Readiness، Gate C Real Project Readiness، Gate D Ownership Trial Readiness و Gate E Flag Board است. | FINAL |
+| DEC-324 | 2026-10-04 | Gate نتیجه Average Score نیست؛ Decision مبتنی بر Evidence است و Capability قوی نمی‌تواند Gate Failure را با میانگین جبران کند. | FINAL |
+| DEC-325 | 2026-10-04 | INSUFFICIENT EVIDENCE از GATE FAILURE جداست؛ اولی یعنی هنوز نمی‌دانیم و دومی یعنی Evidence معتبر از رفتار ناسازگار با Gate داریم. | FINAL |
+| DEC-326 | 2026-10-04 | Gate Stateها به‌صورت UNPROVEN → PASS → AT_RISK → FAIL → REMEDIATION → REASSESSMENT → PASS/FAIL تعریف شدند و Gate یک Living State است. | FINAL |
+| DEC-327 | 2026-10-04 | Capability، Competency و Gate سه مفهوم مستقل‌اند و یک Behaviour می‌تواند به هر سه به‌صورت Native multi-mapping متصل شود بدون Duplicate کردن Evidence. | FINAL |
+| DEC-328 | 2026-10-04 | Evidence Lifecycle رسمی به‌صورت Raw Event → Observation → Candidate Evidence → Reviewed Evidence → Pattern → Profile Claim تعریف شد و Observation نباید با Judgment یکی شود. | FINAL |
+| DEC-329 | 2026-10-04 | Evidence Record باید حداقل Person، Mission، Situation، Observation، Behaviour، Source، Source Independence Group، Capability/Competency/Gate Links، Signal، Scope، Confidence، Outcome Link، Prompt Contamination، AI Contribution، Timestamp، Review Status، Reviewer و Replay Link را نگه دارد. | FINAL |
+| DEC-330 | 2026-10-04 | Evidence خام Immutable است؛ Interpretation می‌تواند Version و Supersede شود اما Observation اصلی برای Audit حفظ می‌شود. | FINAL |
+| DEC-331 | 2026-10-04 | Contradictory Evidence حذف یا Average نمی‌شود؛ Contradiction خودش Data است و باید برای Context، Regression، Evidence issue یا Gate risk بررسی شود. | FINAL |
+| DEC-332 | 2026-10-04 | Evidence Independence باید با Source Independence Group مدل شود تا چند Observation از یک Event یا Source به‌اشتباه Evidence مستقل شمرده نشوند. | FINAL |
+| DEC-333 | 2026-10-04 | Prompt Contamination باید در Evidence Engine ثبت شود؛ رفتار Prompt‌شده Evidence قوی برای همان Behaviour مورد سنجش محسوب نمی‌شود. | FINAL |
+| DEC-334 | 2026-10-04 | AI Provenance باید Human-only، AI-assisted، AI-generated + human-reviewed و AI-generated را تفکیک کند؛ AI use Evidence را باطل نمی‌کند اما ماهیت سنجش را تغییر می‌دهد. | FINAL |
+| DEC-335 | 2026-10-04 | Evidence Strength باید از ابعادی مانند Source Reliability، Independence، Behavioural Directness، Context Difficulty، Scope، Repetition، Prompt Purity و Recency/Relevance فهمیده شود و الزاماً به یک Score واحد تبدیل نشود. | FINAL |
+| DEC-336 | 2026-10-04 | Evidence در Scope پایین به‌صورت خودکار Scope بالاتر را اثبات نمی‌کند؛ Promotion Scope نیازمند Evidence واقعی در Scope بالاتر است. | FINAL |
+| DEC-337 | 2026-10-04 | Evidence تاریخی حذف نمی‌شود اما Historical Evidence از Current Capability Evidence جداست و Evidence قدیمی ممکن است برای Claim فعلی کافی نباشد. | FINAL |
+| DEC-338 | 2026-10-04 | Profile Update Engine باید مسیر Events → Evidence → Reviewed Patterns → Capability Claims → Gate Status → Responsibility Recommendation را طی کند و Responsibility Recommendation Evidence-driven باشد، نه Title-driven. | FINAL |
 
 ---
 
