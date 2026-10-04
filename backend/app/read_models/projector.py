@@ -22,6 +22,8 @@ from app.learning.models import (
     InstructorFeedback,
     LearningUnit,
     LearningUnitProgress,
+    PracticeAttempt,
+    PracticeFeedback,
     Submission,
 )
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
@@ -101,6 +103,25 @@ async def _latest_feedback_by_submission(
     result: dict[UUID, InstructorFeedback] = {}
     for row in rows:
         result[row.submission_id] = row
+    return result
+
+
+async def _latest_practice_feedback(
+    db: AsyncSession,
+    attempt_ids: list[UUID],
+) -> dict[UUID, PracticeFeedback]:
+    if not attempt_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(PracticeFeedback)
+            .where(PracticeFeedback.practice_attempt_id.in_(attempt_ids))
+            .order_by(PracticeFeedback.created_at)
+        )
+    ).scalars().all()
+    result: dict[UUID, PracticeFeedback] = {}
+    for row in rows:
+        result[row.practice_attempt_id] = row
     return result
 
 
@@ -237,6 +258,24 @@ async def rebuild_candidate_home(
         ).scalars().all()
     progress_by_unit = {item.learning_unit_id: item for item in progresses}
 
+    practice_attempts: Sequence[PracticeAttempt] = []
+    practice_unit_ids = [item.id for item in units if item.phase == "PRACTICE"]
+    if practice_unit_ids:
+        practice_attempts = (
+            await db.execute(
+                select(PracticeAttempt).where(
+                    PracticeAttempt.learning_unit_id.in_(practice_unit_ids),
+                    PracticeAttempt.candidate_id == person_id,
+                )
+            )
+        ).scalars().all()
+    practice_attempt_by_unit = {
+        item.learning_unit_id: item for item in practice_attempts
+    }
+    practice_feedback = await _latest_practice_feedback(
+        db, [item.id for item in practice_attempts]
+    )
+
     assignment_ids = [item.id for item in assignments]
     submissions: Sequence[Submission] = []
     if assignment_ids:
@@ -321,8 +360,17 @@ async def rebuild_candidate_home(
                 ),
                 "body": unit.body,
                 "due_at": None,
-                "submission_id": None,
-                "feedback_text": None,
+                "submission_id": (
+                    str(practice_attempt_by_unit[unit.id].id)
+                    if unit.id in practice_attempt_by_unit
+                    else None
+                ),
+                "feedback_text": (
+                    practice_feedback[practice_attempt_by_unit[unit.id].id].feedback_text
+                    if unit.id in practice_attempt_by_unit
+                    and practice_attempt_by_unit[unit.id].id in practice_feedback
+                    else None
+                ),
             }
         )
 
@@ -456,6 +504,25 @@ async def rebuild_instructor_home(
             .order_by(LearningUnit.class_offering_id, LearningUnit.position)
         )
     ).scalars().all()
+    practice_units = [item for item in learning_units if item.phase == "PRACTICE"]
+    practice_attempts: Sequence[PracticeAttempt] = []
+    if practice_units:
+        practice_attempts = (
+            await db.execute(
+                select(PracticeAttempt)
+                .where(
+                    PracticeAttempt.learning_unit_id.in_(
+                        [item.id for item in practice_units]
+                    )
+                )
+                .order_by(PracticeAttempt.submitted_at)
+            )
+        ).scalars().all()
+    practice_feedback = await _latest_practice_feedback(
+        db, [item.id for item in practice_attempts]
+    )
+    practice_unit_by_id = {item.id: item for item in practice_units}
+
     learning_assignments = (
         await db.execute(
             select(Assignment)
@@ -535,6 +602,27 @@ async def rebuild_instructor_home(
                     "status": item.status,
                 }
                 for item in learning_assignments
+            ],
+            "practice_attempts": [
+                {
+                    "id": str(item.id),
+                    "learning_unit_id": str(item.learning_unit_id),
+                    "practice_title": practice_unit_by_id[item.learning_unit_id].title,
+                    "candidate_id": str(item.candidate_id),
+                    "candidate_name": (
+                        person_by_id[item.candidate_id].display_name
+                        if item.candidate_id in person_by_id
+                        else str(item.candidate_id)
+                    ),
+                    "response_text": item.response_text,
+                    "status": item.status,
+                    "feedback_text": (
+                        practice_feedback[item.id].feedback_text
+                        if item.id in practice_feedback
+                        else None
+                    ),
+                }
+                for item in practice_attempts
             ],
             "submissions": [
                 {

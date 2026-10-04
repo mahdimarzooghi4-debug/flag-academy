@@ -57,6 +57,8 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
         "learning.assignment_published.v1",
         "learning.submission_submitted.v1",
         "learning.instructor_feedback_recorded.v1",
+        "learning.practice_attempt_submitted.v1",
+        "learning.practice_feedback_recorded.v1",
     }:
         cohort_id = envelope.payload.get("cohort_id")
         if cohort_id and envelope.organization_context_id:

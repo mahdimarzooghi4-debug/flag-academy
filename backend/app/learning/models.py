@@ -88,3 +88,35 @@ class InstructorFeedback(Base):
     instructor_id: Mapped[UUID]
     feedback_text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PracticeAttempt(Base):
+    __tablename__ = "practice_attempts"
+    __table_args__ = (
+        UniqueConstraint("learning_unit_id", "candidate_id"),
+        {"schema": "learning"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    learning_unit_id: Mapped[UUID] = mapped_column(
+        ForeignKey("learning.learning_units.id")
+    )
+    candidate_id: Mapped[UUID]
+    response_text: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(32))
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PracticeFeedback(Base):
+    __tablename__ = "practice_feedback"
+    __table_args__ = {"schema": "learning"}
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    practice_attempt_id: Mapped[UUID] = mapped_column(
+        ForeignKey("learning.practice_attempts.id")
+    )
+    instructor_id: Mapped[UUID]
+    feedback_text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

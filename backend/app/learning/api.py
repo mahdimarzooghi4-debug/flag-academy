@@ -16,6 +16,8 @@ from app.learning.models import (
     InstructorFeedback,
     LearningUnit,
     LearningUnitProgress,
+    PracticeAttempt,
+    PracticeFeedback,
     Submission,
 )
 from app.platform.events import new_event, record_event
@@ -60,6 +62,30 @@ class LearningUnitProgressResponse(BaseModel):
     state: str
     started_at: datetime | None
     completed_at: datetime | None
+
+
+class PracticeAttemptCreate(BaseModel):
+    response_text: str = Field(min_length=1, max_length=20_000)
+
+
+class PracticeAttemptResponse(BaseModel):
+    id: UUID
+    learning_unit_id: UUID
+    candidate_id: UUID
+    status: str
+    submitted_at: datetime
+
+
+class PracticeFeedbackCreate(BaseModel):
+    feedback_text: str = Field(min_length=1, max_length=20_000)
+
+
+class PracticeFeedbackResponse(BaseModel):
+    id: UUID
+    practice_attempt_id: UUID
+    instructor_id: UUID
+    feedback_text: str
+    created_at: datetime
 
 
 class SubmissionCreate(BaseModel):
@@ -382,6 +408,191 @@ async def complete_learning_unit(
         state=progress.state,
         started_at=progress.started_at,
         completed_at=progress.completed_at,
+    )
+
+
+@router.post(
+    "/practice-units/{learning_unit_id}/attempts",
+    response_model=PracticeAttemptResponse,
+    status_code=201,
+)
+async def submit_practice_attempt(
+    learning_unit_id: UUID,
+    body: PracticeAttemptCreate,
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> PracticeAttemptResponse:
+    unit, cohort = await _load_candidate_learning_unit(
+        db,
+        actor=actor,
+        learning_unit_id=learning_unit_id,
+    )
+    if unit.phase != "PRACTICE":
+        raise AppError(
+            "PRACTICE_UNIT_REQUIRED",
+            "Learning unit is not a practice activity.",
+            status_code=422,
+        )
+
+    existing = (
+        await db.execute(
+            select(PracticeAttempt).where(
+                PracticeAttempt.learning_unit_id == unit.id,
+                PracticeAttempt.candidate_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise AppError(
+            "PRACTICE_ATTEMPT_ALREADY_EXISTS",
+            "This practice activity already has an attempt.",
+            status_code=409,
+            details={"practice_attempt_id": str(existing.id)},
+        )
+
+    now = datetime.now(UTC)
+    progress = (
+        await db.execute(
+            select(LearningUnitProgress).where(
+                LearningUnitProgress.learning_unit_id == unit.id,
+                LearningUnitProgress.candidate_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if progress is None:
+        progress = LearningUnitProgress(
+            id=uuid4(),
+            learning_unit_id=unit.id,
+            candidate_id=actor.person_id,
+            state="COMPLETED",
+            started_at=now,
+            completed_at=now,
+            updated_at=now,
+        )
+        db.add(progress)
+    else:
+        progress.state = "COMPLETED"
+        progress.completed_at = now
+        progress.updated_at = now
+        progress.version += 1
+
+    attempt = PracticeAttempt(
+        id=uuid4(),
+        learning_unit_id=unit.id,
+        candidate_id=actor.person_id,
+        response_text=body.response_text.strip(),
+        status="SUBMITTED",
+        submitted_at=now,
+        updated_at=now,
+    )
+    db.add(attempt)
+    await db.flush()
+
+    record_event(
+        db,
+        new_event(
+            event_type="learning.practice_attempt_submitted.v1",
+            aggregate_type="PracticeAttempt",
+            aggregate_id=attempt.id,
+            aggregate_version=attempt.version,
+            actor={"type": "PERSON", "id": str(actor.person_id)},
+            organization_context_id=actor.organization_context_id,
+            data_classification="INTERNAL",
+            payload={
+                "practice_attempt_id": str(attempt.id),
+                "learning_unit_id": str(unit.id),
+                "candidate_id": str(actor.person_id),
+                "class_offering_id": str(unit.class_offering_id),
+                "cohort_id": str(cohort.id),
+            },
+            trace_id=actor.trace_id,
+        ),
+    )
+    await db.commit()
+
+    return PracticeAttemptResponse(
+        id=attempt.id,
+        learning_unit_id=attempt.learning_unit_id,
+        candidate_id=attempt.candidate_id,
+        status=attempt.status,
+        submitted_at=attempt.submitted_at,
+    )
+
+
+@router.post(
+    "/practice-attempts/{practice_attempt_id}/feedback",
+    response_model=PracticeFeedbackResponse,
+    status_code=201,
+)
+async def record_practice_feedback(
+    practice_attempt_id: UUID,
+    body: PracticeFeedbackCreate,
+    actor: Annotated[ActorContext, Depends(require_role("INSTRUCTOR"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> PracticeFeedbackResponse:
+    attempt = await db.get(PracticeAttempt, practice_attempt_id)
+    if attempt is None:
+        raise AppError(
+            "PRACTICE_ATTEMPT_NOT_FOUND",
+            "Practice attempt not found.",
+            status_code=404,
+        )
+    unit = await db.get(LearningUnit, attempt.learning_unit_id)
+    if unit is None:
+        raise AppError(
+            "PRACTICE_ATTEMPT_NOT_FOUND",
+            "Practice attempt not found.",
+            status_code=404,
+        )
+
+    _, cohort = await _require_instructor_class_access(
+        db,
+        actor=actor,
+        class_offering_id=unit.class_offering_id,
+    )
+
+    now = datetime.now(UTC)
+    feedback = PracticeFeedback(
+        id=uuid4(),
+        practice_attempt_id=attempt.id,
+        instructor_id=actor.person_id,
+        feedback_text=body.feedback_text.strip(),
+        created_at=now,
+    )
+    db.add(feedback)
+    attempt.status = "FEEDBACK_PROVIDED"
+    attempt.version += 1
+    attempt.updated_at = now
+
+    record_event(
+        db,
+        new_event(
+            event_type="learning.practice_feedback_recorded.v1",
+            aggregate_type="PracticeAttempt",
+            aggregate_id=attempt.id,
+            aggregate_version=attempt.version,
+            actor={"type": "PERSON", "id": str(actor.person_id)},
+            organization_context_id=actor.organization_context_id,
+            data_classification="INTERNAL",
+            payload={
+                "practice_attempt_id": str(attempt.id),
+                "learning_unit_id": str(unit.id),
+                "candidate_id": str(attempt.candidate_id),
+                "class_offering_id": str(unit.class_offering_id),
+                "cohort_id": str(cohort.id),
+                "feedback_id": str(feedback.id),
+            },
+            trace_id=actor.trace_id,
+        ),
+    )
+    await db.commit()
+
+    return PracticeFeedbackResponse(
+        id=feedback.id,
+        practice_attempt_id=feedback.practice_attempt_id,
+        instructor_id=feedback.instructor_id,
+        feedback_text=feedback.feedback_text,
+        created_at=feedback.created_at,
     )
 
 

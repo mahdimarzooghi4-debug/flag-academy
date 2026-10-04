@@ -101,6 +101,17 @@ class InstructorAssignment(BaseModel):
     status: str
 
 
+class InstructorPracticeAttempt(BaseModel):
+    id: str
+    learning_unit_id: str
+    practice_title: str
+    candidate_id: str
+    candidate_name: str
+    response_text: str
+    status: str
+    feedback_text: str | None = None
+
+
 class InstructorSubmission(BaseModel):
     id: str
     assignment_id: str
@@ -121,6 +132,7 @@ class InstructorHomeResponse(BaseModel):
     current_wave: WaveSummary
     learning_units: list[InstructorLearningUnit]
     assignments: list[InstructorAssignment]
+    practice_attempts: list[InstructorPracticeAttempt]
     submissions: list[InstructorSubmission]
 
 

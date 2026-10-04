@@ -16,6 +16,8 @@ def test_learning_business_contract_is_exposed() -> None:
     assert "/api/v1/classes/{class_offering_id}/learning" in paths
     assert "/api/v1/learning-units/{learning_unit_id}/start" in paths
     assert "/api/v1/learning-units/{learning_unit_id}/complete" in paths
+    assert "/api/v1/practice-units/{learning_unit_id}/attempts" in paths
+    assert "/api/v1/practice-attempts/{practice_attempt_id}/feedback" in paths
     assert "/api/v1/assignments/{assignment_id}/submissions" in paths
     assert "/api/v1/submissions/{submission_id}/feedback" in paths
     assert "post" in paths["/api/v1/assignments/{assignment_id}/submissions"]

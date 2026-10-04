@@ -29,3 +29,8 @@ class AssignmentStatus(StrEnum):
 class SubmissionStatus(StrEnum):
     SUBMITTED = "SUBMITTED"
     FEEDBACK_PROVIDED = "FEEDBACK_PROVIDED"
+
+
+class PracticeAttemptStatus(StrEnum):
+    SUBMITTED = "SUBMITTED"
+    FEEDBACK_PROVIDED = "FEEDBACK_PROVIDED"

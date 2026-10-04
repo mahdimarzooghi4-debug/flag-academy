@@ -29,6 +29,8 @@ from app.learning.models import (
     InstructorFeedback,
     LearningUnit,
     LearningUnitProgress,
+    PracticeAttempt,
+    PracticeFeedback,
     Submission,
 )
 from app.platform.events import new_event, record_event
@@ -79,6 +81,8 @@ async def seed() -> None:
             CandidateHomeProjection,
             InstructorHomeProjection,
             InstructorFeedback,
+            PracticeFeedback,
+            PracticeAttempt,
             Submission,
             LearningUnitProgress,
             Assignment,
