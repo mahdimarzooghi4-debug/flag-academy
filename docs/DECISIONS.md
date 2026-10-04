@@ -41,6 +41,14 @@
 | DEC-033 | 2026-10-04 | Accountability یک Cross-Competency Gate است و بُعد نهم مستقل محسوب نمی‌شود. | FINAL |
 | DEC-034 | 2026-10-04 | نبود Evidence به معنی ضعف نیست؛ وضعیت باید Unproven / L0 ثبت شود. | FINAL |
 | DEC-035 | 2026-10-04 | خروجی Assessment فقط Score عددی نیست؛ باید Level/Scope، Evidence، Gate Status، نقاط Unproven و Responsibility Recommendation را نشان دهد. | FINAL |
+| DEC-036 | 2026-10-04 | اصل پذیرش: آکادمی بهترین افراد امروز را صرفاً انتخاب نمی‌کند؛ افرادی را انتخاب می‌کند که بیشترین ظرفیت تبدیل‌شدن به پرچمداران فردا را دارند. | FINAL |
+| DEC-037 | 2026-10-04 | Funnel پذیرش پنج‌مرحله‌ای است: Application → Baseline Challenge → Simulation Assessment → Assessment Camp → Selection Board. | FINAL |
+| DEC-038 | 2026-10-04 | CV، مدرک دانشگاهی، برند شرکت قبلی و عنوان شغلی نباید به‌تنهایی مزیت تعیین‌کننده در پذیرش باشند. | FINAL |
+| DEC-039 | 2026-10-04 | Signalهای بنیادی ورودی: Trustworthiness، Ownership، Learning Ability، Judgment Potential و Capacity for Accountability. | FINAL |
+| DEC-040 | 2026-10-04 | Product Knowledge، System Building، Leadership at Scale و Execution at Product Scope نباید در ورودی بیش‌وزن شوند؛ این‌ها بخشی از مسیر رشد آکادمی هستند. | FINAL |
+| DEC-041 | 2026-10-04 | برخی Red Flagهای پذیرش می‌توانند Gate Failure ایجاد کنند و با امتیاز سایر ابعاد جبران نمی‌شوند. | FINAL |
+| DEC-042 | 2026-10-04 | خروجی پذیرش هر فرد باید Candidate Baseline Profile باشد و این پروفایل نقطه صفر Flag Profile او محسوب شود. | FINAL |
+| DEC-043 | 2026-10-04 | اثربخشی آکادمی باید با مقایسه نقطه شروع، رشد شایستگی، شایستگی اثبات‌شده و مسئولیت قابل‌سپردن به فرد سنجیده شود. | FINAL |
 
 ---
 
