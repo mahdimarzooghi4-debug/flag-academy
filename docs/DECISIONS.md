@@ -259,6 +259,20 @@
 | DEC-251 | 2026-10-04 | در Real Project Mode، AI Stakeholder Copilot می‌تواند Alignment gap، Decision بدون Owner و Riskهای ارتباطی را آشکار کند، اما نباید به‌جای فرد Conversation سخت را انجام دهد. | FINAL |
 | DEC-252 | 2026-10-04 | عبور از Capability 12 نیازمند Evidence در چند Context، روشن‌کردن Decision Rights، تبدیل Conflict به Decision/Commitment، مخالفت حرفه‌ای با Authority، Early bad-news communication، Alignment without authority، Repair یک Misalignment و حفظ Alignment با وجود ناراضی‌ماندن حداقل یک Stakeholder مهم است. | FINAL |
 | DEC-253 | 2026-10-04 | اصل فرهنگی Stakeholder Alignment: «پرچمدار همه را راضی نمی‌کند؛ همه را نسبت به حقیقت، تصمیم و مسئولیت روشن می‌کند.» | FINAL |
+| DEC-254 | 2026-10-04 | Capability 13 با عنوان Product Leadership تعریف شد: ساخت شرایطی که تیم حول Outcome مشترک با وضوح، اعتماد، مسئولیت، استاندارد و استقلال مناسب تصمیم بگیرد، یاد بگیرد و نتیجه تولید کند. | FINAL |
+| DEC-255 | 2026-10-04 | مرز Capabilityها به‌صورت Align People → Lead Team → Build System تثبیت شد؛ Stakeholder Alignment، Product Leadership و System Building سه لایه متمایز اما پیوسته‌اند. | FINAL |
+| DEC-256 | 2026-10-04 | Leadership Model پرچم شامل Direction، Context، Ownership، Standards، Growth و Trust & Accountability است. | FINAL |
+| DEC-257 | 2026-10-04 | Delegation معتبر باید Outcome، Boundary، Decision Rights و Checkpoints را روشن کند؛ Micromanagement و Abandonment هر دو ضد Leadership هستند. | FINAL |
+| DEC-258 | 2026-10-04 | Mission Ladder این Capability شامل Team Without Direction، The Delegation Trap، Strong Performer Bad Team Behavior، Underperformance، Team Failure، Conflict Inside the Team، Leadership Under Pressure و The Team Without You است. | FINAL |
+| DEC-259 | 2026-10-04 | مفهوم Leadership Debt پذیرفته شد؛ وابسته‌کردن تیم به Leader برای سرعت کوتاه‌مدت، بدهی‌ای با پیامدهایی مانند Decision Bottleneck، Low Ownership و Key-person Dependency ایجاد می‌کند. | FINAL |
+| DEC-260 | 2026-10-04 | Artifactهای اصلی Product Leadership شامل Team Outcome Charter، Decision Rights، Delegation Brief، Role & Responsibility Map، Team Working Agreements، Coaching/Feedback/Development records، Team Health Review، Leadership Decision Log و Succession/Backup Map هستند. | FINAL |
+| DEC-261 | 2026-10-04 | Psychological Safety در پرچم به معنی امکان گفتن نمی‌دانم، گزارش خطا، مخالفت، طرح Risk و سؤال سخت بدون ترس نامعقول از تحقیر یا انتقام است؛ مدل مطلوب High Safety + High Standards است. | FINAL |
+| DEC-262 | 2026-10-04 | Team Health باید Signalهایی مانند Ownership Distribution، Decision Bottleneck، Trust، Conflict Quality، Sustainable Load، Learning Rate، Rework، Commitment Reliability و Key-person Dependency را در بر بگیرد. | FINAL |
+| DEC-263 | 2026-10-04 | Heroics معیار Leadership نیست؛ نجات‌دادن مکرر تیم می‌تواند Evidence ضعف Leadership باشد اگر سیستم و تیم بدون فرد نتوانند عمل کنند. | FINAL |
+| DEC-264 | 2026-10-04 | در Assessment Mode، Parcham AI نباید زمان Delegation یا Coaching را به کاندیدا تلقین کند؛ Team State باید با Stateهایی مانند Trust، Ownership، Clarity، Capability، Motivation، Load، Friction و Dependency بر اساس رفتار فرد تغییر کند. | FINAL |
+| DEC-265 | 2026-10-04 | رابطه Leadership قابل Outsource به AI نیست؛ Performance Feedback، Conflict Resolution، Trust Repair و Recognition باید Human-owned بمانند. | FINAL |
+| DEC-266 | 2026-10-04 | عبور از Capability 13 علاوه بر Evidence در چند Context، نیازمند سه Evidence اجباری است: افزایش استقلال حداقل یک عضو/تیم، خودداری آگاهانه از Hero شدن، و پایداری عملکرد تیم در Mission «The Team Without You». | FINAL |
+| DEC-267 | 2026-10-04 | اصل فرهنگی Product Leadership: «پرچمدار فقط خودش بار را حمل نمی‌کند؛ آدم‌هایی می‌سازد که بتوانند پرچم‌های بزرگ‌تری را حمل کنند.» | FINAL |
 
 ---
 
