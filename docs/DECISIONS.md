@@ -96,6 +96,18 @@
 | DEC-088 | 2026-10-04 | حافظه Parcham AI باید Structured، Evidence-based و قابل Audit باشد و نباید بر برداشت مبهم درباره فرد تکیه کند. | FINAL |
 | DEC-089 | 2026-10-04 | مفهوم Leadership Digital Twin به‌عنوان مدل زنده و Evidence-based توانایی‌ها، الگوی تصمیم‌گیری، واکنش به فشار، یادگیری و Scope اثبات‌شده هر فرد پذیرفته شد. | FINAL |
 | DEC-090 | 2026-10-04 | تمام Evidenceها و Recommendationهای تولیدشده توسط AI باید دارای Audit Trail، Permission و Data Governance باشند. | FINAL |
+| DEC-091 | 2026-10-04 | چرخه تربیت مدیر محصول در پرچم: Admission → Foundation → Product Core → Simulation → Apprenticeship → Ownership Trial → Flag Board → Appointment → Growth Loop. | FINAL |
+| DEC-092 | 2026-10-04 | خلاصه مفهومی چرخه مدیر محصول: Discover → Develop → Simulate → Deploy → Prove → Entrust → Grow. | FINAL |
+| DEC-093 | 2026-10-04 | در Foundation اصل No Passive Completion برقرار است؛ حضور یا مصرف محتوا به‌تنهایی Completion محسوب نمی‌شود. | FINAL |
+| DEC-094 | 2026-10-04 | الگوی Product Core: Concept → Mission → Feedback → Reflection → Harder Mission. | FINAL |
+| DEC-095 | 2026-10-04 | در مرحله Simulation، نقش AI از Tutor به Simulation Director تغییر می‌کند و گذار Teach me → Test me رخ می‌دهد. | FINAL |
+| DEC-096 | 2026-10-04 | ورود به پروژه واقعی نیازمند Gate مستقل است و صرف پایان دوره کافی نیست؛ Trust، Ownership و Accountability باید PASS باشند و در Judgment، Execution و Communication Evidence کافی وجود داشته باشد. | FINAL |
+| DEC-097 | 2026-10-04 | Apprenticeship مرحله‌ای حقوق‌بگیر، واقعی و کنترل‌شده است؛ فرد هنوز مدیر محصول رسمی نیست و Scope محدود واقعی دریافت می‌کند. | FINAL |
+| DEC-098 | 2026-10-04 | در Ownership Trial، فرد Outcome واقعی می‌گیرد نه صرفاً Task و باید مالکیت Product Scope را در جهان واقعی اثبات کند. | FINAL |
+| DEC-099 | 2026-10-04 | عدم عبور از Product Ownership Proof لزوماً Reject نیست و مسیر Remediation باید امکان بازگشت به Simulation، Mission تخصصی، Mentoring یا Scope کوچک‌تر را بدهد. | FINAL |
+| DEC-100 | 2026-10-04 | Flag Board آزمون پایانی کلاسیک نیست؛ بر اساس پرونده Evidence تصمیم READY / NOT YET / DIFFERENT SCOPE می‌گیرد. | FINAL |
+| DEC-101 | 2026-10-04 | عنوان، حکم و نشان رسمی فقط پس از اثبات توانایی و تأیید Flag Board داده می‌شوند؛ نشان نماد دامنه مسئولیتی است که سازمان حاضر است بسپارد. | FINAL |
+| DEC-102 | 2026-10-04 | Growth Loop پس از انتصاب ادامه دارد؛ Evidence Ledger و Flag Profile با عملکرد واقعی به‌روزرسانی می‌شوند و سؤال اصلی تبدیل می‌شود به «مسئولیت بعدی که فرد آماده حمل آن است چیست؟». | FINAL |
 
 ---
 
