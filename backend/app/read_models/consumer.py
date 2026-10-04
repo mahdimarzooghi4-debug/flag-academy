@@ -48,6 +48,21 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
                 cohort_id=class_offering.cohort_id,
                 organization_context_id=envelope.organization_context_id,
             )
+        return
+
+    if envelope.event_type in {
+        "learning.unit_published.v1",
+        "learning.assignment_published.v1",
+        "learning.submission_submitted.v1",
+        "learning.instructor_feedback_recorded.v1",
+    }:
+        cohort_id = envelope.payload.get("cohort_id")
+        if cohort_id and envelope.organization_context_id:
+            await rebuild_cohort_read_models(
+                db,
+                cohort_id=UUID(str(cohort_id)),
+                organization_context_id=envelope.organization_context_id,
+            )
 
 
 async def run_forever() -> None:

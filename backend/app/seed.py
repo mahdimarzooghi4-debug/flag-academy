@@ -24,6 +24,7 @@ from app.curriculum.models import (
 from app.db import SessionFactory
 from app.identity.models import Organization, OrganizationMembership, Person
 from app.journey.models import CandidateJourney
+from app.learning.models import Assignment, InstructorFeedback, LearningUnit, Submission
 from app.platform.events import new_event, record_event
 from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
@@ -34,6 +35,8 @@ CANDIDATE_ID = UUID("00000000-0000-0000-0000-000000000101")
 INSTRUCTOR_ID = UUID("00000000-0000-0000-0000-000000000102")
 COHORT_ID = UUID("00000000-0000-0000-0000-000000000201")
 CURRICULUM_ID = UUID("00000000-0000-0000-0000-000000000301")
+CLASS_ID = UUID("00000000-0000-0000-0000-000000000220")
+ASSIGNMENT_ID = UUID("00000000-0000-0000-0000-000000000510")
 
 NAMES = {
     "OWNERSHIP_ACCOUNTABILITY": "Ownership & Accountability",
@@ -63,13 +66,16 @@ WAVES = [
 async def seed() -> None:
     now = datetime.now(UTC)
     async with SessionFactory() as db:
-        # Development seed is intentionally deterministic and disposable.
         for model in (
             InboxEvent,
             OutboxEvent,
             DomainEvent,
             CandidateHomeProjection,
             InstructorHomeProjection,
+            InstructorFeedback,
+            Submission,
+            Assignment,
+            LearningUnit,
             CandidateJourney,
             InstructorAssignment,
             Session,
@@ -137,17 +143,17 @@ async def seed() -> None:
                     status="ACTIVE",
                 )
             )
-
         await db.flush()
 
-        curriculum = Curriculum(
-            id=CURRICULUM_ID,
-            code="PRODUCT_MANAGER",
-            version_number=1,
-            name="Product Manager Curriculum v1",
-            status="ACTIVE",
+        db.add(
+            Curriculum(
+                id=CURRICULUM_ID,
+                code="PRODUCT_MANAGER",
+                version_number=1,
+                name="Product Manager Curriculum v1",
+                status="ACTIVE",
+            )
         )
-        db.add(curriculum)
         await db.flush()
         for wave_index, (wave_code, wave_name, capability_codes) in enumerate(WAVES, start=1):
             wave_id = UUID(f"30000000-0000-0000-0000-{wave_index:012d}")
@@ -201,10 +207,9 @@ async def seed() -> None:
         ])
 
         await db.flush()
-        class_id = UUID("00000000-0000-0000-0000-000000000220")
         db.add(
             ClassOffering(
-                id=class_id,
+                id=CLASS_ID,
                 cohort_id=COHORT_ID,
                 title="Ownership & Accountability",
                 primary_capability_version_id=versions["OWNERSHIP_ACCOUNTABILITY"],
@@ -215,7 +220,7 @@ async def seed() -> None:
         db.add(
             InstructorAssignment(
                 id=UUID("00000000-0000-0000-0000-000000000230"),
-                class_offering_id=class_id,
+                class_offering_id=CLASS_ID,
                 person_id=INSTRUCTOR_ID,
             )
         )
@@ -224,7 +229,7 @@ async def seed() -> None:
             start = now + timedelta(days=day_offset)
             item = Session(
                 id=UUID(f"00000000-0000-0000-0000-{240 + index:012d}"),
-                class_offering_id=class_id,
+                class_offering_id=CLASS_ID,
                 title=f"Ownership & Accountability — Session {index}",
                 starts_at=start,
                 ends_at=start + timedelta(hours=2),
@@ -233,6 +238,47 @@ async def seed() -> None:
             )
             db.add(item)
             session_items.append(item)
+
+        db.add_all([
+            LearningUnit(
+                id=UUID("00000000-0000-0000-0000-000000000501"),
+                class_offering_id=CLASS_ID,
+                capability_version_id=versions["OWNERSHIP_ACCOUNTABILITY"],
+                unit_type="RESOURCE",
+                phase="PRE_WORK",
+                title="پیش‌مطالعه: مالکیت مسئله تا نتیجه",
+                body="قبل از کلاس، تفاوت انجام وظیفه با مالکیت Outcome را مرور کنید.",
+                resource_url=None,
+                position=1,
+                status="ACTIVE",
+                created_at=now,
+            ),
+            LearningUnit(
+                id=UUID("00000000-0000-0000-0000-000000000502"),
+                class_offering_id=CLASS_ID,
+                capability_version_id=versions["OWNERSHIP_ACCOUNTABILITY"],
+                unit_type="EXERCISE",
+                phase="PRACTICE",
+                title="تمرین: مسئله بدون صاحب",
+                body="یک مسئله واقعی را انتخاب کنید و مسیر Owner تا Outcome را طراحی کنید.",
+                resource_url=None,
+                position=2,
+                status="ACTIVE",
+                created_at=now,
+            ),
+        ])
+        db.add(
+            Assignment(
+                id=ASSIGNMENT_ID,
+                class_offering_id=CLASS_ID,
+                capability_version_id=versions["OWNERSHIP_ACCOUNTABILITY"],
+                title="تکلیف: Ownership Memo",
+                instructions="در یک یادداشت کوتاه توضیح دهید چه Outcomeی را مالک می‌شوید، مرز مسئولیت چیست و در صورت شکست چه می‌کنید.",
+                due_at=now + timedelta(days=5),
+                status="ACTIVE",
+                created_at=now,
+            )
+        )
 
         journey_id = UUID("00000000-0000-0000-0000-000000000401")
         db.add(
@@ -279,13 +325,13 @@ async def seed() -> None:
             new_event(
                 event_type="academy.session_scheduled.v1",
                 aggregate_type="ClassOffering",
-                aggregate_id=class_id,
+                aggregate_id=CLASS_ID,
                 aggregate_version=1,
                 actor=event_actor,
                 organization_context_id=ORG_ID,
                 data_classification="INTERNAL",
                 payload={
-                    "class_offering_id": str(class_id),
+                    "class_offering_id": str(CLASS_ID),
                     "session_ids": [str(item.id) for item in session_items],
                 },
                 trace_id="development-seed",
@@ -302,6 +348,37 @@ async def seed() -> None:
                 payload={
                     "journey_id": str(journey_id),
                     "candidate_id": str(CANDIDATE_ID),
+                    "cohort_id": str(COHORT_ID),
+                },
+                trace_id="development-seed",
+                occurred_at=now,
+            ),
+            new_event(
+                event_type="learning.unit_published.v1",
+                aggregate_type="ClassOffering",
+                aggregate_id=CLASS_ID,
+                aggregate_version=1,
+                actor=event_actor,
+                organization_context_id=ORG_ID,
+                data_classification="INTERNAL",
+                payload={
+                    "class_offering_id": str(CLASS_ID),
+                    "cohort_id": str(COHORT_ID),
+                },
+                trace_id="development-seed",
+                occurred_at=now,
+            ),
+            new_event(
+                event_type="learning.assignment_published.v1",
+                aggregate_type="Assignment",
+                aggregate_id=ASSIGNMENT_ID,
+                aggregate_version=1,
+                actor=event_actor,
+                organization_context_id=ORG_ID,
+                data_classification="INTERNAL",
+                payload={
+                    "assignment_id": str(ASSIGNMENT_ID),
+                    "class_offering_id": str(CLASS_ID),
                     "cohort_id": str(COHORT_ID),
                 },
                 trace_id="development-seed",

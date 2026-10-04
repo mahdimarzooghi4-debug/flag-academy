@@ -14,7 +14,9 @@ from app.academy.models import (
     Session,
 )
 from app.curriculum.models import CapabilityVersion, CurriculumWave, WaveCapability
+from app.identity.models import Person
 from app.journey.models import CandidateJourney
+from app.learning.models import Assignment, InstructorFeedback, LearningUnit, Submission
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
 
 
@@ -76,6 +78,25 @@ async def _upsert_instructor_projection(
         existing.updated_at = now
 
 
+async def _latest_feedback_by_submission(
+    db: AsyncSession,
+    submission_ids: list[UUID],
+) -> dict[UUID, InstructorFeedback]:
+    if not submission_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(InstructorFeedback)
+            .where(InstructorFeedback.submission_id.in_(submission_ids))
+            .order_by(InstructorFeedback.created_at)
+        )
+    ).scalars().all()
+    result: dict[UUID, InstructorFeedback] = {}
+    for row in rows:
+        result[row.submission_id] = row
+    return result
+
+
 async def rebuild_candidate_home(
     db: AsyncSession,
     *,
@@ -125,21 +146,28 @@ async def rebuild_candidate_home(
         )
     ).scalars().all()
 
-    session_rows = (
+    class_offerings = (
         await db.execute(
-            select(Session, ClassOffering, CapabilityVersion)
-            .join(ClassOffering, Session.class_offering_id == ClassOffering.id)
-            .join(
-                CapabilityVersion,
-                ClassOffering.primary_capability_version_id == CapabilityVersion.id,
-            )
-            .where(
-                ClassOffering.cohort_id == cohort.id,
-                Session.status == "SCHEDULED",
-            )
-            .order_by(Session.starts_at)
+            select(ClassOffering)
+            .where(ClassOffering.cohort_id == cohort.id, ClassOffering.status == "ACTIVE")
+            .order_by(ClassOffering.title)
         )
-    ).all()
+    ).scalars().all()
+    class_ids = [item.id for item in class_offerings]
+
+    session_rows = []
+    if class_ids:
+        session_rows = (
+            await db.execute(
+                select(Session, ClassOffering)
+                .join(ClassOffering, Session.class_offering_id == ClassOffering.id)
+                .where(
+                    ClassOffering.cohort_id == cohort.id,
+                    Session.status == "SCHEDULED",
+                )
+                .order_by(Session.starts_at)
+            )
+        ).all()
 
     upcoming_sessions = [
         {
@@ -149,11 +177,11 @@ async def rebuild_candidate_home(
             "ends_at": session.ends_at.isoformat(),
             "delivery_mode": session.delivery_mode,
         }
-        for session, _, _ in session_rows
+        for session, _ in session_rows
     ]
 
     first_session_by_capability: dict[UUID, dict] = {}
-    for session, class_offering, _capability in session_rows:
+    for session, class_offering in session_rows:
         first_session_by_capability.setdefault(
             class_offering.primary_capability_version_id,
             {
@@ -165,18 +193,116 @@ async def rebuild_candidate_home(
             },
         )
 
+    units: list[LearningUnit] = []
+    assignments: list[Assignment] = []
+    if class_ids:
+        units = (
+            await db.execute(
+                select(LearningUnit)
+                .where(
+                    LearningUnit.class_offering_id.in_(class_ids),
+                    LearningUnit.status == "ACTIVE",
+                )
+                .order_by(LearningUnit.class_offering_id, LearningUnit.position)
+            )
+        ).scalars().all()
+        assignments = (
+            await db.execute(
+                select(Assignment)
+                .where(
+                    Assignment.class_offering_id.in_(class_ids),
+                    Assignment.status == "ACTIVE",
+                )
+                .order_by(Assignment.due_at)
+            )
+        ).scalars().all()
+
+    assignment_ids = [item.id for item in assignments]
+    submissions: list[Submission] = []
+    if assignment_ids:
+        submissions = (
+            await db.execute(
+                select(Submission).where(
+                    Submission.assignment_id.in_(assignment_ids),
+                    Submission.candidate_id == person_id,
+                )
+            )
+        ).scalars().all()
+    submission_by_assignment = {item.assignment_id: item for item in submissions}
+    feedback_by_submission = await _latest_feedback_by_submission(
+        db, [item.id for item in submissions]
+    )
+
+    submitted_capabilities = {
+        assignment.capability_version_id
+        for assignment in assignments
+        if assignment.id in submission_by_assignment
+    }
+
     what_to_learn = []
     for capability in capability_rows:
         next_session = first_session_by_capability.get(capability.id)
-        if next_session is not None:
+        has_learning_content = any(
+            unit.capability_version_id == capability.id for unit in units
+        )
+        has_assignment = any(
+            assignment.capability_version_id == capability.id for assignment in assignments
+        )
+        if next_session is not None or has_learning_content or has_assignment:
             what_to_learn.append(
                 {
                     "capability_version_id": str(capability.id),
                     "name": capability.name,
-                    "learning_state": "TO_LEARN",
+                    "learning_state": (
+                        "IN_LEARNING"
+                        if capability.id in submitted_capabilities
+                        else "TO_LEARN"
+                    ),
                     "next_session": next_session,
                 }
             )
+
+    learning_tasks: list[dict] = []
+    for unit in units:
+        task_type = (
+            "PRE_WORK"
+            if unit.phase == "PRE_WORK"
+            else "PRACTICE"
+            if unit.phase == "PRACTICE"
+            else unit.unit_type
+        )
+        learning_tasks.append(
+            {
+                "id": str(unit.id),
+                "task_type": task_type,
+                "title": unit.title,
+                "class_offering_id": str(unit.class_offering_id),
+                "capability_version_id": str(unit.capability_version_id),
+                "status": "AVAILABLE",
+                "body": unit.body,
+                "due_at": None,
+                "submission_id": None,
+                "feedback_text": None,
+            }
+        )
+
+    for assignment in assignments:
+        submission = submission_by_assignment.get(assignment.id)
+        feedback = feedback_by_submission.get(submission.id) if submission else None
+        learning_tasks.append(
+            {
+                "id": str(assignment.id),
+                "task_type": "ASSIGNMENT",
+                "title": assignment.title,
+                "class_offering_id": str(assignment.class_offering_id),
+                "capability_version_id": str(assignment.capability_version_id),
+                "status": submission.status if submission else "NOT_SUBMITTED",
+                "body": assignment.instructions,
+                "due_at": assignment.due_at.isoformat() if assignment.due_at else None,
+                "submission_id": str(submission.id) if submission else None,
+                "feedback_text": feedback.feedback_text if feedback else None,
+            }
+        )
 
     what_to_prove = [
         {
@@ -198,7 +324,7 @@ async def rebuild_candidate_home(
             "upcoming_sessions": upcoming_sessions,
             "what_to_learn": what_to_learn,
             "what_to_prove": what_to_prove,
-            "learning_tasks": [],
+            "learning_tasks": learning_tasks,
             "open_missions": [],
             "profile_summary": {"status": "UNPROVEN"},
             "processing_states": [],
@@ -280,6 +406,50 @@ async def rebuild_instructor_home(
         if wave is not None:
             wave_name = wave.name
 
+    learning_units = (
+        await db.execute(
+            select(LearningUnit)
+            .where(
+                LearningUnit.class_offering_id.in_(class_ids),
+                LearningUnit.status == "ACTIVE",
+            )
+            .order_by(LearningUnit.class_offering_id, LearningUnit.position)
+        )
+    ).scalars().all()
+    learning_assignments = (
+        await db.execute(
+            select(Assignment)
+            .where(
+                Assignment.class_offering_id.in_(class_ids),
+                Assignment.status == "ACTIVE",
+            )
+            .order_by(Assignment.due_at)
+        )
+    ).scalars().all()
+
+    assignment_ids = [item.id for item in learning_assignments]
+    submissions: list[Submission] = []
+    if assignment_ids:
+        submissions = (
+            await db.execute(
+                select(Submission)
+                .where(Submission.assignment_id.in_(assignment_ids))
+                .order_by(Submission.submitted_at)
+            )
+        ).scalars().all()
+    feedback_by_submission = await _latest_feedback_by_submission(
+        db, [item.id for item in submissions]
+    )
+    assignment_by_id = {item.id: item for item in learning_assignments}
+
+    candidate_ids = list({item.candidate_id for item in submissions})
+    person_by_id: dict[UUID, Person] = {}
+    if candidate_ids:
+        people = (
+            await db.execute(select(Person).where(Person.id.in_(candidate_ids)))
+        ).scalars().all()
+        person_by_id = {item.id: item for item in people}
+
     await _upsert_instructor_projection(
         db,
         person_id,
@@ -306,6 +476,47 @@ async def rebuild_instructor_home(
                 "code": journey.current_wave if journey is not None else "—",
                 "name": wave_name,
             },
+            "learning_units": [
+                {
+                    "id": str(item.id),
+                    "title": item.title,
+                    "phase": item.phase,
+                    "unit_type": item.unit_type,
+                    "body": item.body,
+                }
+                for item in learning_units
+            ],
+            "assignments": [
+                {
+                    "id": str(item.id),
+                    "title": item.title,
+                    "instructions": item.instructions,
+                    "due_at": item.due_at.isoformat() if item.due_at else None,
+                    "status": item.status,
+                }
+                for item in learning_assignments
+            ],
+            "submissions": [
+                {
+                    "id": str(item.id),
+                    "assignment_id": str(item.assignment_id),
+                    "assignment_title": assignment_by_id[item.assignment_id].title,
+                    "candidate_id": str(item.candidate_id),
+                    "candidate_name": (
+                        person_by_id[item.candidate_id].display_name
+                        if item.candidate_id in person_by_id
+                        else str(item.candidate_id)
+                    ),
+                    "content_text": item.content_text,
+                    "status": item.status,
+                    "feedback_text": (
+                        feedback_by_submission[item.id].feedback_text
+                        if item.id in feedback_by_submission
+                        else None
+                    ),
+                }
+                for item in submissions
+            ],
         },
     )
     return True

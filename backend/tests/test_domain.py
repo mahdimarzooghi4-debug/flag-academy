@@ -2,6 +2,7 @@ from uuid import UUID
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
 from app.journey.domain import CandidateJourneyState
+from app.learning.domain import LearningPhase, LearningUnitType, SubmissionStatus
 from app.platform.events import new_event
 
 
@@ -12,6 +13,13 @@ def test_pm_curriculum_has_15_capabilities() -> None:
 
 def test_learning_completion_is_not_proof() -> None:
     assert LearningState.LEARNING_COMPLETED.value != ProofState.PROVEN.value
+
+
+def test_learning_experience_types_are_explicit() -> None:
+    assert LearningUnitType.RESOURCE.value == "RESOURCE"
+    assert LearningPhase.PRE_WORK.value == "PRE_WORK"
+    assert LearningPhase.PRACTICE.value == "PRACTICE"
+    assert SubmissionStatus.FEEDBACK_PROVIDED.value == "FEEDBACK_PROVIDED"
 
 
 def test_candidate_journey_states_are_explicit() -> None:

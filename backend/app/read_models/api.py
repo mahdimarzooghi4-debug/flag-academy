@@ -50,6 +50,19 @@ class ProveItem(BaseModel):
     proof_state: str
 
 
+class LearningTask(BaseModel):
+    id: str
+    task_type: str
+    title: str
+    class_offering_id: str
+    capability_version_id: str
+    status: str
+    body: str
+    due_at: datetime | None = None
+    submission_id: str | None = None
+    feedback_text: str | None = None
+
+
 class ProfileSummary(BaseModel):
     status: str
 
@@ -61,7 +74,7 @@ class CandidateHomeResponse(BaseModel):
     upcoming_sessions: list[SessionSummary]
     what_to_learn: list[LearnItem]
     what_to_prove: list[ProveItem]
-    learning_tasks: list[dict]
+    learning_tasks: list[LearningTask]
     open_missions: list[dict]
     profile_summary: ProfileSummary
     processing_states: list[dict]
@@ -72,6 +85,33 @@ class AssignedClass(BaseModel):
     title: str
 
 
+class InstructorLearningUnit(BaseModel):
+    id: str
+    title: str
+    phase: str
+    unit_type: str
+    body: str
+
+
+class InstructorAssignment(BaseModel):
+    id: str
+    title: str
+    instructions: str
+    due_at: datetime | None = None
+    status: str
+
+
+class InstructorSubmission(BaseModel):
+    id: str
+    assignment_id: str
+    assignment_title: str
+    candidate_id: str
+    candidate_name: str
+    content_text: str
+    status: str
+    feedback_text: str | None = None
+
+
 class InstructorHomeResponse(BaseModel):
     assigned_cohort: CohortSummary
     assigned_classes: list[AssignedClass]
@@ -79,6 +119,9 @@ class InstructorHomeResponse(BaseModel):
     candidate_count: int
     capability_focus: str
     current_wave: WaveSummary
+    learning_units: list[InstructorLearningUnit]
+    assignments: list[InstructorAssignment]
+    submissions: list[InstructorSubmission]
 
 
 @router.get("/candidate-home", response_model=CandidateHomeResponse)
