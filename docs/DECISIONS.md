@@ -370,6 +370,31 @@
 | DEC-362 | 2026-10-04 | Mission فقط Evidence تولید می‌کند و مستقیماً Capability Level یا Gate Status را تغییر نمی‌دهد؛ مسیر تغییر Profile باید Mission → Evidence → Review → Pattern → Profile Update باشد. | FINAL |
 | DEC-363 | 2026-10-04 | هر Mission Instance باید Audit Trail شامل Template/Version، Initial World State، AI Policy، Events، Hints/Prompts، Candidate Actions، State Changes، Evidence و Reviewer/Calibration داشته باشد. | FINAL |
 | DEC-364 | 2026-10-04 | تعریف نهایی Mission: ماشین کوچک تولید تجربه و Evidence که Situation، اختیار، محدودیت و Consequence واقعی می‌سازد و بدون قضاوت نهایی، Evidence معتبر تولید می‌کند. | FINAL |
+| DEC-365 | 2026-10-04 | اصل معماری Mission Runtime: LLM می‌تواند روایت و Proposal تولید کند اما State معتبر جهان فقط توسط Mission Engine و قواعد معتبر تغییر می‌کند. | FINAL |
+| DEC-366 | 2026-10-04 | Runtime flow رسمی: Mission Template Version → Mission Instance → Initial World State → Candidate Action → Runtime Validation → Event → Consequence Rules → World State Transition → Observation → Evidence Pipeline. | FINAL |
+| DEC-367 | 2026-10-04 | Evidence Entity متعلق به Evidence Engine است؛ Mission Engine Observation تولید می‌کند و نباید Evidence نهایی یا Capability Score بسازد. | FINAL |
+| DEC-368 | 2026-10-04 | Mission Instance به Version دقیق Definition/World Model/Evidence Mapping/AI Policy Pin می‌شود و نسخه‌های قبلی overwrite نمی‌شوند. | FINAL |
+| DEC-369 | 2026-10-04 | Mission Instance State Machine شامل CREATED → ELIGIBILITY_CHECK → READY → RUNNING → TERMINAL با زیرحالت‌های ACTIVE/WAITING_FOR_WORLD/WAITING_FOR_CANDIDATE/PAUSED و Terminalهای COMPLETED/FAILED_WORLD_STATE/TIME_EXPIRED/ABORTED/WITHDRAWN/INVALIDATED است. | FINAL |
+| DEC-370 | 2026-10-04 | Mission Runtime به‌صورت event-sourced و append-only طراحی می‌شود: Initial State + Ordered Events = Current State؛ Snapshot فقط برای Performance است. | FINAL |
+| DEC-371 | 2026-10-04 | Runtime history Immutable است؛ اصلاح از طریق Eventهای جدید مانند corrected/invalidated انجام می‌شود، نه Edit/Delete تاریخچه. | FINAL |
+| DEC-372 | 2026-10-04 | Candidate Action Contract باید action identity، target/payload، reasoning/confidence، timestamps، resource cost، mode، provenance و idempotency را نگه دارد و Action Space شامل Information Request، Communication، Decision، Escalation، Delegation، Scope/Resource/Experiment و No Action است. | FINAL |
+| DEC-373 | 2026-10-04 | Decisionهای مهم باید DecisionRecord مستقل با Question، Options، Evidence، Assumptions، Decision، Reasoning، Confidence، Expected Outcome، Revisit Trigger، Owner و Reversibility داشته باشند و پیش از Consequence Freeze شوند. | FINAL |
+| DEC-374 | 2026-10-04 | InformationItem باید Canonical Truth را از Access Policy جدا کند و AI Actor حق ایجاد Fact Canonical خارج از World Model را ندارد؛ حالت‌های UNKNOWN/NOT_AVAILABLE/ACTOR_DOES_NOT_KNOW معتبرند. | FINAL |
+| DEC-375 | 2026-10-04 | ActorDefinition از ActorInstance جداست؛ AI Actor فقط Structured Proposal می‌دهد و State actor را مستقیم Mutation نمی‌دهد. | FINAL |
+| DEC-376 | 2026-10-04 | State Mutation فقط از مسیر proposal → validate → commit انجام می‌شود؛ LLM output هرگز مستقیماً database/world state را تغییر نمی‌دهد. | FINAL |
+| DEC-377 | 2026-10-04 | Event Contract باید trigger/source/timestamps/visibility/payload/world versions/causal parents/idempotency را نگه دارد و Trigger Typeهای SCHEDULED، STATE_TRIGGERED، BEHAVIOUR_TRIGGERED، EXTERNAL و MANUAL_OPERATOR را پشتیبانی کند. | FINAL |
+| DEC-378 | 2026-10-04 | Causality Chain فقط برای رابطه‌های تعریف‌شده در World Model Canonical است و Consequence Rule نباید مستقیم Competency Score را تغییر دهد؛ مسیر صحیح Action → Consequence → Observation → Evidence Review است. | FINAL |
+| DEC-379 | 2026-10-04 | Delayed/Latent effects با ScheduledEffect مستقل مدل می‌شوند و می‌توانند در صورت تغییر معتبر State قبل از اجرا Cancel شوند. | FINAL |
+| DEC-380 | 2026-10-04 | World State دارای Namespaceهای مشترک business/product/customer/financial/team/technical/stakeholder/market/risk/mission است؛ هر Mutation world_state_version را افزایش می‌دهد. | FINAL |
+| DEC-381 | 2026-10-04 | اصل Simulation Core: Core rules deterministic و uncertainty explicit است؛ Probability باید Versioned و از World Model بیاید و simulation_seed برای Randomness ذخیره شود. | FINAL |
+| DEC-382 | 2026-10-04 | Evidence Opportunity در Runtime دارای trigger، target behaviour، links، observation sources، contamination policy و temporal window است و Opportunity opening باید Event شود. | FINAL |
+| DEC-383 | 2026-10-04 | Mission Engine Observation factual تولید می‌کند، نه Judgment؛ Hint/Promptهای AI یا Assessor نیز Event هستند تا Prompt Contamination قابل محاسبه باشد. | FINAL |
+| DEC-384 | 2026-10-04 | Mission Audit Package باید Timeline قابل بازسازی از Initial State تا Actions، Events، Consequences، State Changes و Observations را با Source/Version حفظ کند. | FINAL |
+| DEC-385 | 2026-10-04 | Mission Runtime باید Data Classification چهارسطحی PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED و Least-privilege AI context را پشتیبانی کند. | FINAL |
+| DEC-386 | 2026-10-04 | Assessment Integrity Policy صریح است: AI هدف رفتاری مخفی را افشا نمی‌کند، Recommendation تصمیم نمی‌دهد، Information بدون Action مناسب لو نمی‌رود و Policy violation جدی می‌تواند Mission را INVALIDATED کند. | FINAL |
+| DEC-387 | 2026-10-04 | WORLD FAILURE، CANDIDATE OUTCOME و SYSTEM FAILURE باید از هم جدا باشند؛ System Failure نباید Candidate Failure محسوب شود. | FINAL |
+| DEC-388 | 2026-10-04 | Action/Eventهای مهم باید idempotency_key داشته باشند و Runtime Contractها شامل Action/Event/Consequence/Actor/World Model versioning باشند. | FINAL |
+| DEC-389 | 2026-10-04 | اصل نهایی Runtime: «LLM proposes. Engine validates. Rules mutate. Events record. Observations preserve. Evidence interprets. Humans remain accountable.» | FINAL |
 
 ---
 
