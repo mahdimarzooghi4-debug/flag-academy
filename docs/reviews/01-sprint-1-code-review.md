@@ -30,13 +30,19 @@ Initial implementation is structurally aligned with the approved Modular Monolit
 7. **Development credentials were committed in the Keycloak realm.**
    Fixed by removing user passwords from realm JSON and seeding local passwords from ignored `.env` variables.
 
-## Remaining Sprint-level gaps
+## Closed acceptance gaps
 
-These are not accepted as completed yet:
-- true E2E browser test with Keycloak for Candidate and Instructor;
-- event-driven projection rebuild/update rather than development-seed-only projections;
-- Stage deployment and Stage acceptance;
-- full OIDC integration test against a live Keycloak instance;
-- explicit architecture-boundary automated test.
+The following Sprint-level gaps are now closed:
+- live Keycloak OIDC browser E2E for Candidate and Instructor;
+- event-driven Candidate/Instructor projection rebuild with durable inbox processing;
+- full OIDC integration against a live Keycloak instance in CI;
+- explicit architecture-boundary automated test;
+- runtime-owned migration database configuration with no credential in `alembic.ini`.
 
-Sprint 1 therefore remains **IN PROGRESS**. Code Review for the implemented slice passes after the blocking fixes, but Sprint Acceptance does not pass until the remaining gates are closed.
+CI run `37220051526` passed backend, frontend, and live-browser E2E on commit `080138b65b0013f6559849e01d0c436846c51fd6`.
+
+## Remaining Sprint-level gap
+
+- Stage deployment and Stage acceptance.
+
+Sprint 1 therefore remains **IN PROGRESS**. Code Review and CI acceptance pass; Sprint Acceptance remains blocked only by the Stage gate.
