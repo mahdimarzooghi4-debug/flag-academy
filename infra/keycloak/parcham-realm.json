@@ -24,10 +24,12 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "https://parcham-academy-stage.onrender.com/*"
       ],
       "webOrigins": [
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "https://parcham-academy-stage.onrender.com"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
