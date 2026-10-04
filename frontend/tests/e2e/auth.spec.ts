@@ -83,9 +83,42 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await logout(page);
   await login(page, "candidate", candidatePassword);
 
-  await expect(page.getByTestId("candidate-practice-feedback")).toContainText(
+  await expect(page.getByTestId("candidate-practice-feedback-1")).toContainText(
     "Trigger مشخص برای Escalation",
   );
   await expect(page.getByTestId("candidate-feedback")).toContainText("مرز مسئولیت روشن است");
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  const replayCard = page.locator(".learning-card").filter({
+    hasText: "تمرین: مسئله بدون صاحب",
+  });
+  await replayCard.getByLabel("پاسخ Replay").fill(
+    "در Replay، Trigger را افت بیش از ۱۰٪ Outcome و Escalation را عبور از مرز اختیار تعریف می‌کنم.",
+  );
+  await replayCard.getByRole("button", { name: "ثبت Replay" }).click();
+  await expect(replayCard.getByText("2 ATTEMPT")).toBeVisible();
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  await logout(page);
+  await login(page, "instructor", instructorPassword);
+
+  await expect(page.getByText("تلاش 2")).toBeVisible();
+  await page.getByLabel("بازخورد تمرین 2").fill(
+    "Replay نسبت به تلاش اول بهتر است؛ Trigger و مرز اختیار اکنون قابل اقدام شده‌اند.",
+  );
+  await page.getByRole("button", { name: "ثبت بازخورد تمرین" }).click();
+  await expect(page.getByTestId("instructor-practice-feedback-2")).toContainText(
+    "Replay نسبت به تلاش اول بهتر است",
+  );
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+
+  await expect(page.getByTestId("candidate-practice-feedback-1")).toContainText(
+    "Trigger مشخص برای Escalation",
+  );
+  await expect(page.getByTestId("candidate-practice-feedback-2")).toContainText(
+    "Replay نسبت به تلاش اول بهتر است",
+  );
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });

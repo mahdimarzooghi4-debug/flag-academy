@@ -142,55 +142,89 @@ export function CandidateHome({
 
         <article className="panel">
           <p className="eyebrow">PRACTICE</p>
-          <h2>تمرین</h2>
+          <h2>تمرین و Replay</h2>
           <div className="stack">
-            {practice.map((item) => (
-              <div className="learning-card" key={item.id}>
-                <div className="assignment-head">
-                  <strong>{item.title}</strong>
-                  <span className="state">{item.submission_id ? "ATTEMPT_SUBMITTED" : item.status}</span>
+            {practice.map((item) => {
+              const attempts = item.practice_attempts ?? [];
+              const canSubmit = attempts.length === 0 || item.replay_available === true;
+              const draftKey = `practice-${item.id}`;
+              return (
+                <div className="learning-card" key={item.id}>
+                  <div className="assignment-head">
+                    <strong>{item.title}</strong>
+                    <span className="state">
+                      {attempts.length > 0 ? `${attempts.length} ATTEMPT` : item.status}
+                    </span>
+                  </div>
+                  <p>{item.body}</p>
+
+                  {attempts.length > 0 ? (
+                    <div className="attempt-history" data-testid="candidate-practice-history">
+                      {attempts.map((attempt) => (
+                        <div className="submission-summary" key={attempt.id}>
+                          <div className="assignment-head">
+                            <b>تلاش {attempt.attempt_number}</b>
+                            <span className="state">{attempt.status}</span>
+                          </div>
+                          <p>{attempt.response_text}</p>
+                          {(attempt.feedback_history ?? []).map((feedback) => (
+                            <p
+                              key={feedback.id}
+                              data-testid={`candidate-practice-feedback-${attempt.attempt_number}`}
+                            >
+                              <b>بازخورد مدرس:</b> {feedback.feedback_text}
+                            </p>
+                          ))}
+                          {(attempt.feedback_history ?? []).length === 0 ? (
+                            <p className="muted">در انتظار بازخورد مدرس.</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {canSubmit ? (
+                    <div className="form-stack">
+                      <label htmlFor={draftKey}>
+                        {attempts.length === 0 ? "پاسخ تمرین" : "پاسخ Replay"}
+                      </label>
+                      <textarea
+                        id={draftKey}
+                        value={drafts[draftKey] ?? ""}
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [draftKey]: event.target.value,
+                          }))
+                        }
+                        placeholder={
+                          attempts.length === 0
+                            ? "رویکرد، تصمیم و منطق خود را بنویسید..."
+                            : "با استفاده از بازخورد قبلی، تلاش بعدی خود را بنویسید..."
+                        }
+                      />
+                      <button
+                        className="primary"
+                        disabled={
+                          !onSubmitPracticeAttempt ||
+                          submittingPracticeUnitId === item.id ||
+                          !(drafts[draftKey] ?? "").trim()
+                        }
+                        onClick={() => void submitPractice(item.id)}
+                      >
+                        {submittingPracticeUnitId === item.id
+                          ? "در حال ثبت..."
+                          : attempts.length === 0
+                            ? "ثبت تمرین"
+                            : "ثبت Replay"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="muted">برای Replay بعدی ابتدا باید بازخورد تلاش فعلی ثبت شود.</p>
+                  )}
                 </div>
-                <p>{item.body}</p>
-                {item.submission_id ? (
-                  <div className="submission-summary">
-                    <strong>تمرین شما ثبت شده است.</strong>
-                    {item.feedback_text ? (
-                      <p data-testid="candidate-practice-feedback">
-                        <b>بازخورد تمرین:</b> {item.feedback_text}
-                      </p>
-                    ) : (
-                      <p className="muted">در انتظار بازخورد مدرس.</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="form-stack">
-                    <label htmlFor={`practice-${item.id}`}>پاسخ تمرین</label>
-                    <textarea
-                      id={`practice-${item.id}`}
-                      value={drafts[`practice-${item.id}`] ?? ""}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [`practice-${item.id}`]: event.target.value,
-                        }))
-                      }
-                      placeholder="رویکرد، تصمیم و منطق خود را بنویسید..."
-                    />
-                    <button
-                      className="primary"
-                      disabled={
-                        !onSubmitPracticeAttempt ||
-                        submittingPracticeUnitId === item.id ||
-                        !(drafts[`practice-${item.id}`] ?? "").trim()
-                      }
-                      onClick={() => void submitPractice(item.id)}
-                    >
-                      {submittingPracticeUnitId === item.id ? "در حال ثبت..." : "ثبت تمرین"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {practice.length === 0 ? <p className="muted">تمرین فعالی ندارید.</p> : null}
           </div>
         </article>

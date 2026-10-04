@@ -122,8 +122,11 @@ export function InstructorHome({
             <div className="assignment-card" key={item.id}>
               <div className="assignment-head">
                 <div>
-                  <strong>{item.practice_title}</strong>
-                  <p className="muted">{item.candidate_name}</p>
+                  <strong>{item.practice_title} — تلاش {item.attempt_number}</strong>
+                  <p className="muted">
+                    {item.candidate_name}
+                    {item.replay_of_attempt_id ? " · Replay" : " · اولین تلاش"}
+                  </p>
                 </div>
                 <span className="state">{item.status}</span>
               </div>
@@ -131,14 +134,23 @@ export function InstructorHome({
                 <b>پاسخ تمرین</b>
                 <p>{item.response_text}</p>
               </div>
-              {item.feedback_text ? (
+              {(item.feedback_history ?? []).length > 0 ? (
                 <div className="submission-summary">
-                  <b>بازخورد توسعه‌ای</b>
-                  <p data-testid="instructor-practice-feedback">{item.feedback_text}</p>
+                  <b>تاریخچه بازخورد</b>
+                  {(item.feedback_history ?? []).map((feedback) => (
+                    <p
+                      key={feedback.id}
+                      data-testid={`instructor-practice-feedback-${item.attempt_number}`}
+                    >
+                      {feedback.feedback_text}
+                    </p>
+                  ))}
                 </div>
               ) : (
                 <div className="form-stack">
-                  <label htmlFor={`practice-feedback-${item.id}`}>بازخورد تمرین</label>
+                  <label htmlFor={`practice-feedback-${item.id}`}>
+                    بازخورد تمرین {item.attempt_number}
+                  </label>
                   <textarea
                     id={`practice-feedback-${item.id}`}
                     value={drafts[`practice-${item.id}`] ?? ""}

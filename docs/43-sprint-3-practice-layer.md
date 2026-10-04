@@ -30,3 +30,21 @@ while preserving:
 - AI Tutor;
 - group orchestration;
 - automated scoring.
+
+
+## Second vertical slice — Feedback-driven Replay
+
+Practice is extended from one submission into an immutable developmental history:
+
+**Attempt 1 → Instructor Feedback → Replay Attempt 2 → New Feedback**
+
+Rules implemented in this slice:
+
+- an existing Practice Attempt is never overwritten;
+- each new Attempt receives a monotonic `attempt_number`;
+- Replay keeps lineage through `replay_of_attempt_id`;
+- Candidate cannot create the next Attempt until the latest Attempt has Instructor Feedback;
+- Candidate and Instructor can inspect the chronological Attempt/Feedback history;
+- Practice Replay remains developmental and does not directly update Evidence or Proof.
+
+This is Practice Replay, not Evidence Replay. Evidence/assessment replay remains owned by the later Evidence Engine.

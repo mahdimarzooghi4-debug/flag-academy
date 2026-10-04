@@ -141,8 +141,9 @@ jobs:
           practice_attempts=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts;")
           practice_feedback=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_feedback;")
           practice_feedback_provided=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts where status = 'FEEDBACK_PROVIDED';")
+          practice_replays=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts where replay_of_attempt_id is not null;")
 
-          test "$published" -ge 11
+          test "$published" -ge 13
           test "$inbox" -ge 11
           test "$candidate_home" -ge 1
           test "$instructor_home" -ge 1
@@ -150,9 +151,10 @@ jobs:
           test "$feedback_submissions" -ge 1
           test "$learning_completed" -ge 1
           test "$unproven" -ge 1
-          test "$practice_attempts" -ge 1
-          test "$practice_feedback" -ge 1
-          test "$practice_feedback_provided" -ge 1
+          test "$practice_attempts" -ge 2
+          test "$practice_feedback" -ge 2
+          test "$practice_feedback_provided" -ge 2
+          test "$practice_replays" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -168,6 +170,7 @@ jobs:
             echo "practice_attempts=$practice_attempts"
             echo "practice_feedback_rows=$practice_feedback"
             echo "practice_feedback_provided_attempts=$practice_feedback_provided"
+            echo "practice_replay_attempts=$practice_replays"
             echo "browser_oidc_acceptance=PASS"
           } | tee stage-artifacts/acceptance.txt
 

@@ -79,7 +79,9 @@ export interface InstructorHome {
   assignments: Array<{ id: string; title: string; instructions: string; due_at?: string | null; status: string }>;
   practice_attempts: Array<{
     id: string; learning_unit_id: string; practice_title: string; candidate_id: string;
-    candidate_name: string; response_text: string; status: string; feedback_text?: string | null;
+    candidate_name: string; attempt_number: number; replay_of_attempt_id?: string | null;
+    response_text: string; status: string; feedback_text?: string | null;
+    feedback_history: PracticeFeedbackHistoryItem[];
   }>;
   submissions: Array<{
     id: string; assignment_id: string; assignment_title: string; candidate_id: string;
@@ -97,6 +99,22 @@ export interface LearningTask {
   due_at?: string | null;
   submission_id?: string | null;
   feedback_text?: string | null;
+  replay_available?: boolean;
+  practice_attempts?: CandidatePracticeAttempt[];
+}
+export interface PracticeFeedbackHistoryItem {
+  id: string;
+  feedback_text: string;
+  created_at: string;
+}
+export interface CandidatePracticeAttempt {
+  id: string;
+  attempt_number: number;
+  replay_of_attempt_id?: string | null;
+  response_text: string;
+  status: string;
+  submitted_at: string;
+  feedback_history: PracticeFeedbackHistoryItem[];
 }
 export interface SessionSummary {
   session_id: string;
