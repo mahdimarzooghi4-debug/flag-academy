@@ -132,6 +132,16 @@
 | DEC-124 | 2026-10-04 | Evidence این Capability فقط خروجی نهایی نیست؛ سؤال‌ها، اطلاعات درخواستی، Hypothesisها، اصلاح Frame و Revision History نیز Evidence محسوب می‌شوند. | FINAL |
 | DEC-125 | 2026-10-04 | عبور از Capability 02 نیازمند اثبات Framing در چند Context و حداقل یک مورد کنارگذاشتن یا اصلاح Hypothesis اولیه بر اساس Evidence جدید است. | FINAL |
 | DEC-126 | 2026-10-04 | اصل فرهنگی Problem Framing: «پرچمدار قبل از اینکه بپرسد چه بسازیم، می‌پرسد چه مسئله‌ای واقعاً ارزش حل‌کردن دارد؟» | FINAL |
+| DEC-127 | 2026-10-04 | Capability 03 با عنوان Decision Making تعریف شد: گرفتن تصمیم قابل دفاع در شرایط ناقص با استفاده از Evidence، Assumption، Risk و Trade-off و اصلاح تصمیم با تغییر واقعیت. | FINAL |
+| DEC-128 | 2026-10-04 | زنجیره استاندارد تصمیم در پرچم: Decision Question → Options → Evidence → Assumptions → Trade-offs → Risks → Decision → Expected Outcome → Trigger for Revisit. | FINAL |
+| DEC-129 | 2026-10-04 | Mission Ladder این Capability شامل Limited Time، Missing Data، Bad Choices Only، Executive Pressure، New Evidence و Irreversible Bet است. | FINAL |
+| DEC-130 | 2026-10-04 | Artifactهای اصلی Decision Making شامل Decision Brief، Option Set، Assumption Register، Trade-off Map، Risk Register، Decision Log، Revisit Trigger و Post-decision Review هستند. | FINAL |
+| DEC-131 | 2026-10-04 | Decision Quality و Outcome Quality باید جداگانه سنجیده شوند؛ نتیجه خوب لزوماً Evidence تصمیم خوب نیست و نتیجه بد لزوماً Evidence تصمیم بد نیست. | FINAL |
+| DEC-132 | 2026-10-04 | Reasoning تصمیم باید تا حد امکان پیش از Outcome ثبت شود تا Hindsight Bias کاهش یابد. | FINAL |
+| DEC-133 | 2026-10-04 | در Assessment Mode، Parcham AI نباید گزینه بهتر را پیشنهاد کند؛ فقط World State، Requested Data، Signal/Noise و Consequence را مدیریت می‌کند. | FINAL |
+| DEC-134 | 2026-10-04 | Parcham AI می‌تواند Decision Calibration Profile فرد را برای شناسایی Overconfidence یا Excessive Caution بسازد و آن را در Leadership Digital Twin نگه دارد. | FINAL |
+| DEC-135 | 2026-10-04 | عبور از Capability 03 نیازمند Evidence در چند Context، حداقل یک مورد استقلال Judgment تحت فشار Authority، حداقل یک اصلاح تصمیم با Evidence جدید و حداقل یک بازبینی صادقانه Outcome نامطلوب بدون Hindsight Rewrite است. | FINAL |
+| DEC-136 | 2026-10-04 | اصل فرهنگی Decision Making: «پرچمدار برای اینکه همیشه درست باشد تصمیم نمی‌گیرد؛ تصمیم می‌گیرد، مسئولش می‌ماند و وقتی واقعیت تغییر کرد خودش هم تغییر می‌کند.» | FINAL |
 
 ---
 
