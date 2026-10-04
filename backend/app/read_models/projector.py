@@ -153,7 +153,7 @@ async def rebuild_candidate_home(
     ]
 
     first_session_by_capability: dict[UUID, dict] = {}
-    for session, class_offering, capability in session_rows:
+    for session, class_offering, _capability in session_rows:
         first_session_by_capability.setdefault(
             class_offering.primary_capability_version_id,
             {
