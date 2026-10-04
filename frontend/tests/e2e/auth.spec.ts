@@ -118,11 +118,16 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await logout(page);
   await login(page, "instructor", instructorPassword);
 
-  await expect(page.getByText("تلاش 2")).toBeVisible();
-  await page.getByLabel("بازخورد تمرین 2").fill(
+  const guidedReplayAttemptCard = page.locator(".assignment-card").filter({
+    hasText: "تمرین هدایت‌شده: مسئله بدون صاحب — تلاش 2",
+  });
+  await expect(guidedReplayAttemptCard).toBeVisible();
+  await guidedReplayAttemptCard.getByLabel("بازخورد تمرین 2").fill(
     "Replay نسبت به تلاش اول بهتر است؛ Trigger و مرز اختیار اکنون قابل اقدام شده‌اند.",
   );
-  await page.getByRole("button", { name: "ثبت بازخورد تمرین" }).click();
+  await guidedReplayAttemptCard
+    .getByRole("button", { name: "ثبت بازخورد تمرین" })
+    .click();
   await expect(page.getByTestId("instructor-practice-feedback-2")).toContainText(
     "Replay نسبت به تلاش اول بهتر است",
   );
