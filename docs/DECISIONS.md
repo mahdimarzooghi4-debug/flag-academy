@@ -117,6 +117,12 @@
 | DEC-109 | 2026-10-04 | یادگیری در پرچم Artifact-based است و هر Artifact باید به Mission، Outcome و Competency متصل باشد. | FINAL |
 | DEC-110 | 2026-10-04 | استاندارد خروجی برای همه یکسان است اما مسیر رسیدن می‌تواند بر اساس Flag Profile و Evidence شخصی‌سازی شود. | FINAL |
 | DEC-111 | 2026-10-04 | پرچم زمان حضور را استاندارد نمی‌کند؛ استاندارد شایستگی و Evidence لازم برای سپردن مسئولیت را استاندارد می‌کند. | FINAL |
+| DEC-112 | 2026-10-04 | Capability 01 با عنوان Ownership & Accountability تعریف شد: Ownership حمل مسئله تا Outcome و Accountability پذیرش نتیجه تصمیم و رفتار، مخصوصاً در نتیجه نامطلوب است. | FINAL |
+| DEC-113 | 2026-10-04 | Mission Ladder این Capability شامل The Unowned Task، Broken Dependency، Silent Risk، The Mistake و Outcome Ownership است. | FINAL |
+| DEC-114 | 2026-10-04 | Artifactهای اصلی Ownership & Accountability شامل Outcome Definition، Dependency Map، Risk & Blocker Log، Commitment Log، Recovery Plan و Post-mortem هستند؛ Artifact به‌تنهایی Evidence کافی نیست. | FINAL |
+| DEC-115 | 2026-10-04 | در Assessment Mode، Parcham AI نباید رفتار مورد سنجش در Ownership/Accountability را Prompt کند؛ AI Observer فقط رفتار خودجوش را ثبت می‌کند. | FINAL |
+| DEC-116 | 2026-10-04 | عبور از Capability 01 نیازمند Evidence تکرارشونده در چند Context و حداقل یک موقعیت نتیجه نامطلوب با پذیرش مسئولیت و Recovery Plan است؛ در غیر این صورت Accountability می‌تواند Unproven بماند. | FINAL |
+| DEC-117 | 2026-10-04 | دروغ، پنهان‌کاری آگاهانه و انتقال عامدانه تقصیر در این Capability موضوع Gate Review هستند و صرفاً کمبود تمرین محسوب نمی‌شوند. | FINAL |
 
 ---
 
