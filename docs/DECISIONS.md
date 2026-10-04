@@ -501,6 +501,46 @@
 | DEC-493 | 2026-10-04 | ده Architectural Invariant غیرقابل‌مذاکره Domain Model تثبیت شد: Version pinning، Runtime-only simulation mutation، sealed immutable observation، versioned evidence interpretation، no raw-observation profile mutation، no AI/event direct gate failure، recommendation ≠ appointment، evidence freeze before board، no AI direct DB write و no governance history overwrite. | FINAL |
 | DEC-494 | 2026-10-04 | PostgreSQL schema topology، one-vs-many database، broker، ORM، API transport، serialization، cache و deployment topology عمداً برای Technical Architecture v1 باز ماندند. | FINAL |
 | DEC-495 | 2026-10-04 | تعریف نهایی Domain Model: هر تصمیم مهم در Aggregate صاحب آن نگه داشته می‌شود، هر Context فقط Truth خودش را Mutation می‌کند، ارتباط Contextها با Contract/Event است و کل زنجیره Candidate Experience تا Responsibility دارای auditable lineage است. | FINAL |
+| DEC-496 | 2026-10-04 | Technical Architecture v1 بر Modular Monolith رویدادمحور بنا می‌شود و پیچیدگی Distributed System تا زمان نیاز واقعی وارد نمی‌شود. | FINAL |
+| DEC-497 | 2026-10-04 | Stack v1 شامل Python 3.12، FastAPI، SQLAlchemy 2 async، Pydantic، PostgreSQL، Alembic، NATS JetStream، Temporal، React، TypeScript، Vite، TanStack Query، Keycloak/OIDC PKCE، S3-compatible storage، MinIO، PostgreSQL FTS + pgvector، OpenTelemetry، Pytest، Playwright، Ruff، Pyright، Docker Compose، OpenAPI 3 و GitHub Actions است. | FINAL |
+| DEC-498 | 2026-10-04 | Backend یک Modular Monolith با Moduleهای مستقل Bounded Context است و Moduleها فقط API/Event Contract یکدیگر را مصرف می‌کنند؛ import کردن Repository داخلی Context دیگر ممنوع است. | FINAL |
+| DEC-499 | 2026-10-04 | v1 از یک PostgreSQL Cluster با Schema منطقی جدا برای هر Bounded Context استفاده می‌کند؛ Foreign Key بین Contextها ایجاد نمی‌شود. | FINAL |
+| DEC-500 | 2026-10-04 | Domain mutation و Outbox write باید در یک Transaction باشند و Dual Write مستقیم Database + Broker ممنوع است. | FINAL |
+| DEC-501 | 2026-10-04 | NATS JetStream Event Backbone رسمی است و Delivery semantics برابر At-least-once با Idempotent Consumer و Inbox tracking است. | FINAL |
+| DEC-502 | 2026-10-04 | Temporal فقط برای Workflowهای طولانی، Retry/Timeout/Human Wait/Scheduling استفاده می‌شود و Coordinator است، نه Source of Truth. | FINAL |
+| DEC-503 | 2026-10-04 | Mission Runtime Core باید تا حد ممکن deterministic و LLM-independent باشد؛ Mission Definitionها declarative و schema-validated هستند و Mission authoring نباید Remote Code Execution engine بسازد. | FINAL |
+| DEC-504 | 2026-10-04 | World State schema-versioned و Pydantic-validated است؛ Snapshot می‌تواند در PostgreSQL JSONB باشد اما History واقعی از Event Log می‌آید. | FINAL |
+| DEC-505 | 2026-10-04 | Mission concurrency با world_state_version و optimistic concurrency کنترل می‌شود؛ Conflict با 409 WORLD_STATE_VERSION_CONFLICT پاسخ داده می‌شود. | FINAL |
+| DEC-506 | 2026-10-04 | Frontend v1 با React + TypeScript + Vite، Persian RTL first-class، TanStack Query و TypeScript client تولیدشده از OpenAPI ساخته می‌شود. | FINAL |
+| DEC-507 | 2026-10-04 | API strategy v1 برابر REST/JSON + OpenAPI است؛ Readها resource-oriented و Writeها business-oriented هستند و Writeهای حساس Idempotency-Key و expected_version/If-Match دارند. | FINAL |
+| DEC-508 | 2026-10-04 | API Error Contract استاندارد شامل code، message، details، trace_id و retryable است و Client نباید Business Logic را از متن پیام استخراج کند. | FINAL |
+| DEC-509 | 2026-10-04 | Realtime v1 با REST + Server-Sent Events انجام می‌شود؛ WebSocket فقط با نیاز واقعی Collaborative/Multi-user وارد می‌شود. | FINAL |
+| DEC-510 | 2026-10-04 | Authentication با Keycloak + OIDC Authorization Code + PKCE انجام می‌شود؛ Browser Client Secret ندارد و Fine-grained Authorization در Backend با RBAC + Contextual Policy انجام می‌شود. | FINAL |
+| DEC-511 | 2026-10-04 | Artifactهای حجیم در S3-compatible Object Storage ذخیره می‌شوند؛ MinIO برای Local/Stage و Signed URL برای دسترسی استفاده می‌شود و Database فقط Metadata را نگه می‌دارد. | FINAL |
+| DEC-512 | 2026-10-04 | Knowledge/Retrieval در v1 با PostgreSQL Full Text Search + pgvector انجام می‌شود و Retrieval Index Source of Truth نیست. | FINAL |
+| DEC-513 | 2026-10-04 | هیچ Module مستقیماً Provider LLM را صدا نمی‌زند؛ تمام AI callها از Parcham AI Gateway با Policy/Model Routing، Structured Output، Safety، Data Classification، Retry، Cost/Latency، Trace و Evaluation عبور می‌کنند. | FINAL |
+| DEC-514 | 2026-10-04 | AI Output وارد Workflow باید Typed و Pydantic-validated باشد؛ Output نامعتبر فقط Retry محدود دارد و سپس AI_OUTPUT_INVALID ثبت می‌شود؛ parsing heuristic پذیرفته نیست. | FINAL |
+| DEC-515 | 2026-10-04 | AI هیچ Repository Write Permission ندارد و فقط Proposal یا Commandهای allowlisted از Application API می‌تواند تولید/اجرا کند. | FINAL |
+| DEC-516 | 2026-10-04 | هر AI Request باید Data Classification PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED داشته باشد و Policy بر Provider eligibility، redaction و retention حاکم است. | FINAL |
+| DEC-517 | 2026-10-04 | AIInvocation باید Role، Mode، Model، Policy Version، Prompt Policy Version، Tool Permissions، Data Classification، Output Schema، Cost، Latency و Policy Violation را برای Audit ثبت کند. | FINAL |
+| DEC-518 | 2026-10-04 | UIهای اصلی از Read Model Projectionهای اختصاصی استفاده می‌کنند و Domain Truth نباید با ad-hoc join چند endpoint در Browser ساخته شود. | FINAL |
+| DEC-519 | 2026-10-04 | Background processing با Workerهای جدا برای Outbox، Event Consumption، Projection، Evidence preprocessing، AI invocation و scheduled activity انجام می‌شود؛ Codebase همچنان Modular Monolith می‌ماند. | FINAL |
+| DEC-520 | 2026-10-04 | OpenTelemetry استاندارد observability برای API، Worker، AI Gateway و Event Consumer است و سه View Technical، AI و Assessment باید وجود داشته باشد. | FINAL |
+| DEC-521 | 2026-10-04 | Logs structured JSON با sensitive-data masking هستند و اصل «Logs are for operations; Audit is for accountability» قطعی شد. | FINAL |
+| DEC-522 | 2026-10-04 | Test strategy شامل Domain Invariant Tests، Integration Tests، Simulation Determinism Tests، Assessment Integrity Tests، Playwright E2E و Offline Evaluation Set برای AI Roleهاست. | FINAL |
+| DEC-523 | 2026-10-04 | Missionهای VALIDATED باید Golden Mission Tests با Initial State، Seed، Candidate Actions و Expected Event Sequence داشته باشند. | FINAL |
+| DEC-524 | 2026-10-04 | Alembic تنها مسیر Migration است؛ Production startup migration ممنوع و Deploy flow برابر Migrate → Deploy است؛ destructive migration نیازمند Explicit Review است. | FINAL |
+| DEC-525 | 2026-10-04 | CI حداقل Lint، Type Check، Unit، Domain، Integration، Frontend Build/Test، Migration Validation و Contract/OpenAPI Check را اجرا می‌کند؛ تغییر Mission/Assessment Logic باید Golden Mission و Assessment Integrity Test را نیز بگذراند. | FINAL |
+| DEC-526 | 2026-10-04 | Deployment topology v1 شامل Web، API، Worker، Temporal Worker، PostgreSQL، NATS JetStream، Keycloak، Object Storage و OpenTelemetry Collector است؛ Provider زیرساخت فعلاً باز می‌ماند. | FINAL |
+| DEC-527 | 2026-10-04 | Kubernetes جزء Architecture v1 نیست؛ Containers کافی‌اند و Kubernetes فقط با نیاز واقعی Scale/HA وارد می‌شود. | FINAL |
+| DEC-528 | 2026-10-04 | Local development باید با docker compose up و وابستگی‌های PostgreSQL/NATS/Keycloak/MinIO/Temporal/OTel قابل اجرا باشد و Seed Data برای Scenarioهای نمونه فراهم شود. | FINAL |
+| DEC-529 | 2026-10-04 | Repository فعلی Monorepo می‌ماند با backend/frontend/infra/docs/scripts و OpenAPI client generation و versioned event schemas. | FINAL |
+| DEC-530 | 2026-10-04 | Security defaults شامل TLS Production، ممنوعیت Secret در Repo، Secret Manager، Signed URL، Least Privilege، Audit برای Admin actions، AI data-classification gate و ممنوعیت Product user direct DB access است. | FINAL |
+| DEC-531 | 2026-10-04 | PostgreSQL باید Point-in-Time Recovery و Object Storage باید backup/versioning برای Artifactهای مهم داشته باشد؛ NATS تنها Archive Governance نیست و Event/Audit History پایدار در PostgreSQL نیز حفظ می‌شود. | FINAL |
+| DEC-532 | 2026-10-04 | Performance strategy v1 ابتدا PostgreSQL indexing، Read Projections و Async Processing است؛ Redis فقط با Use Case واقعی اضافه می‌شود. | FINAL |
+| DEC-533 | 2026-10-04 | اولین Candidateهای scale/extraction مستقل در آینده AI Workers، Mission Runtime Workers و Evidence Processing هستند؛ Contextهای دیگر بدون نیاز واقعی Microservice نمی‌شوند. | FINAL |
+| DEC-534 | 2026-10-04 | Cloud vendor، Managed PostgreSQL provider، Managed vs self-hosted Temporal، S3 vendor، observability backend و CDN/edge provider عمداً برای Infrastructure Deployment Specification باز ماندند. | FINAL |
+| DEC-535 | 2026-10-04 | تعریف نهایی Technical Architecture v1: Parcham OS یک Modular Monolith مبتنی بر Python/FastAPI و PostgreSQL است که Context ownership را حفظ، propagation را با Outbox+NATS، workflow را با Temporal، AI را با Gateway و کل Candidate Action تا Human Decision را Versioned/Observable/Auditable می‌کند. | FINAL |
 
 ---
 
