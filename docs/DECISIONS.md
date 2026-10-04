@@ -344,6 +344,32 @@
 | DEC-336 | 2026-10-04 | Evidence در Scope پایین به‌صورت خودکار Scope بالاتر را اثبات نمی‌کند؛ Promotion Scope نیازمند Evidence واقعی در Scope بالاتر است. | FINAL |
 | DEC-337 | 2026-10-04 | Evidence تاریخی حذف نمی‌شود اما Historical Evidence از Current Capability Evidence جداست و Evidence قدیمی ممکن است برای Claim فعلی کافی نباشد. | FINAL |
 | DEC-338 | 2026-10-04 | Profile Update Engine باید مسیر Events → Evidence → Reviewed Patterns → Capability Claims → Gate Status → Responsibility Recommendation را طی کند و Responsibility Recommendation Evidence-driven باشد، نه Title-driven. | FINAL |
+| DEC-339 | 2026-10-04 | Mission واحد اصلی تجربه، تمرین، سنجش و تولید Evidence در Parcham OS است و برای آشکارشدن الگوی تصمیم و رفتار طراحی می‌شود، نه گرفتن جواب ازپیش‌تعیین‌شده. | FINAL |
+| DEC-340 | 2026-10-04 | Mission Template از Mission Instance جداست؛ Template الگوی رفتاری و Evidence Opportunity را تعریف می‌کند و Instance اجرای Context-specific آن برای Candidate/World/Replay است. | FINAL |
+| DEC-341 | 2026-10-04 | Mission Template باید Identity، Purpose، World Context، Objective، Scope، Capability/Competency/Gate Links، Actors، Information State، Constraints، Resources، Decision Points، Events، Evidence Opportunities، Consequences، Completion، Difficulty، AI Policy، Replay، Safety و Version را نگه دارد. | FINAL |
+| DEC-342 | 2026-10-04 | Mission design باید Behaviour-first باشد؛ Behaviour و Evidence Opportunity پیش از Scenario Story تعریف می‌شوند. | FINAL |
+| DEC-343 | 2026-10-04 | Primary و Secondary Capability در Mission از هم جدا می‌شوند و Gate Opportunity به‌خودی‌خود Gate Evidence نیست. | FINAL |
+| DEC-344 | 2026-10-04 | World Truth و Candidate Information State باید جدا باشند؛ Information Item می‌تواند default، discoverable، restricted، unavailable یا noisy/misleading باشد و Information Request خودش Evidence است. | FINAL |
+| DEC-345 | 2026-10-04 | Mission نباید Hidden Required Answer داشته باشد؛ چند Decision متفاوت می‌توانند معتبر باشند اگر Reasoning و Trade-off قابل دفاع باشند. | FINAL |
+| DEC-346 | 2026-10-04 | Actorها باید State واقعی شامل Role، Goal، Incentive، Knowledge، Concern، Authority، Trust، Patience، Commitment و Communication Style داشته باشند و رفتار Candidate State آن‌ها را تغییر دهد. | FINAL |
+| DEC-347 | 2026-10-04 | Mission باید Constraint و Resource واقعی داشته باشد تا Trade-off شکل بگیرد؛ No Action نیز Action محسوب می‌شود و می‌تواند Consequence داشته باشد. | FINAL |
+| DEC-348 | 2026-10-04 | Event Engine سه نوع Scheduled، State-triggered و Behaviour-triggered دارد؛ Success نیز مانند Failure می‌تواند Event و Evidence تولید کند. | FINAL |
+| DEC-349 | 2026-10-04 | Evidence Opportunity باید Trigger Situation، Behaviour of Interest، Capability/Competency/Gate Links، Contamination Rule، Observation Sources و Positive/Negative Signals داشته باشد؛ Evidence Coverage Map اعتبار Mission را برای Behaviour هدف نشان می‌دهد. | FINAL |
+| DEC-350 | 2026-10-04 | Consequence باید World State را تغییر دهد، نه Hidden Score؛ Consequence می‌تواند Immediate، Delayed یا Latent باشد. | FINAL |
+| DEC-351 | 2026-10-04 | Difficulty علاوه بر D1 تا D5 باید Difficulty Profile چندبعدی شامل ambiguity، conflict، time pressure، scarcity، scope، delay، reversibility، dependencies، ethical tension، uncertainty و politics داشته باشد. | FINAL |
+| DEC-352 | 2026-10-04 | Mission Scope و Evidence Scope جداگانه ثبت می‌شوند؛ Eligibility برای Assessment Validity است و نباید Learning Content را بی‌دلیل مسدود کند. | FINAL |
+| DEC-353 | 2026-10-04 | Mission Modeها LEARN، PRACTICE، ASSESSMENT و REAL_PROJECT هستند و Mode باید در Evidence ذخیره شود؛ Evidence این Modeها Weight یکسان ندارد. | FINAL |
+| DEC-354 | 2026-10-04 | Mission completion state از Assessment result مستقل است؛ World Outcome، Behaviour Evidence و Assessment Claim سه خروجی جدا هستند و Mission Failure الزاماً Candidate Failure نیست. | FINAL |
+| DEC-355 | 2026-10-04 | Replay باید Underlying Behaviour Pattern را ثابت و Surface Context را متفاوت نگه دارد؛ Immediate Practice Replay و Delayed Evidence Replay هر دو پشتیبانی می‌شوند. | FINAL |
+| DEC-356 | 2026-10-04 | Adaptive Difficulty در Practice آزادتر است؛ در Assessment باید داخل Difficulty Envelope ازپیش‌تعریف‌شده باشد و هر تغییر Audit شود. | FINAL |
+| DEC-357 | 2026-10-04 | Mission lifecycle رسمی DRAFT → PILOT → VALIDATED → ACTIVE → RETIRED است و Assessment Mission باید Content Validity، Difficulty Validity، Contamination Risk، Fairness، Multi-path Validity و Evidence Observability را بگذراند. | FINAL |
+| DEC-358 | 2026-10-04 | Mission Fairness یعنی Mission باید Behaviour هدف را سخت کند، نه Background Knowledge نامرتبط را؛ Realism نیز نباید به Toxicity، تحقیر یا فشار ناسالم تبدیل شود. | FINAL |
+| DEC-359 | 2026-10-04 | Mission Selection Engine باید بر اساس Flag Profile، Gate State، Evidence Gaps، Recent Missions، Replay Needs، Scope/Difficulty Target و Evidence Value، Next Best Mission را انتخاب کند. | FINAL |
+| DEC-360 | 2026-10-04 | Recommendation Mission باید برای Reviewer Explainable باشد اما Hidden Behaviour Targetها الزاماً برای Candidate در Assessment افشا نمی‌شوند. | FINAL |
+| DEC-361 | 2026-10-04 | Mission Result Package باید Context، Decision Log، Action Timeline، Information Requests، Actor Interactions، Artifacts، World Outcome، Observations، Candidate Evidence، Provenance، Reflection، Replay Need و Profile Update Proposal را نگه دارد. | FINAL |
+| DEC-362 | 2026-10-04 | Mission فقط Evidence تولید می‌کند و مستقیماً Capability Level یا Gate Status را تغییر نمی‌دهد؛ مسیر تغییر Profile باید Mission → Evidence → Review → Pattern → Profile Update باشد. | FINAL |
+| DEC-363 | 2026-10-04 | هر Mission Instance باید Audit Trail شامل Template/Version، Initial World State، AI Policy، Events، Hints/Prompts، Candidate Actions، State Changes، Evidence و Reviewer/Calibration داشته باشد. | FINAL |
+| DEC-364 | 2026-10-04 | تعریف نهایی Mission: ماشین کوچک تولید تجربه و Evidence که Situation، اختیار، محدودیت و Consequence واقعی می‌سازد و بدون قضاوت نهایی، Evidence معتبر تولید می‌کند. | FINAL |
 
 ---
 
