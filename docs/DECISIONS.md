@@ -227,6 +227,21 @@
 | DEC-219 | 2026-10-04 | Simulator باید پیامدهای اقتصادی کوتاه‌مدت و بلندمدت تصمیم‌های محصول را در State جهان اعمال و قابل مشاهده کند. | FINAL |
 | DEC-220 | 2026-10-04 | عبور از Capability 10 نیازمند Evidence در چند Context، تحلیل Business Model/Unit Economics، لحاظ Revenue/Margin/Cash، Pricing، Scenario-based Business Case، حداقل یک رد یا اصلاح Growth جذاب به‌دلیل Economics ضعیف و تغییر Recommendation با تغییر Assumption کلیدی است. | FINAL |
 | DEC-221 | 2026-10-04 | اصل فرهنگی Product Economics: «پرچمدار فقط محصولی نمی‌سازد که استفاده شود؛ محصولی می‌سازد که ارزش پایدار برای مشتری و کسب‌وکار ایجاد کند.» | FINAL |
+| DEC-222 | 2026-10-04 | Capability 11 با عنوان Delivery تعریف شد: تبدیل Outcome و تصمیم محصول به نتیجه واقعی در محیط چندتیمی، محدود و متغیر، بدون گم‌کردن هدف، کیفیت، مسئولیت و Feedback Loop. | FINAL |
+| DEC-223 | 2026-10-04 | Delivery باید با فرآیند مادر Business → Technical → Backlog → Sprint → Code → Code Review → Stage → QA/Testing → Release Approval → Production → Monitoring → Improvement هم‌راستا باشد؛ مالکیت End-to-End به معنی انجام شخصی همه مراحل نیست. | FINAL |
+| DEC-224 | 2026-10-04 | چرخه مطلوب Delivery: Outcome → Scope → Build → Validate → Release → Observe → Learn → Improve؛ Feature Factory و Ticket completion بدون Outcome کافی نیستند. | FINAL |
+| DEC-225 | 2026-10-04 | Mission Ladder این Capability شامل From Outcome to Execution، The Dependency Web، Scope Pressure، Quality vs Deadline، Release Incident، Successful Release Failed Outcome و End-to-End Delivery است. | FINAL |
+| DEC-226 | 2026-10-04 | Planning باید Known، Unknown، Dependency، Risk و Confidence را صریح کند و در عدم‌قطعیت از Range و Confidence به‌جای تاریخ دقیق کاذب استفاده کند. | FINAL |
+| DEC-227 | 2026-10-04 | Scope Reduction باید بر اساس Minimum Coherent Scope انجام شود؛ کوچک‌ترین Scopeای که هنوز Hypothesis یا Outcome اصلی را حفظ می‌کند. | FINAL |
+| DEC-228 | 2026-10-04 | Ready for Build و Done for Product در سطح محصول تعریف شدند؛ Done علاوه بر Quality Gate و Release، نیازمند Monitoring، Outcome Measurement و Ownership پس از Release است. | FINAL |
+| DEC-229 | 2026-10-04 | هر Release مهم باید Rollout Plan، Monitoring، Abort Condition و Rollback Plan داشته باشد. | FINAL |
+| DEC-230 | 2026-10-04 | Artifactهای اصلی Delivery شامل Delivery Brief، Outcome/Scope Definition، Execution Plan، Backlog، Dependency Map، Critical Path، Risk/Decision/Scope Change Logs، Release Readiness، Rollout/Rollback/Monitoring Plans، Launch Report و Post-release/Post-mortem هستند. | FINAL |
+| DEC-231 | 2026-10-04 | Parcham OS باید Delivery Health را با Signalهایی مانند Outcome Health، Scope Health، Dependency Health، Quality Health، Schedule Confidence، Team Load، Release Readiness و Post-release Outcome برای Early Warning نگه دارد. | FINAL |
+| DEC-232 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Execution Plan بهتر را پیشنهاد کند؛ Simulation Director باید Delay، Bug، Dependency break، Stakeholder pressure، Capacity change و Production signal ایجاد کند. | FINAL |
+| DEC-233 | 2026-10-04 | در Real Project Mode، AI Delivery Copilot می‌تواند وضعیت، Blocker، Capacity mismatch، Monitoring gap و Riskهای بدون Owner را آشکار کند، اما تصمیم و مسئولیت نهایی با انسان است. | FINAL |
+| DEC-234 | 2026-10-04 | Team Health یک Constraint واقعی Delivery است؛ Sustainable Load، Overtime، Burnout Risk، Rework و Defect Rate باید در سنجش Delivery دیده شوند. | FINAL |
+| DEC-235 | 2026-10-04 | عبور از Capability 11 نیازمند Evidence در چند Context، مدیریت Dependency/Critical Path، Scope reduction آگاهانه، Early Risk Escalation، Release/Rollback/Monitoring، مدیریت Incident و بازبینی حداقل یک Release موفق با Outcome ناموفق است. | FINAL |
+| DEC-236 | 2026-10-04 | اصل فرهنگی Delivery: «پرچمدار کار را برای بسته‌شدن تحویل نمی‌دهد؛ آن را تا رسیدن به نتیجه واقعی حمل می‌کند.» | FINAL |
 
 ---
 
