@@ -175,6 +175,18 @@
 | DEC-167 | 2026-10-04 | مفهوم Discovery Debt پذیرفته شد: ورود به Delivery بدون کاهش Unknownهای حیاتی بدهی Discovery ایجاد می‌کند و Parcham OS باید بتواند آن را ثبت کند. | FINAL |
 | DEC-168 | 2026-10-04 | عبور از Capability 06 نیازمند Evidence در چند Context، انتخاب درست Riskiest Assumption، Experiment کم‌هزینه و متناسب، تعریف معیار پیشینی، حداقل یک Pivot و حداقل یک Stop/Kill ایده خود فرد بر اساس Evidence است. | FINAL |
 | DEC-169 | 2026-10-04 | اصل فرهنگی Product Discovery: «پرچمدار برای اثبات ایده آزمایش نمی‌کند؛ برای پیدا کردن حقیقت قبل از پرداخت هزینه سنگین آزمایش می‌کند.» | FINAL |
+| DEC-170 | 2026-10-04 | Capability 07 با عنوان Product Strategy تعریف شد: انتخاب اینکه برای چه مشتری، روی چه مسئله‌ای، با چه مزیتی و تحت چه محدودیت‌هایی بازی کنیم و کجا بازی نکنیم. | FINAL |
+| DEC-171 | 2026-10-04 | مدل Strategy پرچم شامل Context، Strategic Problem، Where to Play، How to Win، Strategic Bets، Trade-offs/Non-goals و Measures است. | FINAL |
+| DEC-172 | 2026-10-04 | Mission Ladder این Capability شامل The Everything Strategy، Different Customers Different Futures، Competitor Shock، Growth vs Profit، Strategy Under Constraint و Strategy Memo است. | FINAL |
+| DEC-173 | 2026-10-04 | Non-goals جزء الزامی Strategy هستند و باید بتوان آن‌ها را به Resource Allocation و تصمیم‌های Not Now / Not Us / Not This متصل کرد. | FINAL |
+| DEC-174 | 2026-10-04 | تفکیک مفهومی قطعی: Vision → Strategy → Bets → Roadmap؛ Goal نیز Strategy نیست و Strategy باید مسیر انتخاب برای رسیدن به Outcome را بیان کند. | FINAL |
+| DEC-175 | 2026-10-04 | Artifactهای اصلی Product Strategy شامل Strategic Context Brief، Strategic Problem/Diagnosis، Segment/Market Choice، Opportunity Map، Strategic Choice، Strategic Bets، Assumption Map، Competitive Position، Advantage Hypothesis، Trade-off Map، Non-goals، Strategy Memo/Narrative، Strategic Measures و Strategy Review Log هستند. | FINAL |
+| DEC-176 | 2026-10-04 | Strategy باید به شکل مجموعه Betها با الگوی Strategic Bet → Critical Assumptions → Evidence Plan مدیریت شود. | FINAL |
+| DEC-177 | 2026-10-04 | Strategy Coherence باید میان Strategy، Roadmap، Metrics، Resource Allocation، Segment Choice و Product Decisions سنجیده شود؛ Parcham AI می‌تواند این تضادها را آشکار کند. | FINAL |
+| DEC-178 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Strategy بهتر را پیشنهاد کند؛ باید Market World، Competitive/Customer information، Resource consequences و Strategy Stress Test را مدیریت کند. | FINAL |
+| DEC-179 | 2026-10-04 | عبور از Capability 07 نیازمند Evidence در چند Context، انتخاب واقعی Segment/Opportunity، رد آگاهانه فرصت‌های خوب، Non-goal روشن، Explicit کردن Bet/Assumption، هم‌راستایی Resource Allocation و تشخیص Adaptation لازم در برابر Noise در Stress Test است. | FINAL |
+| DEC-180 | 2026-10-04 | حداقل یک بار باید Strategy خود فرد بر اساس تغییر بنیادی Context اصلاح شود، بدون Reactive شدن صرف به فشار Stakeholder یا Competitor. | FINAL |
+| DEC-181 | 2026-10-04 | اصل فرهنگی Product Strategy: «پرچمدار با انتخاب‌هایش استراتژی می‌سازد؛ نه با تعداد چیزهایی که می‌خواهد انجام دهد.» | FINAL |
 
 ---
 
