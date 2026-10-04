@@ -162,6 +162,19 @@
 | DEC-154 | 2026-10-04 | Research Ethics شامل عدم فریب درباره هدف، عدم استفاده بدون مجوز از اطلاعات محرمانه، عدم Recording بدون اطلاع، عدم فشار به پاسخ‌دهنده و عدم استفاده خارج از Context از Quote است. | FINAL |
 | DEC-155 | 2026-10-04 | عبور از Capability 05 نیازمند Evidence در چند Context، تشخیص حداقل یک Say-vs-Do contradiction، تفکیک Actor/User/Buyer، Segmentation معنادار، حفظ Evidence مخالف و حداقل یک تغییر Hypothesis یا Decision بر اساس Understanding جدید است. | FINAL |
 | DEC-156 | 2026-10-04 | اصل فرهنگی Customer Understanding: «پرچمدار صدای مشتری را جمع نمی‌کند؛ واقعیت زندگی مشتری را می‌فهمد.» | FINAL |
+| DEC-157 | 2026-10-04 | Capability 06 با عنوان Product Discovery تعریف شد: کاهش عدم‌قطعیت درباره مسئله، مشتری، ارزش، Usability، Feasibility و Business Viability پیش از سرمایه‌گذاری جدی روی ساخت. | FINAL |
+| DEC-158 | 2026-10-04 | مدل Risk در Product Discovery شامل Problem Risk، Value Risk، Usability Risk، Feasibility Risk و Business Viability Risk است. | FINAL |
+| DEC-159 | 2026-10-04 | اصل Product Discovery: Discovery = Risk Reduction؛ موفقیت با کاهش Unknownهای مهم سنجیده می‌شود، نه حجم Activity. | FINAL |
+| DEC-160 | 2026-10-04 | Mission Ladder این Capability شامل Assumption Hunt، Riskiest Assumption، Cheapest Test، Positive Signal Trap، Kill Your Idea و Discovery Sprint است. | FINAL |
+| DEC-161 | 2026-10-04 | Artifactهای اصلی Product Discovery شامل Opportunity Brief، Assumption Map، Risk Map، Hypothesis Backlog، Riskiest Assumption، Experiment Brief، Prototype/Test Artifact، Evidence Log، Learning Card، Discovery Decision و Kill/Continue Rationale هستند. | FINAL |
+| DEC-162 | 2026-10-04 | Success/Failure signal و Evidence threshold باید تا حد ممکن پیش از Experiment تعریف شوند تا نتیجه پسینی قابل توجیه نباشد. | FINAL |
+| DEC-163 | 2026-10-04 | Strength of Evidence و Commitment Strength باید در Discovery لحاظ شوند؛ رفتار و تعهد واقعی از Hypothetical Opinion معتبرترند. | FINAL |
+| DEC-164 | 2026-10-04 | Discovery باید Timeboxed و Decision-oriented باشد: Unknown → Test → Timebox → Decision؛ ادامه بی‌انتها بدون تصمیم پذیرفته نیست. | FINAL |
+| DEC-165 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Experiment مناسب را پیشنهاد کند و فقط World Model، Requested Evidence و Consequence را مدیریت می‌کند. | FINAL |
+| DEC-166 | 2026-10-04 | استفاده از AI برای Prototype، Questionnaire، Analysis یا Test Copy مجاز است، اما AI contribution و Judgment انسانی باید قابل ردیابی باشند. | FINAL |
+| DEC-167 | 2026-10-04 | مفهوم Discovery Debt پذیرفته شد: ورود به Delivery بدون کاهش Unknownهای حیاتی بدهی Discovery ایجاد می‌کند و Parcham OS باید بتواند آن را ثبت کند. | FINAL |
+| DEC-168 | 2026-10-04 | عبور از Capability 06 نیازمند Evidence در چند Context، انتخاب درست Riskiest Assumption، Experiment کم‌هزینه و متناسب، تعریف معیار پیشینی، حداقل یک Pivot و حداقل یک Stop/Kill ایده خود فرد بر اساس Evidence است. | FINAL |
+| DEC-169 | 2026-10-04 | اصل فرهنگی Product Discovery: «پرچمدار برای اثبات ایده آزمایش نمی‌کند؛ برای پیدا کردن حقیقت قبل از پرداخت هزینه سنگین آزمایش می‌کند.» | FINAL |
 
 ---
 
