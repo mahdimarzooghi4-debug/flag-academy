@@ -49,6 +49,19 @@
 | DEC-041 | 2026-10-04 | برخی Red Flagهای پذیرش می‌توانند Gate Failure ایجاد کنند و با امتیاز سایر ابعاد جبران نمی‌شوند. | FINAL |
 | DEC-042 | 2026-10-04 | خروجی پذیرش هر فرد باید Candidate Baseline Profile باشد و این پروفایل نقطه صفر Flag Profile او محسوب شود. | FINAL |
 | DEC-043 | 2026-10-04 | اثربخشی آکادمی باید با مقایسه نقطه شروع، رشد شایستگی، شایستگی اثبات‌شده و مسئولیت قابل‌سپردن به فرد سنجیده شود. | FINAL |
+| DEC-044 | 2026-10-04 | Assessment Camp بر پایه مشاهده رفتار واقعی طراحی می‌شود؛ نقش رهبر به‌صورت مصنوعی داده نمی‌شود و باید در موقعیت ظاهر شود. | FINAL |
+| DEC-045 | 2026-10-04 | چرخه پایه Assessment Camp شامل Mission Brief → Individual Planning → Team Formation → Execution → Disruption → Stakeholder Event → Review → Feedback → Replay است. | FINAL |
+| DEC-046 | 2026-10-04 | Replay جزء کلیدی کمپ است و برای سنجش Behaviour Change پس از Feedback استفاده می‌شود. | FINAL |
+| DEC-047 | 2026-10-04 | همه اطلاعات مأموریت از ابتدا داده نمی‌شود؛ واقعیت و محدودیت‌ها باید در طول مأموریت آشکار شوند. | FINAL |
+| DEC-048 | 2026-10-04 | Assessor در زمان ارزیابی مربی یا نجات‌دهنده نیست؛ وظیفه او Observe → Capture → Classify Evidence است. | FINAL |
+| DEC-049 | 2026-10-04 | Evidence Camp باید با ساختار Actor, Mission, Situation, Observed Behavior, Competency, Signal, Source, Timestamp, Confidence ثبت شود. | FINAL |
+| DEC-050 | 2026-10-04 | ترتیب ضد Bias ارزیابی: مشاهده → ثبت رفتار → دسته‌بندی شایستگی → بررسی مجموعه شواهد → تصمیم سطح. | FINAL |
+| DEC-051 | 2026-10-04 | برای رفتارهای مهم، Independent Observation توسط چند Assessor پیش از Calibration الزامی است. | FINAL |
+| DEC-052 | 2026-10-04 | هدف Calibration توافق درباره معنای Evidence است، نه اجماع احساسی درباره فرد. | FINAL |
+| DEC-053 | 2026-10-04 | طراحی کمپ باید فرصت مشاهده مخالفت، شکست، ابهام، فشار زمان، رقابت منابع، Feedback منفی، تغییر اطلاعات، تعارض، وسوسه دورزدن قاعده و موفقیت را ایجاد کند. | FINAL |
+| DEC-054 | 2026-10-04 | Assessment Camp باید حرفه‌ای و اخلاقی باشد؛ تحقیر و فشار روانی مخرب ابزار ارزیابی محسوب نمی‌شوند. | FINAL |
+| DEC-055 | 2026-10-04 | خروجی الزامی کمپ برای هر فرد: Evidence Ledger، Candidate Competency Map و Admission Recommendation. | FINAL |
+| DEC-056 | 2026-10-04 | Evidence Ledger پرونده زنده فرد است و از Camp تا آموزش، Simulator، پروژه واقعی، انتصاب و عملکرد پس از انتصاب ادامه پیدا می‌کند. | FINAL |
 
 ---
 
