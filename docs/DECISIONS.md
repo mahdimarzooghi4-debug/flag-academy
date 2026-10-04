@@ -123,6 +123,15 @@
 | DEC-115 | 2026-10-04 | در Assessment Mode، Parcham AI نباید رفتار مورد سنجش در Ownership/Accountability را Prompt کند؛ AI Observer فقط رفتار خودجوش را ثبت می‌کند. | FINAL |
 | DEC-116 | 2026-10-04 | عبور از Capability 01 نیازمند Evidence تکرارشونده در چند Context و حداقل یک موقعیت نتیجه نامطلوب با پذیرش مسئولیت و Recovery Plan است؛ در غیر این صورت Accountability می‌تواند Unproven بماند. | FINAL |
 | DEC-117 | 2026-10-04 | دروغ، پنهان‌کاری آگاهانه و انتقال عامدانه تقصیر در این Capability موضوع Gate Review هستند و صرفاً کمبود تمرین محسوب نمی‌شوند. | FINAL |
+| DEC-118 | 2026-10-04 | Capability 02 با عنوان Problem Framing تعریف شد: تبدیل وضعیت مبهم، شکایت، KPI خراب یا Solution Request به مسئله‌ای دقیق، قابل بررسی و قابل تصمیم. | FINAL |
+| DEC-119 | 2026-10-04 | زنجیره استاندارد Problem Framing: Signal → Observation → Problem → Evidence → Root Cause Hypotheses → Affected User → Impact → Problem Statement. | FINAL |
+| DEC-120 | 2026-10-04 | پنج خطای اصلی Problem Framing: Solution-first thinking، Symptom=Problem، Problem too broad، Assumption as fact و Internal problem disguised as customer problem. | FINAL |
+| DEC-121 | 2026-10-04 | Mission Ladder این Capability شامل The Solution Request، The Bad Metric، The Loud Customer، Conflicting Evidence و Find the Problem است. | FINAL |
+| DEC-122 | 2026-10-04 | Artifactهای اصلی Problem Framing شامل Problem Brief، Evidence Map، Problem Tree، Affected Segment Definition، Impact Estimate، Assumption Log و Problem Statement هستند. | FINAL |
+| DEC-123 | 2026-10-04 | در Assessment Mode، Parcham AI نباید مسئله را برای فرد کشف کند؛ فقط نقش World/Stakeholder/Data Source را دارد و اطلاعات باید در پاسخ به سؤال یا درخواست مناسب کاندیدا عرضه شود. | FINAL |
+| DEC-124 | 2026-10-04 | Evidence این Capability فقط خروجی نهایی نیست؛ سؤال‌ها، اطلاعات درخواستی، Hypothesisها، اصلاح Frame و Revision History نیز Evidence محسوب می‌شوند. | FINAL |
+| DEC-125 | 2026-10-04 | عبور از Capability 02 نیازمند اثبات Framing در چند Context و حداقل یک مورد کنارگذاشتن یا اصلاح Hypothesis اولیه بر اساس Evidence جدید است. | FINAL |
+| DEC-126 | 2026-10-04 | اصل فرهنگی Problem Framing: «پرچمدار قبل از اینکه بپرسد چه بسازیم، می‌پرسد چه مسئله‌ای واقعاً ارزش حل‌کردن دارد؟» | FINAL |
 
 ---
 
