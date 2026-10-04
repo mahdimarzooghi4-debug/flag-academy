@@ -200,6 +200,20 @@
 | DEC-192 | 2026-10-04 | Parcham OS باید Strategy → Priority → Resource Allocation را به واقعیت مصرف زمان، ظرفیت و بودجه متصل کند و Resource Allocation Reality را قابل مشاهده سازد. | FINAL |
 | DEC-193 | 2026-10-04 | عبور از Capability 08 نیازمند Evidence هم از Adaptation و هم Stability است: حداقل یک Reprioritization درست در برابر Signal و یک مقاومت درست در برابر Noise. | FINAL |
 | DEC-194 | 2026-10-04 | اصل فرهنگی Prioritization: «پرچمدار فقط نمی‌گوید چه چیزی مهم است؛ با منابع محدود ثابت می‌کند چه چیزی مهم‌تر است.» | FINAL |
+| DEC-195 | 2026-10-04 | Capability 09 با عنوان Metrics & Experimentation تعریف شد: تبدیل Outcome به معیار قابل‌اندازه‌گیری و استفاده از Experiment برای کاهش عدم‌قطعیت درباره رابطه اقدام و نتیجه. | FINAL |
+| DEC-196 | 2026-10-04 | زنجیره استاندارد Metrics & Experimentation: Outcome → Behavior → Metric → Baseline → Target → Guardrails → Intervention → Measurement → Interpretation → Decision. | FINAL |
+| DEC-197 | 2026-10-04 | Metric Architecture پرچم شامل Outcome Metric، Input/Driver Metric، Leading Indicator، Lagging Indicator، Guardrail Metric و Diagnostic Metric است. | FINAL |
+| DEC-198 | 2026-10-04 | اصل Goodhart Protection: هدف Metric بالا بردن عدد نیست؛ فهمیدن و بهبود واقعیتی است که عدد نمایندگی می‌کند. | FINAL |
+| DEC-199 | 2026-10-04 | Mission Ladder این Capability شامل The Wrong Metric، Metric Tree، Guardrail Trap، Correlation Is Not Impact، Design the Experiment، The Tempting Result و Negative Experiment است. | FINAL |
+| DEC-200 | 2026-10-04 | Experiment Contract باید پیش از Result شامل Hypothesis، Population، Intervention، Control/Comparison، Primary/Secondary Metrics، Guardrails، Baseline، Expected Effect، Decision Rule، Duration/Stopping Rule و Known Risks باشد. | FINAL |
+| DEC-201 | 2026-10-04 | A/B Test تنها روش معتبر نیست؛ قوی‌ترین روش معقول متناسب با سؤال و Constraints باید انتخاب شود. | FINAL |
+| DEC-202 | 2026-10-04 | PM باید Statistical Literacy کاربردی درباره Sample Size، Noise، Confidence/Uncertainty، Multiple Comparisons، Seasonality، Novelty Effect، Segment Effect و Regression to the Mean داشته باشد. | FINAL |
+| DEC-203 | 2026-10-04 | Parcham OS باید Experiment Memory سازمانی نگه دارد و Hypothesis، Segment، Result، Caveat، Learning و Decision را برای استفاده آتی و Parcham AI ذخیره کند. | FINAL |
+| DEC-204 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Result را برای فرد تفسیر کند؛ Dataset، Control/Treatment، Noise و Eventها را فراهم می‌کند و Interpretation با فرد است. | FINAL |
+| DEC-205 | 2026-10-04 | در Real Project Mode، AI Experiment Copilot می‌تواند Sampling issue، Guardrail anomaly، Metric mismatch و Early-stop risk را هشدار دهد اما مالک تصمیم Product Manager است. | FINAL |
+| DEC-206 | 2026-10-04 | هر Experiment باید User Risk / Ethical Review داشته باشد، به‌ویژه در Pricing، Trust، Health، Security، Children، Personal Data و Sensitive Behavior. | FINAL |
+| DEC-207 | 2026-10-04 | عبور از Capability 09 نیازمند Evidence در چند Context، Metric Tree، Guardrail، معیار پیشینی Success، Experiment معتبر، تشخیص Caveat در Result مثبت، پذیرش Result منفی بدون Metric Shopping و حداقل یک رد Success ظاهری به‌دلیل آسیب Guardrail است. | FINAL |
+| DEC-208 | 2026-10-04 | اصل فرهنگی Metrics & Experimentation: «پرچمدار عددی را انتخاب نمی‌کند که موفق به نظر برسد؛ معیاری را انتخاب می‌کند که حقیقت موفقیت را آشکار کند.» | FINAL |
 
 ---
 
