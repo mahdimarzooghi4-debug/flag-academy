@@ -41,8 +41,25 @@ The following Sprint-level gaps are now closed:
 
 CI run `37220051526` passed backend, frontend, and live-browser E2E on commit `080138b65b0013f6559849e01d0c436846c51fd6`.
 
-## Remaining Sprint-level gap
+## Stage Acceptance
 
-- Stage deployment and Stage acceptance.
+Stage v1 was changed to the approved Ephemeral Stage model.
 
-Sprint 1 therefore remains **IN PROGRESS**. Code Review and CI acceptance pass; Sprint Acceptance remains blocked only by the Stage gate.
+Acceptance run `37223607002` on commit `c7405e6658afe6d3e26ec6ec268eb0e3fd91c489` passed.
+
+Evidence:
+- live Candidate OIDC browser flow: PASS;
+- live Instructor OIDC browser flow: PASS;
+- published outbox events: 3;
+- processed inbox events: 3;
+- Candidate Home projection rows: 1;
+- Instructor Home projection rows: 1;
+- Stage evidence artifact: `stage-acceptance-evidence`.
+
+## Final Review Status
+
+Sprint 1 Code Review: **PASS**  
+Sprint 1 CI Gate: **PASS**  
+Sprint 1 Stage Acceptance: **PASS**
+
+Sprint 1 is **ACCEPTED**.

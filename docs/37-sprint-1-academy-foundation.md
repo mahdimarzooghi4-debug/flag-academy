@@ -2,6 +2,7 @@
 
 **وضعیت:** FINAL  
 **تاریخ تثبیت:** 2026-10-04
+**Execution Status:** ACCEPTED — Stage Acceptance PASS on 2026-10-04
 
 ## Sprint Goal
 
@@ -498,3 +499,19 @@ Sprint 2:
 **Learning Experience v1 + Class Materials + Pre-work + Assignment/Submission + Instructor Feedback + Practice Foundation**
 
 Simulator از Sprintهای بعدی وارد می‌شود، پس از اینکه جریان اصلی آموزش کلاسی واقعاً در محصول وجود داشته باشد.
+
+## Sprint 1 Acceptance Result
+
+Sprint 1 acceptance is complete.
+
+Evidence:
+- Commit: `c7405e6658afe6d3e26ec6ec268eb0e3fd91c489`
+- CI Run: `37223606979` — PASS
+- Stage Acceptance Run: `37223607002` — PASS
+- Browser OIDC Acceptance: PASS
+- Published Outbox Events: 3
+- Processed Inbox Events: 3
+- Candidate Home Projection Rows: 1
+- Instructor Home Projection Rows: 1
+
+Sprint 1 is therefore **ACCEPTED** against its approved Definition of Done and Stage Gate.
