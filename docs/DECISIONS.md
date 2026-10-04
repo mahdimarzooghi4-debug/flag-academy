@@ -425,6 +425,40 @@
 | DEC-417 | 2026-10-04 | Black-box score منبع حقیقت شایستگی نیست؛ embedding/latent score فقط می‌تواند Retrieval/Detection را کمک کند و هیچ Responsibility Assignment نباید از Black-box Score انجام شود. | FINAL |
 | DEC-418 | 2026-10-04 | خود Assessment System باید با Performance واقعی ارزیابی شود: Assessment Decision → Real Performance → Outcome → Calibration of Assessment System. | FINAL |
 | DEC-419 | 2026-10-04 | سه اصل نهایی Evidence Engine: No claim without lineage؛ No gate failure without accountable human review؛ No responsibility assignment from a black-box score. | FINAL |
+| DEC-420 | 2026-10-04 | Parcham OS به‌عنوان یک Leadership Development Operating System تعریف شد که تجربه می‌سازد، رفتار را مشاهده می‌کند، Evidence را با حاکمیت انسانی تفسیر می‌کند، Flag Profile می‌سازد و آن را به Responsibility Decision قابل دفاع متصل می‌کند. | FINAL |
+| DEC-421 | 2026-10-04 | معماری کلان Parcham OS چهار لایه Experience، Core Domain، Intelligence و Platform & Data دارد و AI یک لایه افقی است، نه Source of Truth. | FINAL |
+| DEC-422 | 2026-10-04 | Product Surfaceهای اصلی شامل Public Website، Candidate Workspace، Mission Workspace، Mentor/Coach Workspace، Assessor Console، Flag Board Console، Academy Admin/Studio و Organization/Leadership Console هستند. | FINAL |
+| DEC-423 | 2026-10-04 | Candidate Home باید بر «چه چیزی اکنون باید اثبات شود؟» متمرکز باشد، نه درصد Completion دوره. | FINAL |
+| DEC-424 | 2026-10-04 | Parcham OS دارای 17 Bounded Context است: Identity & Organization، Admissions، Capability & Curriculum، Learning Experience، Mission Design، Mission Runtime، World & Simulation Models، Evidence Engine، Flag Profile، Responsibility & Trust، Human Review & Governance، Real Projects، Learning & Reflection، Curriculum Orchestrator، Parcham AI، Knowledge & Business Context و Audit & Compliance. | FINAL |
+| DEC-425 | 2026-10-04 | Identity & Organization از ابتدا Organization-aware است، اما پیچیدگی Multi-tenancy فقط در صورت نیاز واقعی وارد می‌شود. | FINAL |
+| DEC-426 | 2026-10-04 | Learning Content از Assessment Definition جداست تا Hint/Promptهای آموزشی Assessment را contaminate نکنند. | FINAL |
+| DEC-427 | 2026-10-04 | Mission Design از Mission Runtime جداست؛ Definitionها Versioned هستند و Runtime فقط Version Pin‌شده را اجرا می‌کند. | FINAL |
+| DEC-428 | 2026-10-04 | فقط Mission Runtime حق تغییر Canonical Simulation State را دارد؛ UI، LLM و Evidence Engine چنین اختیاری ندارند. | FINAL |
+| DEC-429 | 2026-10-04 | World & Simulation Models از Mission Runtime جدا هستند تا Shared Engine بتواند Business-specific World/Simulation Packهای متفاوت را اجرا کند. | FINAL |
+| DEC-430 | 2026-10-04 | Flag Profile مالک Current Capability Claims، Competency Profile، Proven Scopes، Gate States، Learning Memory، Snapshots و Unproven Areas است و یک Living model of demonstrated capability and organizational trust محسوب می‌شود. | FINAL |
+| DEC-431 | 2026-10-04 | Responsibility & Trust مستقل از Flag Profile است؛ Profile را مصرف می‌کند و READY / READY WITH CONDITIONS / DIFFERENT SCOPE / NOT YET / BLOCKED BY GATE تولید می‌کند. | FINAL |
+| DEC-432 | 2026-10-04 | Human Review & Governance تصمیم‌های consequential مانند Review، Calibration، Gate Review، Board Decision و Override را مالک است؛ AI پرونده را آماده می‌کند اما انسان آن را می‌بندد. | FINAL |
+| DEC-433 | 2026-10-04 | Real Projects یک Bounded Context مستقل با Learning & Evidence Contract، Scope، Decision Rights، Outcome، Constraints و Evidence Opportunities است و External Eventها مستقیماً Profile را تغییر نمی‌دهند. | FINAL |
+| DEC-434 | 2026-10-04 | Learning & Reflection یک Domain مستقل با چرخه Evidence → Reflection → Behaviour Commitment → Replay → Evidence است. | FINAL |
+| DEC-435 | 2026-10-04 | Curriculum Orchestrator یک Evidence Gap Resolver است و براساس Profile، Gate State، Replay Need و Learning Commitment، Next Best Experience را انتخاب می‌کند، نه صرفاً Next Course. | FINAL |
+| DEC-436 | 2026-10-04 | Parcham AI یک AI Orchestration & Governance Layer است و Roleهایی مانند Tutor، Mentor، Simulation Director، Actor Runtime، Evidence Analyst، Reflection Coach، Business Pack Builder و Responsibility Matcher را با Mode/Data/Tool/Output/Audit policy جدا اجرا می‌کند. | FINAL |
+| DEC-437 | 2026-10-04 | هیچ Domain مستقیماً Provider LLM را صدا نمی‌زند؛ تمام AI callها از Parcham AI Gateway با Model Routing، Policy Versioning، Structured Output، Safety، Data Classification، Cost/Latency، Provider Abstraction، Trace و Evaluation عبور می‌کنند. | FINAL |
+| DEC-438 | 2026-10-04 | Core Sources of Truth به‌صورت Domain-owned تعریف شدند؛ Curriculum Definition، Mission Definition، Simulation State، Raw Observation، Evidence Interpretation، Current Proven Profile، Gate Decision، Responsibility Requirement/Recommendation، Appointment Decision و Learning Commitment هرکدام Owner مشخص دارند. | FINAL |
+| DEC-439 | 2026-10-04 | Parcham OS از Event Backbone برای propagation بین Domainها استفاده می‌کند؛ interactionهای نیازمند حقیقت فوری sync و propagation بین Domainها در صورت امکان async و eventually consistent هستند. | FINAL |
+| DEC-440 | 2026-10-04 | Read Modelهای اختصاصی مانند Candidate Home، Assessor Evidence Case و Flag Board Case باید برای Experience ساخته شوند و UI نباید ad-hoc Domain Data را Join کند. | FINAL |
+| DEC-441 | 2026-10-04 | Write Contractها Intent-based و با Business Language هستند؛ UI حق direct DB mutation ندارد و Commandهایی مانند SubmitReflection، RequestInformation، AcceptEvidence، OpenGateReview و SubmitBoardDecision استفاده می‌شوند. | FINAL |
+| DEC-442 | 2026-10-04 | Data Architecture چهار Storage منطقی دارد: Transactional Store، Event/Audit Store، Object Store و Search/Retrieval Index؛ Retrieval Index Source of Truth نیست. | FINAL |
+| DEC-443 | 2026-10-04 | UX باید Eventual Consistency را با Stateهای First-class مانند PROCESSING، PENDING REVIEW، PROCESSING EVIDENCE و PROFILE UPDATE PENDING نمایش دهد. | FINAL |
+| DEC-444 | 2026-10-04 | Authorization مدل RBAC + Contextual Policy دارد و Candidate، Mentor، Assessor و Board فقط Context مجاز خود را می‌بینند. | FINAL |
+| DEC-445 | 2026-10-04 | Separation of Duties برای تصمیم‌های consequential الزامی است؛ Mission Designer لزوماً تنها Reviewer نهایی نیست و Policy change نباید Evidence تاریخی را خودکار re-score کند. | FINAL |
+| DEC-446 | 2026-10-04 | هر Definitionی که تغییرش معنای Evidence یا Decision را عوض می‌کند باید Version شود؛ از جمله Capability، Curriculum، Mission، World Model، Evidence Mapping، Gate Policy، Responsibility Definition، AI/Prompt/Knowledge Policy. | FINAL |
+| DEC-447 | 2026-10-04 | Product Analytics از Assessment Evidence جداست؛ Completion Rate، Drop-off، Time in Mission و Feature Usage به‌تنهایی Evidence شایستگی نیستند. | FINAL |
+| DEC-448 | 2026-10-04 | Observability سه سطح Technical، AI و Assessment دارد؛ Assessment Observability شامل Review Latency، Disagreement، Invalidated Missions، Evidence Conflicts و Gate Reversals است. | FINAL |
+| DEC-449 | 2026-10-04 | Public Website و Authenticated Parcham OS از نظر Product Boundary جدا هستند: flag.academy برای Brand/Public/Application و app.flag.academy برای Parcham OS؛ Domain separation مهم‌تر از تعداد Hostnameهاست. | FINAL |
+| DEC-450 | 2026-10-04 | Bounded Context معادل Microservice نیست؛ نسخه اول Parcham OS می‌تواند Modular Monolith با یک Deployable، یک Transactional Database و یک Event Backbone باشد و فقط در صورت نیاز واقعی Contextها Extract شوند. | FINAL |
+| DEC-451 | 2026-10-04 | Dependency Direction رسمی Experience → Application/API → Domain است؛ Domain integration از Contracts + Events انجام می‌شود و UI/AI/Analytics حق دورزدن Domain Rules یا direct mutation ندارند. | FINAL |
+| DEC-452 | 2026-10-04 | Kernel غیرقابل‌حذف Parcham OS شامل Curriculum، Mission، Evidence، Flag Profile، Human Governance، Responsibility و Parcham AI است. | FINAL |
+| DEC-453 | 2026-10-04 | سه قانون غیرقابل‌مذاکره Product Architecture: هر Truth یک Owner دارد؛ AI هیچ Domain State مهمی را مستقیماً مالک یا Mutation نمی‌کند؛ هر تصمیم اعتماد/مسئولیت باید از Evidence تا Human Decision قابل ردیابی باشد. | FINAL |
 
 ---
 
