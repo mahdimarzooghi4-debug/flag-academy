@@ -75,7 +75,7 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await page.getByLabel("بازخورد مدرس").fill(
     "مرز مسئولیت روشن است؛ در نسخه بعد شاخص Outcome و نقطه Escalation را دقیق‌تر کن.",
   );
-  await page.getByRole("button", { name: "ثبت بازخورد" }).click();
+  await page.getByRole("button", { name: "ثبت بازخورد", exact: true }).click();
   await expect(
     page.getByText("بازخورد ثبت شد. بازخورد آموزشی مستقیماً Capability را Proven نمی‌کند."),
   ).toBeVisible();
