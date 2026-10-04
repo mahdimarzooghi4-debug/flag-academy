@@ -16,6 +16,7 @@ class LearningUnit(Base):
     capability_version_id: Mapped[UUID]
     unit_type: Mapped[str] = mapped_column(String(32))
     phase: Mapped[str] = mapped_column(String(32))
+    practice_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
     title: Mapped[str] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text)
     resource_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)

@@ -75,7 +75,7 @@ export interface InstructorHome {
   candidate_count: number;
   capability_focus: string;
   current_wave: { code: string; name: string };
-  learning_units: Array<{ id: string; title: string; phase: string; unit_type: string; body: string }>;
+  learning_units: Array<{ id: string; title: string; phase: string; unit_type: string; practice_kind?: string | null; body: string }>;
   assignments: Array<{ id: string; title: string; instructions: string; due_at?: string | null; status: string }>;
   practice_attempts: Array<{
     id: string; learning_unit_id: string; practice_title: string; candidate_id: string;
@@ -92,6 +92,7 @@ export interface LearningTask {
   id: string;
   task_type: string;
   title: string;
+  practice_kind?: string | null;
   class_offering_id: string;
   capability_version_id: string;
   status: string;

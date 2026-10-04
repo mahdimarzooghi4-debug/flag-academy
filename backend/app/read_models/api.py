@@ -70,6 +70,7 @@ class LearningTask(BaseModel):
     id: str
     task_type: str
     title: str
+    practice_kind: str | None = None
     class_offering_id: str
     capability_version_id: str
     status: str
@@ -108,6 +109,7 @@ class InstructorLearningUnit(BaseModel):
     title: str
     phase: str
     unit_type: str
+    practice_kind: str | None = None
     body: str
 
 

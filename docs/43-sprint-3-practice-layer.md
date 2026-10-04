@@ -48,3 +48,22 @@ Rules implemented in this slice:
 - Practice Replay remains developmental and does not directly update Evidence or Proof.
 
 This is Practice Replay, not Evidence Replay. Evidence/assessment replay remains owned by the later Evidence Engine.
+
+
+## Third vertical slice — Practice modality
+
+Practice now distinguishes the developmental format from the generic Learning Unit phase.
+
+Supported Practice kinds in the domain contract:
+- `GUIDED_EXERCISE`
+- `CASE_STUDY`
+- `WORKSHOP`
+- `GROUP_EXERCISE`
+
+The current executable UI demonstrates:
+- Guided Exercise;
+- Case Study.
+
+Workshop and Group Exercise are now representable in the contract but remain future executable slices because group/session orchestration is not implemented yet.
+
+Practice kind changes the learning experience, not the Proof rules. A completed Case Study or Guided Exercise still does not directly prove Capability.

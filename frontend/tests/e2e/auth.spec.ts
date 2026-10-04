@@ -26,7 +26,10 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await login(page, "candidate", candidatePassword);
   await expect(page.getByText("الان چه چیزی باید یاد بگیرم؟")).toBeVisible();
   await expect(page.getByText("پیش‌مطالعه: مالکیت مسئله تا نتیجه")).toBeVisible();
-  await expect(page.getByText("تمرین: مسئله بدون صاحب")).toBeVisible();
+  await expect(page.getByText("تمرین هدایت‌شده: مسئله بدون صاحب")).toBeVisible();
+  await expect(page.getByText("مطالعه موردی: انتشار ناموفق")).toBeVisible();
+  await expect(page.getByText("تمرین هدایت‌شده").first()).toBeVisible();
+  await expect(page.getByText("مطالعه موردی").first()).toBeVisible();
   await expect(page.getByText("تکلیف: Ownership Memo")).toBeVisible();
   await expect(page.getByText("TO_LEARN").first()).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
@@ -40,7 +43,7 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await preWorkCard.getByRole("button", { name: "تکمیل فعالیت" }).click();
 
   const practiceCard = page.locator(".learning-card").filter({
-    hasText: "تمرین: مسئله بدون صاحب",
+    hasText: "تمرین هدایت‌شده: مسئله بدون صاحب",
   });
   await practiceCard.getByLabel("پاسخ تمرین").fill(
     "مالکیت Outcome را از تعریف مسئله تا بازیابی نتیجه نگه می‌دارم و نقطه Escalation را شفاف می‌کنم.",
@@ -49,6 +52,15 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await expect(practiceCard.getByText("1 ATTEMPT")).toBeVisible();
   await expect(practiceCard.getByText("در انتظار بازخورد مدرس.")).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  const caseCard = page.locator(".learning-card").filter({
+    hasText: "مطالعه موردی: انتشار ناموفق",
+  });
+  await caseCard.getByLabel("پاسخ تمرین").fill(
+    "ابتدا Outcome شکست‌خورده و مالک تصمیم را روشن می‌کنم، سپس داده‌های رخداد را جمع می‌کنم و Recovery Plan با Checkpoint مشخص می‌سازم.",
+  );
+  await caseCard.getByRole("button", { name: "ثبت تمرین" }).click();
+  await expect(caseCard.getByText("1 ATTEMPT")).toBeVisible();
 
   await page.getByLabel("پاسخ تکلیف").fill(
     "Outcome را مالک می‌شوم، مرز تصمیم را روشن می‌کنم و در شکست مسئول بازیابی نتیجه هستم.",
@@ -91,7 +103,7 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
   const replayCard = page.locator(".learning-card").filter({
-    hasText: "تمرین: مسئله بدون صاحب",
+    hasText: "تمرین هدایت‌شده: مسئله بدون صاحب",
   });
   await replayCard.getByLabel("پاسخ Replay").fill(
     "در Replay، Trigger را افت بیش از ۱۰٪ Outcome و Escalation را عبور از مرز اختیار تعریف می‌کنم.",

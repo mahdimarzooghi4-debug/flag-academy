@@ -7,6 +7,7 @@ from app.learning.domain import (
     LearningUnitProgressState,
     LearningUnitType,
     PracticeAttemptStatus,
+    PracticeKind,
     PracticeReplayState,
     SubmissionStatus,
 )
@@ -26,6 +27,8 @@ def test_learning_experience_types_are_explicit() -> None:
     assert LearningUnitType.RESOURCE.value == "RESOURCE"
     assert LearningPhase.PRE_WORK.value == "PRE_WORK"
     assert LearningPhase.PRACTICE.value == "PRACTICE"
+    assert PracticeKind.GUIDED_EXERCISE.value == "GUIDED_EXERCISE"
+    assert PracticeKind.CASE_STUDY.value == "CASE_STUDY"
     assert LearningUnitProgressState.IN_PROGRESS.value == "IN_PROGRESS"
     assert LearningUnitProgressState.COMPLETED.value == "COMPLETED"
     assert PracticeAttemptStatus.SUBMITTED.value == "SUBMITTED"

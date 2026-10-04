@@ -363,6 +363,7 @@ async def rebuild_candidate_home(
                 "id": str(unit.id),
                 "task_type": task_type,
                 "title": unit.title,
+                "practice_kind": unit.practice_kind,
                 "class_offering_id": str(unit.class_offering_id),
                 "capability_version_id": str(unit.capability_version_id),
                 "status": (
@@ -630,6 +631,7 @@ async def rebuild_instructor_home(
                     "title": item.title,
                     "phase": item.phase,
                     "unit_type": item.unit_type,
+                    "practice_kind": item.practice_kind,
                     "body": item.body,
                 }
                 for item in learning_units

@@ -16,6 +16,13 @@ class LearningPhase(StrEnum):
     PRACTICE = "PRACTICE"
 
 
+class PracticeKind(StrEnum):
+    GUIDED_EXERCISE = "GUIDED_EXERCISE"
+    CASE_STUDY = "CASE_STUDY"
+    WORKSHOP = "WORKSHOP"
+    GROUP_EXERCISE = "GROUP_EXERCISE"
+
+
 class LearningUnitProgressState(StrEnum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"

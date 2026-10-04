@@ -31,6 +31,7 @@ class LearningUnitResponse(BaseModel):
     capability_version_id: UUID
     unit_type: str
     phase: str
+    practice_kind: str | None
     title: str
     body: str
     resource_url: str | None
@@ -233,6 +234,7 @@ async def class_learning(
                 capability_version_id=item.capability_version_id,
                 unit_type=item.unit_type,
                 phase=item.phase,
+                practice_kind=item.practice_kind,
                 title=item.title,
                 body=item.body,
                 resource_url=item.resource_url,

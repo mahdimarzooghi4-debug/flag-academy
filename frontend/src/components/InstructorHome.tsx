@@ -1,6 +1,14 @@
 import { useState } from "react";
 import type { InstructorHomeResponse } from "../api/client";
 
+function practiceKindLabel(value?: string | null) {
+  if (value === "CASE_STUDY") return "مطالعه موردی";
+  if (value === "GUIDED_EXERCISE") return "تمرین هدایت‌شده";
+  if (value === "WORKSHOP") return "کارگاه";
+  if (value === "GROUP_EXERCISE") return "تمرین گروهی";
+  return "—";
+}
+
 type Props = {
   data: InstructorHomeResponse;
   onRecordPracticeFeedback?: (
@@ -85,7 +93,12 @@ export function InstructorHome({
             {(data.learning_units ?? []).map((item) => (
               <div className="learning-card" key={item.id}>
                 <div className="assignment-head">
-                  <strong>{item.title}</strong>
+                  <div>
+                    <strong>{item.title}</strong>
+                    {item.phase === "PRACTICE" ? (
+                      <p className="muted">{practiceKindLabel(item.practice_kind)}</p>
+                    ) : null}
+                  </div>
                   <span className="state">{item.phase}</span>
                 </div>
                 <p>{item.body}</p>

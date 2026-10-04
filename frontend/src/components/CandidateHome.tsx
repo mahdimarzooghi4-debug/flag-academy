@@ -1,6 +1,14 @@
 import { useState } from "react";
 import type { CandidateHomeResponse } from "../api/client";
 
+function practiceKindLabel(value?: string | null) {
+  if (value === "CASE_STUDY") return "مطالعه موردی";
+  if (value === "GUIDED_EXERCISE") return "تمرین هدایت‌شده";
+  if (value === "WORKSHOP") return "کارگاه";
+  if (value === "GROUP_EXERCISE") return "تمرین گروهی";
+  return "تمرین";
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("fa-IR", {
@@ -151,7 +159,10 @@ export function CandidateHome({
               return (
                 <div className="learning-card" key={item.id}>
                   <div className="assignment-head">
-                    <strong>{item.title}</strong>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p className="muted">{practiceKindLabel(item.practice_kind)}</p>
+                    </div>
                     <span className="state">
                       {attempts.length > 0 ? `${attempts.length} ATTEMPT` : item.status}
                     </span>

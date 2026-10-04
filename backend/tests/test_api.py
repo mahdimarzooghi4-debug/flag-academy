@@ -29,3 +29,9 @@ def test_practice_attempt_contract_exposes_replay_lineage() -> None:
     props = schemas["PracticeAttemptResponse"]["properties"]
     assert "attempt_number" in props
     assert "replay_of_attempt_id" in props
+
+
+def test_learning_unit_contract_exposes_practice_kind() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["LearningUnitResponse"]["properties"]
+    assert "practice_kind" in props
