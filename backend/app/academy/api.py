@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.academy.models import ClassOffering, Cohort, Session
+from app.academy.models import ClassOffering, Cohort, CohortMembership, Session
 from app.db import get_session
 from app.errors import AppError
 from app.identity.auth import ActorContext, get_actor
@@ -28,6 +28,18 @@ async def cohort_schedule(
         )
     ).scalar_one_or_none()
     if cohort is None:
+        raise AppError("COHORT_NOT_FOUND", "Cohort not found.", status_code=404)
+
+    membership = (
+        await session.execute(
+            select(CohortMembership.id).where(
+                CohortMembership.cohort_id == cohort_id,
+                CohortMembership.person_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None and "ACADEMY_ADMIN" not in actor.roles:
+        # Hide cohort existence from users who are not members.
         raise AppError("COHORT_NOT_FOUND", "Cohort not found.", status_code=404)
 
     rows = (

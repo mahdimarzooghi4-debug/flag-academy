@@ -1,9 +1,10 @@
+import asyncio
 from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 from sqlalchemy import select
@@ -27,6 +28,7 @@ class ActorContext:
 
 
 async def get_actor(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     session: Annotated[AsyncSession, Depends(get_session)],
     organization_context: Annotated[
@@ -42,8 +44,9 @@ async def get_actor(
 
     settings = get_settings()
     try:
-        signing_key = PyJWKClient(settings.oidc_jwks_url).get_signing_key_from_jwt(
-            credentials.credentials
+        signing_key = await asyncio.to_thread(
+            PyJWKClient(settings.oidc_jwks_url).get_signing_key_from_jwt,
+            credentials.credentials,
         )
         claims = jwt.decode(
             credentials.credentials,
@@ -99,13 +102,20 @@ async def get_actor(
             status_code=422,
         )
 
-    token_roles = set(claims.get("realm_access", {}).get("roles", []))
-    membership_roles = {m.membership_role for m in memberships if m.organization_id == selected.organization_id}
+    # Organization membership is authoritative for contextual product permissions.
+    # Realm roles may describe identity-provider capabilities but must not grant
+    # access in an organization where the person has no matching membership role.
+    membership_roles = {
+        m.membership_role
+        for m in memberships
+        if m.organization_id == selected.organization_id
+    }
     return ActorContext(
         actor_id=subject,
         person_id=person.id,
         organization_context_id=selected.organization_id,
-        roles=frozenset(token_roles | membership_roles),
+        roles=frozenset(membership_roles),
+        trace_id=getattr(request.state, "trace_id", ""),
     )
 
 

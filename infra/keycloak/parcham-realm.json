@@ -4,9 +4,15 @@
   "registrationAllowed": false,
   "roles": {
     "realm": [
-      { "name": "CANDIDATE" },
-      { "name": "INSTRUCTOR" },
-      { "name": "ACADEMY_ADMIN" }
+      {
+        "name": "CANDIDATE"
+      },
+      {
+        "name": "INSTRUCTOR"
+      },
+      {
+        "name": "ACADEMY_ADMIN"
+      }
     ]
   },
   "clients": [
@@ -17,8 +23,12 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173"],
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },
@@ -48,10 +58,9 @@
       "enabled": true,
       "firstName": "Candidate",
       "lastName": "Demo",
-      "credentials": [
-        { "type": "password", "value": "candidate", "temporary": false }
-      ],
-      "realmRoles": ["CANDIDATE"]
+      "realmRoles": [
+        "CANDIDATE"
+      ]
     },
     {
       "id": "22222222-2222-2222-2222-222222222222",
@@ -59,10 +68,9 @@
       "enabled": true,
       "firstName": "Instructor",
       "lastName": "Demo",
-      "credentials": [
-        { "type": "password", "value": "instructor", "temporary": false }
-      ],
-      "realmRoles": ["INSTRUCTOR"]
+      "realmRoles": [
+        "INSTRUCTOR"
+      ]
     }
   ]
 }
