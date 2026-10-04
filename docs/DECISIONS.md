@@ -428,7 +428,7 @@
 | DEC-420 | 2026-10-04 | Parcham OS به‌عنوان یک Leadership Development Operating System تعریف شد که تجربه می‌سازد، رفتار را مشاهده می‌کند، Evidence را با حاکمیت انسانی تفسیر می‌کند، Flag Profile می‌سازد و آن را به Responsibility Decision قابل دفاع متصل می‌کند. | FINAL |
 | DEC-421 | 2026-10-04 | معماری کلان Parcham OS چهار لایه Experience، Core Domain، Intelligence و Platform & Data دارد و AI یک لایه افقی است، نه Source of Truth. | FINAL |
 | DEC-422 | 2026-10-04 | Product Surfaceهای اصلی شامل Public Website، Candidate Workspace، Mission Workspace، Mentor/Coach Workspace، Assessor Console، Flag Board Console، Academy Admin/Studio و Organization/Leadership Console هستند. | FINAL |
-| DEC-423 | 2026-10-04 | Candidate Home باید بر «چه چیزی اکنون باید اثبات شود؟» متمرکز باشد، نه درصد Completion دوره. | FINAL |
+| DEC-423 | 2026-10-04 | Candidate Home باید بر «چه چیزی اکنون باید اثبات شود؟» متمرکز باشد، نه درصد Completion دوره. | SUPERSEDED by DEC-581 |
 | DEC-424 | 2026-10-04 | Parcham OS دارای 17 Bounded Context است: Identity & Organization، Admissions، Capability & Curriculum، Learning Experience، Mission Design، Mission Runtime، World & Simulation Models، Evidence Engine، Flag Profile، Responsibility & Trust، Human Review & Governance، Real Projects، Learning & Reflection، Curriculum Orchestrator، Parcham AI، Knowledge & Business Context و Audit & Compliance. | FINAL |
 | DEC-425 | 2026-10-04 | Identity & Organization از ابتدا Organization-aware است، اما پیچیدگی Multi-tenancy فقط در صورت نیاز واقعی وارد می‌شود. | FINAL |
 | DEC-426 | 2026-10-04 | Learning Content از Assessment Definition جداست تا Hint/Promptهای آموزشی Assessment را contaminate نکنند. | FINAL |
@@ -584,6 +584,17 @@
 | DEC-576 | 2026-10-04 | دوازده Contract Invariant نهایی شامل no direct profile update، no direct AI/system gate fail، no hidden world truth exposure، pre-outcome decision freeze، immutable sealed observation، immutable evidence under candidate response، independent review secrecy، evidence freeze before board، appointment separation، non-dump events، contract/event-only cross-context write و full version/lineage/trace/accountable actor برای consequential decisions است. | FINAL |
 | DEC-577 | 2026-10-04 | با نهایی‌شدن API & Data Contract v1، Business و Technical برای ورود به Product Backlog آماده‌اند؛ Kernel implementation ابتدا Identity، Curriculum، Mission Design/Runtime، Observation/Evidence، Flag Profile، Governance، Responsibility و Reflection را پوشش می‌دهد. | FINAL |
 | DEC-578 | 2026-10-04 | تعریف نهایی API & Data Contract v1: Client فقط Intent ارسال می‌کند، Domain صاحب State است، Version/Idempotency از تغییرات محافظت می‌کنند، Contextها با Contract/Event ارتباط دارند و هیچ تصمیم consequential بدون Lineage، Audit و Human Accountability اعمال نمی‌شود. | FINAL |
+| DEC-579 | 2026-10-04 | Parcham OS یک Blended Learning Operating System است که آموزش کلاسی، تمرین، شبیه‌سازی، تجربه واقعی و Evidence را در یک Journey واحد متصل می‌کند. | FINAL |
+| DEC-580 | 2026-10-04 | کلاس محل اصلی آموزش است و Simulator جای کلاس را نمی‌گیرد؛ Simulator مکمل کلاس برای Practice، Transfer و Assessment است. اصل «Class teaches the model. Simulator tests transfer.» تثبیت شد. | FINAL |
+| DEC-581 | 2026-10-04 | Candidate Home باید همزمان دو سؤال «الان چه چیزی باید یاد بگیرم؟» و «الان چه چیزی باید اثبات کنم؟» را پاسخ دهد؛ Course Completion Percentage به‌تنهایی مدل اصلی پیشرفت نیست. | FINAL |
+| DEC-582 | 2026-10-04 | مدل تجربه یادگیری سه لایه دارد: LEARN برای کلاس/محتوا/Knowledge Check/Assignment، PRACTICE برای Workshop/Case/Guided Exercise/AI Tutor، و PROVE برای Simulator/Assessment Mission/Real Project/Ownership Trial. | FINAL |
+| DEC-583 | 2026-10-04 | Capability همچنان واحد اصلی Curriculum است اما هر Capability می‌تواند Learning Journey شامل Class/Session، Workshop، Case Study، Assignment، Practice Mission، Simulator، Reflection و Replay داشته باشد. | FINAL |
+| DEC-584 | 2026-10-04 | Parcham OS باید قابلیت‌های Academy/Learning Management شامل Class/Session، Instructor، Schedule، Attendance، Pre-work، Materials، Recording/Summary، Assignment/Submission، Quiz/Knowledge Check، Group Exercise، Discussion/Q&A، Instructor Feedback و Class Completion را First-class پشتیبانی کند. | FINAL |
+| DEC-585 | 2026-10-04 | Instructor یک Role مستقل و First-class با Workspace برای Classes، Roster، Sessions، Materials، Assignments، Submissions، Feedback و Learning Progress است. | FINAL |
+| DEC-586 | 2026-10-04 | Instructor Feedback، Attendance و Class Completion به‌صورت خودکار Capability Proven ایجاد نمی‌کنند؛ Learning Completion، Practice Performance و Proven Capability سه State مفهومی جدا هستند. | FINAL |
+| DEC-587 | 2026-10-04 | Cohort یک مفهوم First-class در Academy است و Candidates، Instructors، Schedule، Classes، Groups، Assignments، Workshops، Simulation Windows، Assessment Camp و Milestones را در بر می‌گیرد. | FINAL |
+| DEC-588 | 2026-10-04 | Simulator می‌تواند مستقیماً به Class یا Capability متصل شود و پس از آن Cohort Debrief روی Patternهای عمومی انجام شود، بدون افشای Hidden Assessment Targets. | FINAL |
+| DEC-589 | 2026-10-04 | تعریف نهایی Product Positioning: Parcham OS نه LMS صرف است و نه Simulator صرف؛ سیستم عامل آکادمی توسعه رهبری است که Class، Practice، Simulation، Real Experience و Evidence را یکپارچه می‌کند. | FINAL |
 
 ---
 
