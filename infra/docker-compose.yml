@@ -23,7 +23,9 @@ services:
       - "8222:8222"
 
   minio:
-    image: minio/minio:latest
+    build:
+      context: ./minio
+    image: parcham/minio-dev:local
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-parcham}
