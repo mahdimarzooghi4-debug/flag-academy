@@ -13,17 +13,22 @@ function Loading({ text = "در حال بارگذاری..." }: { text?: string }
   return <div className="center-state">{text}</div>;
 }
 
-async function refreshProjectionEventually(
-  refetch: () => Promise<unknown>,
-  attempts = 12,
-  intervalMs = 500,
+type RefetchResult<T> = { data?: T };
+
+async function refreshProjectionUntil<T>(
+  refetch: () => Promise<RefetchResult<T>>,
+  predicate: (data: T | undefined) => boolean,
+  attempts = 16,
+  intervalMs = 400,
 ) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    await refetch();
+    const result = await refetch();
+    if (predicate(result.data)) return;
     if (attempt < attempts - 1) {
       await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
     }
   }
+  throw new Error("به‌روزرسانی نمای خواندنی هنوز تکمیل نشده است؛ دوباره تلاش کنید.");
 }
 
 export default function App() {
@@ -110,8 +115,16 @@ function AuthenticatedApp({
         if (error) throw new Error("تکمیل فعالیت یادگیری ناموفق بود.");
       }
     },
-    onSuccess: () => {
-      void refreshProjectionEventually(candidate.refetch);
+    onSuccess: async (_data, variables) => {
+      await refreshProjectionUntil(
+        candidate.refetch,
+        (data) =>
+          data?.learning_tasks?.some(
+            (item) =>
+              item.id === variables.learningUnitId &&
+              item.status === (variables.action === "start" ? "IN_PROGRESS" : "COMPLETED"),
+          ) ?? false,
+      );
     },
   });
 
@@ -123,14 +136,21 @@ function AuthenticatedApp({
       learningUnitId: string;
       response: string;
     }) => {
-      const { error } = await api.POST("/api/v1/practice-units/{learning_unit_id}/attempts", {
+      const { data, error } = await api.POST("/api/v1/practice-units/{learning_unit_id}/attempts", {
         params: { path: { learning_unit_id: learningUnitId } },
         body: { response_text: response },
       });
-      if (error) throw new Error("ثبت تمرین ناموفق بود.");
+      if (error || !data) throw new Error("ثبت تمرین ناموفق بود.");
+      return data as { id: string };
     },
-    onSuccess: () => {
-      void refreshProjectionEventually(candidate.refetch);
+    onSuccess: async (created, variables) => {
+      await refreshProjectionUntil(
+        candidate.refetch,
+        (data) =>
+          data?.learning_tasks
+            ?.find((item) => item.id === variables.learningUnitId)
+            ?.practice_attempts?.some((attempt) => attempt.id === created.id) ?? false,
+      );
     },
   });
 
@@ -142,14 +162,23 @@ function AuthenticatedApp({
       assignmentId: string;
       content: string;
     }) => {
-      const { error } = await api.POST("/api/v1/assignments/{assignment_id}/submissions", {
+      const { data, error } = await api.POST("/api/v1/assignments/{assignment_id}/submissions", {
         params: { path: { assignment_id: assignmentId } },
         body: { content_text: content },
       });
-      if (error) throw new Error("ثبت تکلیف ناموفق بود.");
+      if (error || !data) throw new Error("ثبت تکلیف ناموفق بود.");
+      return data as { id: string };
     },
-    onSuccess: () => {
-      void refreshProjectionEventually(candidate.refetch);
+    onSuccess: async (created, variables) => {
+      await refreshProjectionUntil(
+        candidate.refetch,
+        (data) =>
+          data?.learning_tasks?.some(
+            (item) =>
+              item.id === variables.assignmentId &&
+              item.submission_id === created.id,
+          ) ?? false,
+      );
     },
   });
 
@@ -161,17 +190,24 @@ function AuthenticatedApp({
       practiceAttemptId: string;
       feedback: string;
     }) => {
-      const { error } = await api.POST(
+      const { data, error } = await api.POST(
         "/api/v1/practice-attempts/{practice_attempt_id}/feedback",
         {
           params: { path: { practice_attempt_id: practiceAttemptId } },
           body: { feedback_text: feedback },
         },
       );
-      if (error) throw new Error("ثبت بازخورد تمرین ناموفق بود.");
+      if (error || !data) throw new Error("ثبت بازخورد تمرین ناموفق بود.");
+      return data as { id: string; practice_attempt_id: string };
     },
-    onSuccess: () => {
-      void refreshProjectionEventually(instructor.refetch);
+    onSuccess: async (created) => {
+      await refreshProjectionUntil(
+        instructor.refetch,
+        (data) =>
+          data?.practice_attempts
+            ?.find((item) => item.id === created.practice_attempt_id)
+            ?.feedback_history?.some((feedback) => feedback.id === created.id) ?? false,
+      );
     },
   });
 
@@ -189,8 +225,14 @@ function AuthenticatedApp({
       });
       if (error) throw new Error("ثبت بازخورد ناموفق بود.");
     },
-    onSuccess: () => {
-      void refreshProjectionEventually(instructor.refetch);
+    onSuccess: async (_data, variables) => {
+      await refreshProjectionUntil(
+        instructor.refetch,
+        (data) =>
+          data?.submissions?.some(
+            (item) => item.id === variables.submissionId && Boolean(item.feedback_text),
+          ) ?? false,
+      );
     },
   });
 
