@@ -1,6 +1,29 @@
+import { useState } from "react";
 import type { InstructorHomeResponse } from "../api/client";
 
-export function InstructorHome({ data }: { data: InstructorHomeResponse }) {
+type Props = {
+  data: InstructorHomeResponse;
+  onRecordFeedback?: (submissionId: string, feedback: string) => Promise<void>;
+  submittingFeedbackId?: string;
+};
+
+export function InstructorHome({
+  data,
+  onRecordFeedback,
+  submittingFeedbackId,
+}: Props) {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+
+  async function saveFeedback(submissionId: string) {
+    const feedback = (drafts[submissionId] ?? "").trim();
+    if (!feedback || !onRecordFeedback) return;
+    await onRecordFeedback(submissionId, feedback);
+    setSavedMessage(
+      "بازخورد ثبت شد. بازخورد آموزشی مستقیماً Capability را Proven نمی‌کند.",
+    );
+  }
+
   return (
     <main className="page-shell">
       <section className="hero-card">
@@ -36,6 +59,101 @@ export function InstructorHome({ data }: { data: InstructorHomeResponse }) {
             بازخورد مدرس به یادگیری کمک می‌کند، اما به‌تنهایی Capability را Proven نمی‌کند.
           </p>
         </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="panel">
+          <p className="eyebrow">LEARNING UNITS</p>
+          <h2>محتوای کلاس</h2>
+          <div className="stack">
+            {(data.learning_units ?? []).map((item) => (
+              <div className="learning-card" key={item.id}>
+                <div className="assignment-head">
+                  <strong>{item.title}</strong>
+                  <span className="state">{item.phase}</span>
+                </div>
+                <p>{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <p className="eyebrow">ASSIGNMENTS</p>
+          <h2>تکلیف‌های کلاس</h2>
+          <div className="stack">
+            {(data.assignments ?? []).map((item) => (
+              <div className="learning-card" key={item.id}>
+                <strong>{item.title}</strong>
+                <p>{item.instructions}</p>
+                <span className="state">{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-title">
+          <div>
+            <p className="eyebrow">SUBMISSIONS</p>
+            <h2>ارسال‌های فراگیران</h2>
+          </div>
+          <span className="count">{data.submissions?.length ?? 0}</span>
+        </div>
+        {savedMessage ? <p className="success-note">{savedMessage}</p> : null}
+        <div className="stack">
+          {(data.submissions ?? []).map((item) => (
+            <div className="assignment-card" key={item.id}>
+              <div className="assignment-head">
+                <div>
+                  <strong>{item.assignment_title}</strong>
+                  <p className="muted">{item.candidate_name}</p>
+                </div>
+                <span className="state">{item.status}</span>
+              </div>
+              <div className="submission-body">
+                <b>پاسخ فراگیر</b>
+                <p>{item.content_text}</p>
+              </div>
+              {item.feedback_text ? (
+                <div className="submission-summary">
+                  <b>آخرین بازخورد</b>
+                  <p data-testid="instructor-feedback">{item.feedback_text}</p>
+                </div>
+              ) : (
+                <div className="form-stack">
+                  <label htmlFor={`feedback-${item.id}`}>بازخورد مدرس</label>
+                  <textarea
+                    id={`feedback-${item.id}`}
+                    value={drafts[item.id] ?? ""}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [item.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="بازخورد مشخص و قابل اقدام بنویسید..."
+                  />
+                  <button
+                    className="primary"
+                    disabled={
+                      !onRecordFeedback ||
+                      submittingFeedbackId === item.id ||
+                      !(drafts[item.id] ?? "").trim()
+                    }
+                    onClick={() => void saveFeedback(item.id)}
+                  >
+                    {submittingFeedbackId === item.id ? "در حال ثبت..." : "ثبت بازخورد"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          {(data.submissions ?? []).length === 0 ? (
+            <p className="muted">هنوز ارسالی برای بررسی وجود ندارد.</p>
+          ) : null}
+        </div>
       </section>
     </main>
   );

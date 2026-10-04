@@ -1,6 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
-import { makeApi, type CandidateHomeResponse, type InstructorHomeResponse, type MeResponse } from "./api/client";
+import {
+  makeApi,
+  type CandidateHomeResponse,
+  type InstructorHomeResponse,
+  type MeResponse,
+} from "./api/client";
 import { CandidateHome } from "./components/CandidateHome";
 import { InstructorHome } from "./components/InstructorHome";
 
@@ -24,7 +29,12 @@ export default function App() {
     );
   }
 
-  return <AuthenticatedApp accessToken={auth.user.access_token} onLogout={() => void auth.removeUser()} />;
+  return (
+    <AuthenticatedApp
+      accessToken={auth.user.access_token}
+      onLogout={() => void auth.removeUser()}
+    />
+  );
 }
 
 function AuthenticatedApp({
@@ -67,18 +77,85 @@ function AuthenticatedApp({
     },
   });
 
+  const submitAssignment = useMutation({
+    mutationFn: async ({
+      assignmentId,
+      content,
+    }: {
+      assignmentId: string;
+      content: string;
+    }) => {
+      const { error } = await api.POST("/api/v1/assignments/{assignment_id}/submissions", {
+        params: { path: { assignment_id: assignmentId } },
+        body: { content_text: content },
+      });
+      if (error) throw new Error("ثبت تکلیف ناموفق بود.");
+    },
+    onSuccess: async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      await candidate.refetch();
+    },
+  });
+
+  const recordFeedback = useMutation({
+    mutationFn: async ({
+      submissionId,
+      feedback,
+    }: {
+      submissionId: string;
+      feedback: string;
+    }) => {
+      const { error } = await api.POST("/api/v1/submissions/{submission_id}/feedback", {
+        params: { path: { submission_id: submissionId } },
+        body: { feedback_text: feedback },
+      });
+      if (error) throw new Error("ثبت بازخورد ناموفق بود.");
+    },
+    onSuccess: async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      await instructor.refetch();
+    },
+  });
+
   if (me.isLoading || candidate.isLoading || instructor.isLoading) return <Loading />;
-  const error = me.error || candidate.error || instructor.error;
+  const error =
+    me.error ||
+    candidate.error ||
+    instructor.error ||
+    submitAssignment.error ||
+    recordFeedback.error;
   if (error) return <div className="center-state error">{error.message}</div>;
 
   return (
     <>
       <header className="topbar">
         <span className="brand">پرچم</span>
-        <button className="ghost" onClick={onLogout}>خروج</button>
+        <button className="ghost" onClick={onLogout}>
+          خروج
+        </button>
       </header>
-      {isCandidate && candidate.data ? <CandidateHome data={candidate.data} /> : null}
-      {!isCandidate && isInstructor && instructor.data ? <InstructorHome data={instructor.data} /> : null}
+      {isCandidate && candidate.data ? (
+        <CandidateHome
+          data={candidate.data}
+          onSubmitAssignment={async (assignmentId, content) => {
+            await submitAssignment.mutateAsync({ assignmentId, content });
+          }}
+          submittingAssignmentId={
+            submitAssignment.isPending ? submitAssignment.variables?.assignmentId : undefined
+          }
+        />
+      ) : null}
+      {!isCandidate && isInstructor && instructor.data ? (
+        <InstructorHome
+          data={instructor.data}
+          onRecordFeedback={async (submissionId, feedback) => {
+            await recordFeedback.mutateAsync({ submissionId, feedback });
+          }}
+          submittingFeedbackId={
+            recordFeedback.isPending ? recordFeedback.variables?.submissionId : undefined
+          }
+        />
+      ) : null}
       {!isCandidate && !isInstructor ? (
         <div className="center-state">برای این حساب Workspace فعالی تعریف نشده است.</div>
       ) : null}

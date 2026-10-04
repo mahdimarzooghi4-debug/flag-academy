@@ -143,6 +143,13 @@ jobs:
           pip install -e ".[dev]"
           alembic upgrade head
           python -m app.seed
+      - name: Start event workers
+        working-directory: backend
+        shell: bash
+        run: |
+          python -m app.read_models.consumer > /tmp/parcham-projector.log 2>&1 &
+          python -m app.platform.outbox > /tmp/parcham-outbox.log 2>&1 &
+
       - name: Start backend
         working-directory: backend
         shell: bash
@@ -183,6 +190,8 @@ jobs:
             frontend/test-results
             /tmp/parcham-api.log
             /tmp/parcham-web.log
+            /tmp/parcham-outbox.log
+            /tmp/parcham-projector.log
           if-no-files-found: ignore
       - name: Stop integration infrastructure
         if: always()
