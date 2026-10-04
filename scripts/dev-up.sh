@@ -24,4 +24,6 @@ python -m app.seed
 
 echo "Parcham dependencies are ready."
 echo "Run backend: cd backend && uvicorn app.main:app --reload"
+echo "Run outbox worker: cd backend && python -m app.platform.outbox"
+echo "Run read-model worker: cd backend && python -m app.read_models.consumer"
 echo "Run frontend: cd frontend && npm install && npm run dev"

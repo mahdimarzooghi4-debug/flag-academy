@@ -27,6 +27,7 @@ from app.journey.models import CandidateJourney
 from app.platform.events import new_event, record_event
 from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
+from app.read_models.projector import rebuild_candidate_home, rebuild_instructor_home
 
 ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
 CANDIDATE_ID = UUID("00000000-0000-0000-0000-000000000101")
@@ -249,61 +250,18 @@ async def seed() -> None:
             )
         )
 
-        what_to_prove = [
-            {"capability_version_id": str(versions[code]), "name": NAMES[code], "proof_state": "UNPROVEN"}
-            for code in WAVES[0][2]
-        ]
-        upcoming = [
-            {
-                "session_id": str(s.id),
-                "title": s.title,
-                "starts_at": s.starts_at.isoformat(),
-                "ends_at": s.ends_at.isoformat(),
-                "delivery_mode": s.delivery_mode,
-            }
-            for s in session_items
-        ]
-        db.add(
-            CandidateHomeProjection(
-                person_id=CANDIDATE_ID,
-                organization_context_id=ORG_ID,
-                payload={
-                    "journey": {"track": "PRODUCT_MANAGER", "state": "ACTIVE"},
-                    "cohort": {"id": str(COHORT_ID), "name": "PM Flag Cohort — Winter 2026"},
-                    "current_wave": {"code": "WAVE_1", "name": "Think & Own"},
-                    "upcoming_sessions": upcoming,
-                    "what_to_learn": [
-                        {
-                            "capability_version_id": str(versions["OWNERSHIP_ACCOUNTABILITY"]),
-                            "name": NAMES["OWNERSHIP_ACCOUNTABILITY"],
-                            "learning_state": "TO_LEARN",
-                            "next_session": upcoming[0],
-                        }
-                    ],
-                    "what_to_prove": what_to_prove,
-                    "learning_tasks": [],
-                    "open_missions": [],
-                    "profile_summary": {"status": "UNPROVEN"},
-                    "processing_states": [],
-                },
-                updated_at=now,
-            )
+        await db.flush()
+        await rebuild_candidate_home(
+            db,
+            person_id=CANDIDATE_ID,
+            organization_context_id=ORG_ID,
         )
-        db.add(
-            InstructorHomeProjection(
-                person_id=INSTRUCTOR_ID,
-                organization_context_id=ORG_ID,
-                payload={
-                    "assigned_cohort": {"id": str(COHORT_ID), "name": "PM Flag Cohort — Winter 2026"},
-                    "assigned_classes": [{"id": str(class_id), "title": "Ownership & Accountability"}],
-                    "upcoming_sessions": upcoming,
-                    "candidate_count": 1,
-                    "capability_focus": NAMES["OWNERSHIP_ACCOUNTABILITY"],
-                    "current_wave": {"code": "WAVE_1", "name": "Think & Own"},
-                },
-                updated_at=now,
-            )
+        await rebuild_instructor_home(
+            db,
+            person_id=INSTRUCTOR_ID,
+            organization_context_id=ORG_ID,
         )
+
         event_actor = {"type": "SYSTEM", "id": "development-seed"}
         for envelope in (
             new_event(
