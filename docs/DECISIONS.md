@@ -187,6 +187,19 @@
 | DEC-179 | 2026-10-04 | عبور از Capability 07 نیازمند Evidence در چند Context، انتخاب واقعی Segment/Opportunity، رد آگاهانه فرصت‌های خوب، Non-goal روشن، Explicit کردن Bet/Assumption، هم‌راستایی Resource Allocation و تشخیص Adaptation لازم در برابر Noise در Stress Test است. | FINAL |
 | DEC-180 | 2026-10-04 | حداقل یک بار باید Strategy خود فرد بر اساس تغییر بنیادی Context اصلاح شود، بدون Reactive شدن صرف به فشار Stakeholder یا Competitor. | FINAL |
 | DEC-181 | 2026-10-04 | اصل فرهنگی Product Strategy: «پرچمدار با انتخاب‌هایش استراتژی می‌سازد؛ نه با تعداد چیزهایی که می‌خواهد انجام دهد.» | FINAL |
+| DEC-182 | 2026-10-04 | Capability 08 با عنوان Prioritization تعریف شد: تخصیص آگاهانه منابع محدود به مهم‌ترین کارها بر اساس Strategy، Impact، Cost of Delay، Evidence، Risk، Effort و Dependency. | FINAL |
+| DEC-183 | 2026-10-04 | اصل Prioritization: اگر همه‌چیز اولویت دارد، هیچ‌چیز اولویت ندارد؛ Priority فقط رتبه نیست و باید به Commitment واقعی منابع متصل باشد. | FINAL |
+| DEC-184 | 2026-10-04 | مدل Prioritization پرچم شامل Strategic Fit، Expected Impact، Evidence/Confidence، Cost of Delay، Effort/Capacity، Risk، Dependencies و Learning Value است. | FINAL |
+| DEC-185 | 2026-10-04 | RICE، WSJF و مدل‌های امتیازدهی ابزار تصمیم‌اند نه قاضی؛ Score باید گفتگو را بهتر کند و جای Judgment را نگیرد. | FINAL |
+| DEC-186 | 2026-10-04 | Mission Ladder این Capability شامل Everything Is Urgent، Executive Favorite، Quick Wins vs Big Bet، Dependency Trap، Cost of Delay، Reprioritization Shock و The Cut است. | FINAL |
+| DEC-187 | 2026-10-04 | Commitment Zoneهای Priority شامل NOW، NEXT، LATER/NOT NOW و STOP/NOT US هستند و Backlog نباید به وعده ضمنی تبدیل شود. | FINAL |
+| DEC-188 | 2026-10-04 | Artifactهای اصلی Prioritization شامل Prioritization Brief، Initiative Inventory، Criteria، Strategic Fit Map، Impact Estimate، Confidence/Evidence Assessment، Cost of Delay، Capacity View، Dependency Map، Ranked Options، Now/Next/Later، Deprioritization Rationale و Decision/Reprioritization Log هستند. | FINAL |
+| DEC-189 | 2026-10-04 | Sunk Cost به‌تنهایی دلیل ادامه Initiative نیست؛ تصمیم باید بر بهترین استفاده آینده از منابع متمرکز باشد و هزینه واقعی Stop نیز لحاظ شود. | FINAL |
+| DEC-190 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Ranking نهایی را پیشنهاد کند؛ Capacity، Stakeholderها، Dependencies، Initiative information و Consequenceها را شبیه‌سازی می‌کند. | FINAL |
+| DEC-191 | 2026-10-04 | در Real Project Mode، AI Priority Copilot می‌تواند Capacity mismatch، تعارض با Strategy/Non-goal و نیاز به Reprioritization را Explainably پیشنهاد کند؛ مالک تصمیم Product Manager است. | FINAL |
+| DEC-192 | 2026-10-04 | Parcham OS باید Strategy → Priority → Resource Allocation را به واقعیت مصرف زمان، ظرفیت و بودجه متصل کند و Resource Allocation Reality را قابل مشاهده سازد. | FINAL |
+| DEC-193 | 2026-10-04 | عبور از Capability 08 نیازمند Evidence هم از Adaptation و هم Stability است: حداقل یک Reprioritization درست در برابر Signal و یک مقاومت درست در برابر Noise. | FINAL |
+| DEC-194 | 2026-10-04 | اصل فرهنگی Prioritization: «پرچمدار فقط نمی‌گوید چه چیزی مهم است؛ با منابع محدود ثابت می‌کند چه چیزی مهم‌تر است.» | FINAL |
 
 ---
 
