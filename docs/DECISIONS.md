@@ -291,6 +291,25 @@
 | DEC-283 | 2026-10-04 | عبور از Capability 14 نیازمند Evidence در چند Context، تشخیص Pattern و Root Cause سیستمی، طراحی System Intervention، کاهش dependency، اصلاح Handoff، حذف Process/Gate کم‌ارزش، اصلاح System براساس Health Metric و Retire/Redesign حداقل یک System خود فرد است. | FINAL |
 | DEC-284 | 2026-10-04 | در Mission نهایی System Building، تغییر چند نفر از تیم نباید باعث سقوط جدی کیفیت جریان اصلی شود؛ کیفیت باید تا حد معناداری در System زندگی کند نه حافظه افراد خاص. | FINAL |
 | DEC-285 | 2026-10-04 | اصل فرهنگی System Building: «پرچمدار فقط مسئله امروز را حل نمی‌کند؛ سازوکاری می‌سازد که احتمال تکرار همان مسئله را کمتر کند.» | FINAL |
+| DEC-286 | 2026-10-04 | Capability 15 با عنوان Reflection & Learning تعریف شد: تبدیل Experience، Outcome، Failure، Feedback و Evidence به Mental Model بهتر و سپس Behaviour Change قابل مشاهده. | FINAL |
+| DEC-287 | 2026-10-04 | Learning زمانی اثبات می‌شود که رفتار بعدی تغییر کند؛ Reflection خوب بدون Behaviour Change کافی نیست. | FINAL |
+| DEC-288 | 2026-10-04 | سه سطح Learning شامل Correction، Pattern Learning و Model Change است. | FINAL |
+| DEC-289 | 2026-10-04 | Learning Loop استاندارد پرچم به‌صورت Act → Observe → Compare → Reflect → Reframe → Commit → Replay → Verify تثبیت شد. | FINAL |
+| DEC-290 | 2026-10-04 | Mission Ladder این Capability شامل The Missed Signal، Feedback Resistance، Same Mistake New Context، Success Autopsy، Contradictory Feedback، Unlearning، Replay Proof و Learning Portfolio است. | FINAL |
+| DEC-291 | 2026-10-04 | Learning Velocity باید به‌صورت Pattern Evidence و با ابعادی مانند Time to Recognize، Time to Own، Time to Reframe، Time to Behaviour Change و Durability در Flag Profile قابل مشاهده باشد، نه به‌صورت Score سطحی. | FINAL |
+| DEC-292 | 2026-10-04 | Learning Record استاندارد باید Situation، Expected، Actual، Evidence، My Contribution، Assumption Challenged، Learning، Behaviour Commitment و Replay Evidence را ثبت و به Evidence Ledger متصل کند. | FINAL |
+| DEC-293 | 2026-10-04 | تفکیک Learning Claim و Learning Evidence قطعی شد؛ Reflection می‌تواند Learning را پیشنهاد کند اما Replay آن را اثبات می‌کند. | FINAL |
+| DEC-294 | 2026-10-04 | Failure فقط وقتی ارزش Learning دارد که با Ownership، Root Cause، Behaviour Change و Replay همراه باشد؛ Failure without learning صرفاً «تجربه» محسوب نمی‌شود. | FINAL |
+| DEC-295 | 2026-10-04 | Success نیز باید Post-mortem شود تا Outcome خوب، Process ضعیف را Reinforce نکند و سهم Skill، Process، Context، Luck و Timing تفکیک شود. | FINAL |
+| DEC-296 | 2026-10-04 | Feedback باید در سه لایه Signal، Interpretation و Recommendation مصرف شود و فرد نباید Recommendation را صرفاً به دلیل وجود Signal معتبر تلقی کند. | FINAL |
+| DEC-297 | 2026-10-04 | در Assessment Mode، Reflection اولیه باید بدون AI-generated interpretation ثبت شود؛ AI نباید Pattern یا پاسخ مطلوب را به فرد تلقین کند و باید Behaviour Commitment را در Replayهای بعدی دنبال کند. | FINAL |
+| DEC-298 | 2026-10-04 | Leadership Digital Twin باید برای Patternهای مهم Learning Memory شامل Observed Pattern، Reflection Date، Learning Claim، Behaviour Commitment، Replay Opportunities، Behaviour Change Evidence و Statusهایی مانند Unproven/Improving/Sustained/Regressed نگه دارد. | FINAL |
+| DEC-299 | 2026-10-04 | Learning می‌تواند Regression داشته باشد و Status رفتاری می‌تواند Improving → Sustained → Regressed → Recovered باشد؛ Context، Stress، Scope و Frequency باید در تفسیر Regression لحاظ شوند. | FINAL |
+| DEC-300 | 2026-10-04 | AI نباید Reflection را جای فرد انجام دهد؛ Learn Mode می‌تواند کمک زیاد بدهد، Practice Mode باید سؤال‌محور باشد و Assessment Mode نیازمند Reflection اولیه مستقل است. | FINAL |
+| DEC-301 | 2026-10-04 | Artifactهای اصلی Reflection & Learning شامل Learning Record، Reflection Note، Feedback Log، Assumption Change Log، Behaviour Commitment، Replay Plan/Evidence، Learning Portfolio، Pattern History و Personal Operating Manual هستند. | FINAL |
+| DEC-302 | 2026-10-04 | عبور از Capability 15 نیازمند Evidence در چند Context و سه Evidence اجباری است: Behaviour Change در Context متفاوت، کاهش پایدار حداقل یک Pattern در چند Replay و حداقل یک مورد Unlearning. برای L3/L4 انتقال Learning به تیم یا System نیز لازم است. | FINAL |
+| DEC-303 | 2026-10-04 | Capability 15 موتور بازگشت به چرخه بعد Curriculum است؛ چرخه 15 Capability به‌صورت Ownership → Problem → Decision → Data → Customer → Discovery → Strategy → Prioritization → Metrics → Economics → Delivery → Alignment → Leadership → System Building → Reflection & Learning → رفتار بهتر در چرخه بعد تعریف شد. | FINAL |
+| DEC-304 | 2026-10-04 | اصل فرهنگی Reflection & Learning: «پرچمدار از تجربه عبور نمی‌کند؛ تجربه را به تغییر رفتار تبدیل می‌کند.» | FINAL |
 
 ---
 
