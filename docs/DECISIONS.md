@@ -142,6 +142,15 @@
 | DEC-134 | 2026-10-04 | Parcham AI می‌تواند Decision Calibration Profile فرد را برای شناسایی Overconfidence یا Excessive Caution بسازد و آن را در Leadership Digital Twin نگه دارد. | FINAL |
 | DEC-135 | 2026-10-04 | عبور از Capability 03 نیازمند Evidence در چند Context، حداقل یک مورد استقلال Judgment تحت فشار Authority، حداقل یک اصلاح تصمیم با Evidence جدید و حداقل یک بازبینی صادقانه Outcome نامطلوب بدون Hindsight Rewrite است. | FINAL |
 | DEC-136 | 2026-10-04 | اصل فرهنگی Decision Making: «پرچمدار برای اینکه همیشه درست باشد تصمیم نمی‌گیرد؛ تصمیم می‌گیرد، مسئولش می‌ماند و وقتی واقعیت تغییر کرد خودش هم تغییر می‌کند.» | FINAL |
+| DEC-137 | 2026-10-04 | Capability 04 با عنوان Data Thinking تعریف شد: استفاده از داده برای فهم واقعیت، آزمون فرضیه و بهبود تصمیم، بدون افتادن در Vanity Metrics، Correlation ساده‌لوحانه یا عددسازی برای توجیه تصمیم. | FINAL |
+| DEC-138 | 2026-10-04 | Mission Ladder این Capability شامل Vanity Dashboard، Broken Funnel، Segment Trap، Conflicting Metrics، Dirty Data و Correlation Trap است. | FINAL |
+| DEC-139 | 2026-10-04 | Artifactهای اصلی Data Thinking شامل Metric Definition، Metric Tree، Funnel Analysis، Cohort Analysis، Segment Breakdown، Baseline، Data Quality Check، Insight Memo و Decision Recommendation هستند. | FINAL |
+| DEC-140 | 2026-10-04 | اصل Data Thinking: Dashboard خروجی نیست؛ تصمیمی که از داده بهتر شده خروجی است. | FINAL |
+| DEC-141 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Insight را برای فرد استخراج کند؛ فقط Data Environment، Query response، Breakdownها و داده‌های قابل درخواست را فراهم می‌کند. | FINAL |
+| DEC-142 | 2026-10-04 | تحلیل داده تولیدشده توسط AI باید قابل Audit باشد؛ Prompt/Query، داده ورودی، خروجی AI و Judgment انسانی باید قابل ردیابی باشند و مسئولیت تصمیم نهایی با انسان باقی می‌ماند. | FINAL |
+| DEC-143 | 2026-10-04 | عبور از Capability 04 نیازمند Evidence در چند Context، رد آگاهانه حداقل یک Vanity Metric، Segment کردن داده، کشف حداقل یک Data Quality Issue پیش از تصمیم، عدم اشتباه Correlation با Causation و اتصال Insight به Decision یا Hypothesis Change است. | FINAL |
+| DEC-144 | 2026-10-04 | حداقل یک Mission Data Thinking باید داده اولیه گمراه‌کننده داشته باشد تا توان Challenge کردن Data پیش از تصمیم سنجیده شود. | FINAL |
+| DEC-145 | 2026-10-04 | اصل فرهنگی Data Thinking: «پرچمدار از داده برای اثبات خودش استفاده نمی‌کند؛ از داده برای نزدیک‌شدن به واقعیت استفاده می‌کند.» | FINAL |
 
 ---
 
