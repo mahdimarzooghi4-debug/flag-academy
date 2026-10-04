@@ -138,6 +138,9 @@ jobs:
           feedback_submissions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.submissions where status = 'FEEDBACK_PROVIDED';")
           learning_completed=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home ch, jsonb_array_elements(ch.payload->'what_to_learn') item where item->>'learning_state' = 'LEARNING_COMPLETED';")
           unproven=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home ch, jsonb_array_elements(ch.payload->'what_to_prove') item where item->>'proof_state' = 'UNPROVEN';")
+          practice_attempts=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts;")
+          practice_feedback=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_feedback;")
+          practice_feedback_provided=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts where status = 'FEEDBACK_PROVIDED';")
 
           test "$published" -ge 11
           test "$inbox" -ge 11
@@ -147,6 +150,9 @@ jobs:
           test "$feedback_submissions" -ge 1
           test "$learning_completed" -ge 1
           test "$unproven" -ge 1
+          test "$practice_attempts" -ge 1
+          test "$practice_feedback" -ge 1
+          test "$practice_feedback_provided" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -159,6 +165,9 @@ jobs:
             echo "feedback_provided_submissions=$feedback_submissions"
             echo "learning_completed_capabilities=$learning_completed"
             echo "unproven_capabilities=$unproven"
+            echo "practice_attempts=$practice_attempts"
+            echo "practice_feedback_rows=$practice_feedback"
+            echo "practice_feedback_provided_attempts=$practice_feedback_provided"
             echo "browser_oidc_acceptance=PASS"
           } | tee stage-artifacts/acceptance.txt
 
