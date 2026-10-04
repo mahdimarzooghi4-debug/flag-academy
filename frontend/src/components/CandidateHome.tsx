@@ -11,12 +11,19 @@ function formatDate(value?: string | null) {
 
 type Props = {
   data: CandidateHomeResponse;
+  onUpdateLearningUnit?: (
+    learningUnitId: string,
+    action: "start" | "complete",
+  ) => Promise<void>;
+  updatingLearningUnitId?: string;
   onSubmitAssignment?: (assignmentId: string, content: string) => Promise<void>;
   submittingAssignmentId?: string;
 };
 
 export function CandidateHome({
   data,
+  onUpdateLearningUnit,
+  updatingLearningUnitId,
   onSubmitAssignment,
   submittingAssignmentId,
 }: Props) {
@@ -27,6 +34,11 @@ export function CandidateHome({
   const preWork = learningTasks.filter((item) => item.task_type === "PRE_WORK");
   const practice = learningTasks.filter((item) => item.task_type === "PRACTICE");
   const assignments = learningTasks.filter((item) => item.task_type === "ASSIGNMENT");
+
+  async function updateUnit(learningUnitId: string, action: "start" | "complete") {
+    if (!onUpdateLearningUnit) return;
+    await onUpdateLearningUnit(learningUnitId, action);
+  }
 
   async function submit(assignmentId: string) {
     const content = (drafts[assignmentId] ?? "").trim();
@@ -87,9 +99,30 @@ export function CandidateHome({
           <div className="stack">
             {preWork.map((item) => (
               <div className="learning-card" key={item.id}>
-                <strong>{item.title}</strong>
+                <div className="assignment-head">
+                  <strong>{item.title}</strong>
+                  <span className="state">{item.status}</span>
+                </div>
                 <p>{item.body}</p>
-                <span className="state">{item.status}</span>
+                {item.status === "NOT_STARTED" ? (
+                  <button
+                    className="primary"
+                    disabled={!onUpdateLearningUnit || updatingLearningUnitId === item.id}
+                    onClick={() => void updateUnit(item.id, "start")}
+                  >
+                    {updatingLearningUnitId === item.id ? "در حال ثبت..." : "شروع"}
+                  </button>
+                ) : item.status === "IN_PROGRESS" ? (
+                  <button
+                    className="primary"
+                    disabled={!onUpdateLearningUnit || updatingLearningUnitId === item.id}
+                    onClick={() => void updateUnit(item.id, "complete")}
+                  >
+                    {updatingLearningUnitId === item.id ? "در حال ثبت..." : "تکمیل فعالیت"}
+                  </button>
+                ) : (
+                  <p className="success-note">این فعالیت یادگیری تکمیل شده است.</p>
+                )
               </div>
             ))}
             {preWork.length === 0 ? <p className="muted">پیش‌کاری فعالی ندارید.</p> : null}
@@ -102,9 +135,30 @@ export function CandidateHome({
           <div className="stack">
             {practice.map((item) => (
               <div className="learning-card" key={item.id}>
-                <strong>{item.title}</strong>
+                <div className="assignment-head">
+                  <strong>{item.title}</strong>
+                  <span className="state">{item.status}</span>
+                </div>
                 <p>{item.body}</p>
-                <span className="state">{item.status}</span>
+                {item.status === "NOT_STARTED" ? (
+                  <button
+                    className="primary"
+                    disabled={!onUpdateLearningUnit || updatingLearningUnitId === item.id}
+                    onClick={() => void updateUnit(item.id, "start")}
+                  >
+                    {updatingLearningUnitId === item.id ? "در حال ثبت..." : "شروع"}
+                  </button>
+                ) : item.status === "IN_PROGRESS" ? (
+                  <button
+                    className="primary"
+                    disabled={!onUpdateLearningUnit || updatingLearningUnitId === item.id}
+                    onClick={() => void updateUnit(item.id, "complete")}
+                  >
+                    {updatingLearningUnitId === item.id ? "در حال ثبت..." : "تکمیل فعالیت"}
+                  </button>
+                ) : (
+                  <p className="success-note">این فعالیت یادگیری تکمیل شده است.</p>
+                )
               </div>
             ))}
             {practice.length === 0 ? <p className="muted">تمرین فعالی ندارید.</p> : null}

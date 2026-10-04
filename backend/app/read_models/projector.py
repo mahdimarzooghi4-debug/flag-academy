@@ -17,7 +17,7 @@ from app.academy.models import (
 from app.curriculum.models import CapabilityVersion, CurriculumWave, WaveCapability
 from app.identity.models import Person
 from app.journey.models import CandidateJourney
-from app.learning.models import Assignment, InstructorFeedback, LearningUnit, Submission
+from app.learning.models import (\n    Assignment,\n    InstructorFeedback,\n    LearningUnit,\n    LearningUnitProgress,\n    Submission,\n)
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
 
 
@@ -218,6 +218,19 @@ async def rebuild_candidate_home(
             )
         ).scalars().all()
 
+    unit_ids = [item.id for item in units]
+    progresses: Sequence[LearningUnitProgress] = []
+    if unit_ids:
+        progresses = (
+            await db.execute(
+                select(LearningUnitProgress).where(
+                    LearningUnitProgress.learning_unit_id.in_(unit_ids),
+                    LearningUnitProgress.candidate_id == person_id,
+                )
+            )
+        ).scalars().all()
+    progress_by_unit = {item.learning_unit_id: item for item in progresses}
+
     assignment_ids = [item.id for item in assignments]
     submissions: Sequence[Submission] = []
     if assignment_ids:
@@ -234,31 +247,47 @@ async def rebuild_candidate_home(
         db, [item.id for item in submissions]
     )
 
-    submitted_capabilities = {
-        assignment.capability_version_id
-        for assignment in assignments
-        if assignment.id in submission_by_assignment
-    }
-
     what_to_learn = []
     for capability in capability_rows:
         next_session = first_session_by_capability.get(capability.id)
-        has_learning_content = any(
-            unit.capability_version_id == capability.id for unit in units
+        capability_units = [
+            unit for unit in units if unit.capability_version_id == capability.id
+        ]
+        capability_assignments = [
+            assignment
+            for assignment in assignments
+            if assignment.capability_version_id == capability.id
+        ]
+        has_requirements = bool(capability_units or capability_assignments)
+        all_units_completed = all(
+            progress_by_unit.get(unit.id) is not None
+            and progress_by_unit[unit.id].state == "COMPLETED"
+            for unit in capability_units
         )
-        has_assignment = any(
-            assignment.capability_version_id == capability.id for assignment in assignments
+        all_assignments_submitted = all(
+            assignment.id in submission_by_assignment
+            for assignment in capability_assignments
         )
-        if next_session is not None or has_learning_content or has_assignment:
+        has_activity = any(
+            unit.id in progress_by_unit for unit in capability_units
+        ) or any(
+            assignment.id in submission_by_assignment
+            for assignment in capability_assignments
+        )
+
+        if has_requirements and all_units_completed and all_assignments_submitted:
+            learning_state = "LEARNING_COMPLETED"
+        elif has_activity:
+            learning_state = "IN_LEARNING"
+        else:
+            learning_state = "TO_LEARN"
+
+        if next_session is not None or has_requirements:
             what_to_learn.append(
                 {
                     "capability_version_id": str(capability.id),
                     "name": capability.name,
-                    "learning_state": (
-                        "IN_LEARNING"
-                        if capability.id in submitted_capabilities
-                        else "TO_LEARN"
-                    ),
+                    "learning_state": learning_state,
                     "next_session": next_session,
                 }
             )
@@ -279,7 +308,11 @@ async def rebuild_candidate_home(
                 "title": unit.title,
                 "class_offering_id": str(unit.class_offering_id),
                 "capability_version_id": str(unit.capability_version_id),
-                "status": "AVAILABLE",
+                "status": (
+                    progress_by_unit[unit.id].state
+                    if unit.id in progress_by_unit
+                    else "NOT_STARTED"
+                ),
                 "body": unit.body,
                 "due_at": None,
                 "submission_id": None,

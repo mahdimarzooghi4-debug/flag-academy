@@ -52,6 +52,8 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
 
     if envelope.event_type in {
         "learning.unit_published.v1",
+        "learning.unit_started.v1",
+        "learning.unit_completed.v1",
         "learning.assignment_published.v1",
         "learning.submission_submitted.v1",
         "learning.instructor_feedback_recorded.v1",

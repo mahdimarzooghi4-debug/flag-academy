@@ -16,6 +16,11 @@ class LearningPhase(StrEnum):
     PRACTICE = "PRACTICE"
 
 
+class LearningUnitProgressState(StrEnum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
 class AssignmentStatus(StrEnum):
     ACTIVE = "ACTIVE"
     CLOSED = "CLOSED"

@@ -77,6 +77,32 @@ function AuthenticatedApp({
     },
   });
 
+  const updateLearningUnit = useMutation({
+    mutationFn: async ({
+      learningUnitId,
+      action,
+    }: {
+      learningUnitId: string;
+      action: "start" | "complete";
+    }) => {
+      if (action === "start") {
+        const { error } = await api.POST("/api/v1/learning-units/{learning_unit_id}/start", {
+          params: { path: { learning_unit_id: learningUnitId } },
+        });
+        if (error) throw new Error("شروع فعالیت یادگیری ناموفق بود.");
+      } else {
+        const { error } = await api.POST("/api/v1/learning-units/{learning_unit_id}/complete", {
+          params: { path: { learning_unit_id: learningUnitId } },
+        });
+        if (error) throw new Error("تکمیل فعالیت یادگیری ناموفق بود.");
+      }
+    },
+    onSuccess: async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      await candidate.refetch();
+    },
+  });
+
   const submitAssignment = useMutation({
     mutationFn: async ({
       assignmentId,
@@ -122,6 +148,7 @@ function AuthenticatedApp({
     me.error ||
     candidate.error ||
     instructor.error ||
+    updateLearningUnit.error ||
     submitAssignment.error ||
     recordFeedback.error;
   if (error) return <div className="center-state error">{error.message}</div>;
@@ -137,6 +164,14 @@ function AuthenticatedApp({
       {isCandidate && candidate.data ? (
         <CandidateHome
           data={candidate.data}
+          onUpdateLearningUnit={async (learningUnitId, action) => {
+            await updateLearningUnit.mutateAsync({ learningUnitId, action });
+          }}
+          updatingLearningUnitId={
+            updateLearningUnit.isPending
+              ? updateLearningUnit.variables?.learningUnitId
+              : undefined
+          }
           onSubmitAssignment={async (assignmentId, content) => {
             await submitAssignment.mutateAsync({ assignmentId, content });
           }}

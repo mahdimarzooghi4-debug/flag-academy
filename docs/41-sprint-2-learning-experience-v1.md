@@ -50,3 +50,18 @@ Instructor:
 - file upload/object-storage workflow;
 - quiz engine beyond foundation types;
 - attendance completion automation.
+
+
+## Learning Progress state machine
+
+Candidate learning activity is explicit and auditable:
+
+**NOT_STARTED → IN_PROGRESS → COMPLETED**
+
+Capability Learning State is derived from its active learning requirements:
+
+- no activity → `TO_LEARN`;
+- partial unit progress or assignment submission → `IN_LEARNING`;
+- all active learning units completed and all active assignments submitted → `LEARNING_COMPLETED`.
+
+This state never mutates Proof State. `LEARNING_COMPLETED` may coexist with `UNPROVEN`.

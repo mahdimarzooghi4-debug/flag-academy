@@ -2,7 +2,7 @@ from uuid import UUID
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
 from app.journey.domain import CandidateJourneyState
-from app.learning.domain import LearningPhase, LearningUnitType, SubmissionStatus
+from app.learning.domain import (\n    LearningPhase,\n    LearningUnitProgressState,\n    LearningUnitType,\n    SubmissionStatus,\n)
 from app.platform.events import new_event
 
 
@@ -19,6 +19,8 @@ def test_learning_experience_types_are_explicit() -> None:
     assert LearningUnitType.RESOURCE.value == "RESOURCE"
     assert LearningPhase.PRE_WORK.value == "PRE_WORK"
     assert LearningPhase.PRACTICE.value == "PRACTICE"
+    assert LearningUnitProgressState.IN_PROGRESS.value == "IN_PROGRESS"
+    assert LearningUnitProgressState.COMPLETED.value == "COMPLETED"
     assert SubmissionStatus.FEEDBACK_PROVIDED.value == "FEEDBACK_PROVIDED"
 
 

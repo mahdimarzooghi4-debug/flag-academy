@@ -618,6 +618,9 @@
 | DEC-610 | 2026-10-04 | Stage Acceptance فقط با Live OIDC Candidate/Instructor، Browser E2E، Outbox Publish، Inbox Processing و Candidate/Instructor Read Model verification پاس می‌شود و Evidence Artifact باید ذخیره شود. | FINAL |
 | DEC-611 | 2026-10-04 | SQLite جای PostgreSQL Stage را نمی‌گیرد و دیتابیس پروژه دیگری برای Parcham Stage reuse نمی‌شود؛ Stage credentials در هر Run ephemeral هستند و Secret ثابت در Repository ذخیره نمی‌شود. | FINAL |
 | DEC-612 | 2026-10-04 | Persistent Stage به زمانی موکول می‌شود که زیرساخت مناسب در دسترس باشد؛ این تغییر Infrastructure است و نباید Domain/Application Contractهای Parcham OS را تغییر دهد. | FINAL |
+| DEC-613 | 2026-10-04 | Learning Unit Progress در Sprint 2 فقط با رفتار صریح Candidate تغییر می‌کند و State آن از NOT_STARTED به IN_PROGRESS و سپس COMPLETED می‌رسد؛ صرف مشاهده صفحه Completion محسوب نمی‌شود. | FINAL |
+| DEC-614 | 2026-10-04 | Learning State هر Capability از فعالیت‌های Learning همان Capability مشتق می‌شود: بدون فعالیت TO_LEARN، با پیشرفت جزئی IN_LEARNING، و فقط پس از تکمیل همه Learning Unitهای فعال و ثبت همه Assignmentهای فعال LEARNING_COMPLETED می‌شود. | FINAL |
+| DEC-615 | 2026-10-04 | LEARNING_COMPLETED، Submission و Instructor Feedback هیچ‌کدام مستقیماً Proof State را تغییر نمی‌دهند؛ Proof همچنان از Evidence Pipeline مستقل تولید می‌شود. | FINAL |
 
 ---
 

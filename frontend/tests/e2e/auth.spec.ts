@@ -27,13 +27,26 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await expect(page.getByText("پیش‌مطالعه: مالکیت مسئله تا نتیجه")).toBeVisible();
   await expect(page.getByText("تمرین: مسئله بدون صاحب")).toBeVisible();
   await expect(page.getByText("تکلیف: Ownership Memo")).toBeVisible();
+  await expect(page.getByText("TO_LEARN").first()).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  const preWorkCard = page.getByText("پیش‌مطالعه: مالکیت مسئله تا نتیجه").locator("..");
+  await preWorkCard.getByRole("button", { name: "شروع" }).click();
+  await expect(page.getByText("IN_LEARNING").first()).toBeVisible();
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+  await preWorkCard.getByRole("button", { name: "تکمیل فعالیت" }).click();
+
+  const practiceCard = page.getByText("تمرین: مسئله بدون صاحب").locator("..");
+  await practiceCard.getByRole("button", { name: "شروع" }).click();
+  await practiceCard.getByRole("button", { name: "تکمیل فعالیت" }).click();
 
   await page.getByLabel("پاسخ تکلیف").fill(
     "Outcome را مالک می‌شوم، مرز تصمیم را روشن می‌کنم و در شکست مسئول بازیابی نتیجه هستم.",
   );
   await page.getByRole("button", { name: "ثبت تکلیف" }).click();
   await expect(page.getByText("تکلیف ثبت شد. این ثبت به‌تنهایی به معنی اثبات شایستگی نیست.")).toBeVisible();
+  await expect(page.getByText("LEARNING_COMPLETED").first()).toBeVisible();
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
   await logout(page);
   await login(page, "instructor", instructorPassword);

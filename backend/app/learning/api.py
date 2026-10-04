@@ -11,7 +11,7 @@ from app.academy.models import ClassOffering, Cohort, CohortMembership, Instruct
 from app.db import get_session
 from app.errors import AppError
 from app.identity.auth import ActorContext, require_role
-from app.learning.models import Assignment, InstructorFeedback, LearningUnit, Submission
+from app.learning.models import (\n    Assignment,\n    InstructorFeedback,\n    LearningUnit,\n    LearningUnitProgress,\n    Submission,\n)
 from app.platform.events import new_event, record_event
 
 router = APIRouter(prefix="/api/v1", tags=["learning"])
@@ -45,6 +45,15 @@ class ClassLearningResponse(BaseModel):
     class_offering_id: UUID
     learning_units: list[LearningUnitResponse]
     assignments: list[AssignmentResponse]
+
+
+class LearningUnitProgressResponse(BaseModel):
+    id: UUID
+    learning_unit_id: UUID
+    candidate_id: UUID
+    state: str
+    started_at: datetime | None
+    completed_at: datetime | None
 
 
 class SubmissionCreate(BaseModel):
@@ -211,6 +220,162 @@ async def class_learning(
             )
             for item in assignments
         ],
+    )
+
+
+async def _load_candidate_learning_unit(
+    db: AsyncSession,
+    *,
+    actor: ActorContext,
+    learning_unit_id: UUID,
+) -> tuple[LearningUnit, Cohort]:
+    unit = await db.get(LearningUnit, learning_unit_id)
+    if unit is None or unit.status != "ACTIVE":
+        raise AppError(
+            "LEARNING_UNIT_NOT_FOUND",
+            "Learning unit not found.",
+            status_code=404,
+        )
+    _, cohort = await _require_candidate_class_access(
+        db,
+        actor=actor,
+        class_offering_id=unit.class_offering_id,
+    )
+    return unit, cohort
+
+
+@router.post(
+    "/learning-units/{learning_unit_id}/start",
+    response_model=LearningUnitProgressResponse,
+)
+async def start_learning_unit(
+    learning_unit_id: UUID,
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> LearningUnitProgressResponse:
+    unit, cohort = await _load_candidate_learning_unit(
+        db,
+        actor=actor,
+        learning_unit_id=learning_unit_id,
+    )
+    progress = (
+        await db.execute(
+            select(LearningUnitProgress).where(
+                LearningUnitProgress.learning_unit_id == unit.id,
+                LearningUnitProgress.candidate_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+
+    now = datetime.now(UTC)
+    if progress is None:
+        progress = LearningUnitProgress(
+            id=uuid4(),
+            learning_unit_id=unit.id,
+            candidate_id=actor.person_id,
+            state="IN_PROGRESS",
+            started_at=now,
+            completed_at=None,
+            updated_at=now,
+        )
+        db.add(progress)
+        await db.flush()
+        record_event(
+            db,
+            new_event(
+                event_type="learning.unit_started.v1",
+                aggregate_type="LearningUnitProgress",
+                aggregate_id=progress.id,
+                aggregate_version=progress.version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "progress_id": str(progress.id),
+                    "learning_unit_id": str(unit.id),
+                    "candidate_id": str(actor.person_id),
+                    "class_offering_id": str(unit.class_offering_id),
+                    "cohort_id": str(cohort.id),
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+        await db.commit()
+
+    return LearningUnitProgressResponse(
+        id=progress.id,
+        learning_unit_id=progress.learning_unit_id,
+        candidate_id=progress.candidate_id,
+        state=progress.state,
+        started_at=progress.started_at,
+        completed_at=progress.completed_at,
+    )
+
+
+@router.post(
+    "/learning-units/{learning_unit_id}/complete",
+    response_model=LearningUnitProgressResponse,
+)
+async def complete_learning_unit(
+    learning_unit_id: UUID,
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> LearningUnitProgressResponse:
+    unit, cohort = await _load_candidate_learning_unit(
+        db,
+        actor=actor,
+        learning_unit_id=learning_unit_id,
+    )
+    progress = (
+        await db.execute(
+            select(LearningUnitProgress).where(
+                LearningUnitProgress.learning_unit_id == unit.id,
+                LearningUnitProgress.candidate_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if progress is None:
+        raise AppError(
+            "LEARNING_UNIT_NOT_STARTED",
+            "Learning unit must be started before completion.",
+            status_code=409,
+        )
+
+    if progress.state != "COMPLETED":
+        now = datetime.now(UTC)
+        progress.state = "COMPLETED"
+        progress.completed_at = now
+        progress.updated_at = now
+        progress.version += 1
+        record_event(
+            db,
+            new_event(
+                event_type="learning.unit_completed.v1",
+                aggregate_type="LearningUnitProgress",
+                aggregate_id=progress.id,
+                aggregate_version=progress.version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "progress_id": str(progress.id),
+                    "learning_unit_id": str(unit.id),
+                    "candidate_id": str(actor.person_id),
+                    "class_offering_id": str(unit.class_offering_id),
+                    "cohort_id": str(cohort.id),
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+        await db.commit()
+
+    return LearningUnitProgressResponse(
+        id=progress.id,
+        learning_unit_id=progress.learning_unit_id,
+        candidate_id=progress.candidate_id,
+        state=progress.state,
+        started_at=progress.started_at,
+        completed_at=progress.completed_at,
     )
 
 

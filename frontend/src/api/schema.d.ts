@@ -13,6 +13,18 @@ export interface paths {
   "/api/v1/me/instructor-home": {
     get: { responses: { 200: { content: { "application/json": InstructorHome } } } };
   };
+  "/api/v1/learning-units/{learning_unit_id}/start": {
+    post: {
+      parameters: { path: { learning_unit_id: string } };
+      responses: { 200: { content: { "application/json": unknown } } };
+    };
+  };
+  "/api/v1/learning-units/{learning_unit_id}/complete": {
+    post: {
+      parameters: { path: { learning_unit_id: string } };
+      responses: { 200: { content: { "application/json": unknown } } };
+    };
+  };
   "/api/v1/assignments/{assignment_id}/submissions": {
     post: {
       parameters: { path: { assignment_id: string } };

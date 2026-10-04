@@ -24,7 +24,7 @@ from app.curriculum.models import (
 from app.db import SessionFactory
 from app.identity.models import Organization, OrganizationMembership, Person
 from app.journey.models import CandidateJourney
-from app.learning.models import Assignment, InstructorFeedback, LearningUnit, Submission
+from app.learning.models import (\n    Assignment,\n    InstructorFeedback,\n    LearningUnit,\n    LearningUnitProgress,\n    Submission,\n)
 from app.platform.events import new_event, record_event
 from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
@@ -74,6 +74,7 @@ async def seed() -> None:
             InstructorHomeProjection,
             InstructorFeedback,
             Submission,
+            LearningUnitProgress,
             Assignment,
             LearningUnit,
             CandidateJourney,

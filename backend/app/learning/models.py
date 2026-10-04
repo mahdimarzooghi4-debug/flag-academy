@@ -24,6 +24,29 @@ class LearningUnit(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class LearningUnitProgress(Base):
+    __tablename__ = "learning_unit_progress"
+    __table_args__ = (
+        UniqueConstraint("learning_unit_id", "candidate_id"),
+        {"schema": "learning"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    learning_unit_id: Mapped[UUID] = mapped_column(
+        ForeignKey("learning.learning_units.id")
+    )
+    candidate_id: Mapped[UUID]
+    state: Mapped[str] = mapped_column(String(32))
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Assignment(Base):
     __tablename__ = "assignments"
     __table_args__ = {"schema": "learning"}
