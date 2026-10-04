@@ -24,6 +24,8 @@ from app.curriculum.models import (
 from app.db import SessionFactory
 from app.identity.models import Organization, OrganizationMembership, Person
 from app.journey.models import CandidateJourney
+from app.platform.events import new_event, record_event
+from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
 
 ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
@@ -62,6 +64,9 @@ async def seed() -> None:
     async with SessionFactory() as db:
         # Development seed is intentionally deterministic and disposable.
         for model in (
+            InboxEvent,
+            OutboxEvent,
+            DomainEvent,
             CandidateHomeProjection,
             InstructorHomeProjection,
             CandidateJourney,
@@ -228,9 +233,10 @@ async def seed() -> None:
             db.add(item)
             session_items.append(item)
 
+        journey_id = UUID("00000000-0000-0000-0000-000000000401")
         db.add(
             CandidateJourney(
-                id=UUID("00000000-0000-0000-0000-000000000401"),
+                id=journey_id,
                 person_id=CANDIDATE_ID,
                 organization_context_id=ORG_ID,
                 cohort_id=COHORT_ID,
@@ -298,6 +304,54 @@ async def seed() -> None:
                 updated_at=now,
             )
         )
+        event_actor = {"type": "SYSTEM", "id": "development-seed"}
+        for envelope in (
+            new_event(
+                event_type="academy.cohort_created.v1",
+                aggregate_type="Cohort",
+                aggregate_id=COHORT_ID,
+                aggregate_version=1,
+                actor=event_actor,
+                organization_context_id=ORG_ID,
+                data_classification="INTERNAL",
+                payload={"cohort_id": str(COHORT_ID), "track_code": "PRODUCT_MANAGER"},
+                trace_id="development-seed",
+                occurred_at=now,
+            ),
+            new_event(
+                event_type="academy.session_scheduled.v1",
+                aggregate_type="ClassOffering",
+                aggregate_id=class_id,
+                aggregate_version=1,
+                actor=event_actor,
+                organization_context_id=ORG_ID,
+                data_classification="INTERNAL",
+                payload={
+                    "class_offering_id": str(class_id),
+                    "session_ids": [str(item.id) for item in session_items],
+                },
+                trace_id="development-seed",
+                occurred_at=now,
+            ),
+            new_event(
+                event_type="candidate.journey_created.v1",
+                aggregate_type="CandidateJourney",
+                aggregate_id=journey_id,
+                aggregate_version=1,
+                actor=event_actor,
+                organization_context_id=ORG_ID,
+                data_classification="INTERNAL",
+                payload={
+                    "journey_id": str(journey_id),
+                    "candidate_id": str(CANDIDATE_ID),
+                    "cohort_id": str(COHORT_ID),
+                },
+                trace_id="development-seed",
+                occurred_at=now,
+            ),
+        ):
+            record_event(db, envelope)
+
         await db.commit()
 
 

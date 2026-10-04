@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,7 +17,7 @@ class DomainEvent(Base):
     event_version: Mapped[int] = mapped_column(Integer)
     aggregate_type: Mapped[str] = mapped_column(String(128))
     aggregate_id: Mapped[UUID]
-    aggregate_version: Mapped[int]
+    aggregate_version: Mapped[int] = mapped_column(BigInteger)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     actor: Mapped[dict] = mapped_column(JSONB)
     correlation_id: Mapped[UUID | None]
