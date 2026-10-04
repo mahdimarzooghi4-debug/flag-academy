@@ -613,6 +613,11 @@
 | DEC-605 | 2026-10-04 | Sprint 1 Test Gate شامل Domain، Integration، API، Frontend و E2E برای هر دو مسیر Candidate و Instructor است و CI باید Lint/Type/Test/Migration/OpenAPI/Build/E2E را قبل از Merge سبز کند. | FINAL |
 | DEC-606 | 2026-10-04 | Sprint 1 عمداً Mission Runtime، Evidence، Flag Profile واقعی، AI، Reflection workflow، Assignment submission/review کامل، Temporal execution، Flag Board، Responsibility، Real Projects، Admissions کامل و Gamification را خارج از Scope نگه می‌دارد. | FINAL |
 | DEC-607 | 2026-10-04 | Sprint 2 پس از Academy Foundation روی Learning Experience v1 شامل Class Materials، Pre-work، Assignment/Submission، Instructor Feedback و Practice Foundation متمرکز خواهد بود؛ Simulator بعد از شکل‌گیری جریان اصلی آموزش کلاسی وارد Sprintهای بعدی می‌شود. | FINAL |
+| DEC-608 | 2026-10-04 | Stage رسمی Parcham OS در v1 به‌صورت Ephemeral Stage داخل GitHub Actions اجرا می‌شود و Persistent Paid Stage برای فاز فعلی الزامی نیست. | FINAL |
+| DEC-609 | 2026-10-04 | Ephemeral Stage باید از محیط پاک PostgreSQL 16، NATS JetStream، Keycloak، MinIO، OTel، Backend، Event Workers، Frontend و Browser E2E را بالا بیاورد و پس از Acceptance destroy شود. | FINAL |
+| DEC-610 | 2026-10-04 | Stage Acceptance فقط با Live OIDC Candidate/Instructor، Browser E2E، Outbox Publish، Inbox Processing و Candidate/Instructor Read Model verification پاس می‌شود و Evidence Artifact باید ذخیره شود. | FINAL |
+| DEC-611 | 2026-10-04 | SQLite جای PostgreSQL Stage را نمی‌گیرد و دیتابیس پروژه دیگری برای Parcham Stage reuse نمی‌شود؛ Stage credentials در هر Run ephemeral هستند و Secret ثابت در Repository ذخیره نمی‌شود. | FINAL |
+| DEC-612 | 2026-10-04 | Persistent Stage به زمانی موکول می‌شود که زیرساخت مناسب در دسترس باشد؛ این تغییر Infrastructure است و نباید Domain/Application Contractهای Parcham OS را تغییر دهد. | FINAL |
 
 ---
 

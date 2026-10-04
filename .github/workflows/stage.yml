@@ -1,0 +1,169 @@
+name: Stage Acceptance
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: parcham-stage-v1
+  cancel-in-progress: true
+
+jobs:
+  ephemeral-stage:
+    name: Ephemeral Stage Acceptance
+    runs-on: ubuntu-latest
+    environment: stage
+    env:
+      POSTGRES_USER: parcham
+      POSTGRES_DB: parcham
+      MINIO_ROOT_USER: parcham
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      PARCHAM_OIDC_ISSUER: http://localhost:8080/realms/parcham
+      PARCHAM_OIDC_AUDIENCE: parcham-api
+      PARCHAM_OIDC_JWKS_URL: http://localhost:8080/realms/parcham/protocol/openid-connect/certs
+      PARCHAM_NATS_URL: nats://localhost:4222
+      PARCHAM_CORS_ORIGINS: http://localhost:5173
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_OIDC_AUTHORITY: http://localhost:8080/realms/parcham
+      VITE_OIDC_CLIENT_ID: parcham-web
+      VITE_OIDC_REDIRECT_URI: http://localhost:5173
+      E2E_BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Generate ephemeral stage credentials
+        shell: bash
+        run: |
+          make_secret() { python -c 'import secrets; print(secrets.token_urlsafe(24))'; }
+          echo "POSTGRES_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "MINIO_ROOT_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "KC_BOOTSTRAP_ADMIN_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "PARCHAM_DEV_CANDIDATE_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "PARCHAM_DEV_INSTRUCTOR_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+
+      - name: Build runtime database URL
+        shell: bash
+        run: |
+          echo "PARCHAM_DATABASE_URL=postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB" >> "$GITHUB_ENV"
+
+      - name: Start clean stage dependencies
+        run: docker compose -f infra/docker-compose.yml up -d postgres nats minio keycloak otel-collector
+
+      - name: Wait for PostgreSQL
+        shell: bash
+        run: |
+          until docker compose -f infra/docker-compose.yml exec -T postgres             pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+            sleep 2
+          done
+
+      - name: Seed stage identities in live Keycloak
+        run: ./scripts/dev-seed-keycloak.sh
+
+      - name: Install backend and migrate clean database
+        working-directory: backend
+        run: |
+          pip install -e ".[dev]"
+          alembic upgrade head
+          python -m app.seed
+
+      - name: Start event workers
+        working-directory: backend
+        shell: bash
+        run: |
+          python -m app.read_models.consumer > /tmp/parcham-projector.log 2>&1 &
+          echo $! > /tmp/parcham-projector.pid
+          python -m app.platform.outbox > /tmp/parcham-outbox.log 2>&1 &
+          echo $! > /tmp/parcham-outbox.pid
+
+      - name: Start API
+        working-directory: backend
+        shell: bash
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/parcham-api.log 2>&1 &
+          echo $! > /tmp/parcham-api.pid
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8000/ready >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/parcham-api.log
+          exit 1
+
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Start frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 0.0.0.0 > /tmp/parcham-web.log 2>&1 &
+          echo $! > /tmp/parcham-web.pid
+          for i in {1..60}; do
+            if curl -fsS http://localhost:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/parcham-web.log
+          exit 1
+
+      - name: Run browser acceptance with live OIDC
+        working-directory: frontend
+        run: npm run e2e
+
+      - name: Verify event and read-model acceptance
+        shell: bash
+        run: |
+          sleep 3
+          published=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.outbox_events where published_at is not null;")
+          inbox=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events;")
+          candidate_home=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home;")
+          instructor_home=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.instructor_home;")
+
+          test "$published" -ge 3
+          test "$inbox" -ge 3
+          test "$candidate_home" -ge 1
+          test "$instructor_home" -ge 1
+
+          mkdir -p stage-artifacts
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "published_outbox_events=$published"
+            echo "processed_inbox_events=$inbox"
+            echo "candidate_home_rows=$candidate_home"
+            echo "instructor_home_rows=$instructor_home"
+            echo "browser_oidc_acceptance=PASS"
+          } | tee stage-artifacts/acceptance.txt
+
+      - name: Upload stage acceptance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-acceptance-evidence
+          path: stage-artifacts/acceptance.txt
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-diagnostics
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            /tmp/parcham-api.log
+            /tmp/parcham-web.log
+            /tmp/parcham-outbox.log
+            /tmp/parcham-projector.log
+          if-no-files-found: ignore
+
+      - name: Destroy ephemeral stage
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v
