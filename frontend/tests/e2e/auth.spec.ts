@@ -76,10 +76,13 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await expect(page.getByText("فضای مدرس")).toBeVisible();
   await expect(page.getByText("تمرین‌های ثبت‌شده")).toBeVisible();
   await expect(page.getByText("Candidate Demo").first()).toBeVisible();
-  await page.getByLabel("بازخورد تمرین").fill(
+  const guidedAttemptCard = page.locator(".assignment-card").filter({
+    hasText: "تمرین هدایت‌شده: مسئله بدون صاحب — تلاش 1",
+  });
+  await guidedAttemptCard.getByLabel("بازخورد تمرین 1").fill(
     "منطق تصمیم روشن است؛ در Attempt بعدی Trigger مشخص برای Escalation و معیار Outcome اضافه کن.",
   );
-  await page.getByRole("button", { name: "ثبت بازخورد تمرین" }).click();
+  await guidedAttemptCard.getByRole("button", { name: "ثبت بازخورد تمرین" }).click();
   await expect(
     page.getByText("بازخورد تمرین ثبت شد. این بازخورد توسعه‌ای است و Evidence مستقل محسوب نمی‌شود."),
   ).toBeVisible();
