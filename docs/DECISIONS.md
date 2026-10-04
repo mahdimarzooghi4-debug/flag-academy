@@ -310,6 +310,23 @@
 | DEC-302 | 2026-10-04 | عبور از Capability 15 نیازمند Evidence در چند Context و سه Evidence اجباری است: Behaviour Change در Context متفاوت، کاهش پایدار حداقل یک Pattern در چند Replay و حداقل یک مورد Unlearning. برای L3/L4 انتقال Learning به تیم یا System نیز لازم است. | FINAL |
 | DEC-303 | 2026-10-04 | Capability 15 موتور بازگشت به چرخه بعد Curriculum است؛ چرخه 15 Capability به‌صورت Ownership → Problem → Decision → Data → Customer → Discovery → Strategy → Prioritization → Metrics → Economics → Delivery → Alignment → Leadership → System Building → Reflection & Learning → رفتار بهتر در چرخه بعد تعریف شد. | FINAL |
 | DEC-304 | 2026-10-04 | اصل فرهنگی Reflection & Learning: «پرچمدار از تجربه عبور نمی‌کند؛ تجربه را به تغییر رفتار تبدیل می‌کند.» | FINAL |
+| DEC-305 | 2026-10-04 | Curriculum پرچم یک Course Sequence خطی نیست؛ یک Capability Development System با مسیر Baseline → Foundation → Guided Missions → Integrated Missions → Simulation → Real Project → Ownership Trial → Flag Board → Growth Loop است. | FINAL |
+| DEC-306 | 2026-10-04 | معماری Curriculum سه لایه دارد: Foundation، Product Core و Execution & Leadership؛ Reflection & Learning در همه لایه‌ها Cross-cutting است و Ownership/Accountability در کل Journey Gate رفتاری باقی می‌مانند. | FINAL |
+| DEC-307 | 2026-10-04 | Wave Model مسیر PM شامل Wave 1 Think & Own، Wave 2 Discover & Decide، Wave 3 Direct & Deliver و Wave 4 Lead & Build است. | FINAL |
+| DEC-308 | 2026-10-04 | اصل Evidence-driven Learning: Instruction قابل Skip است اما Evidence قابل Skip نیست؛ چرخه هر Capability شامل Baseline Evidence → Gap Detection → Targeted Learning → Mission → Evidence → Replay است. | FINAL |
+| DEC-309 | 2026-10-04 | Mission Architecture شامل Focused Mission و Integrated Mission است و با پیشرفت Candidate سهم Integrated Mission باید افزایش یابد. | FINAL |
+| DEC-310 | 2026-10-04 | مدل مفهومی Evidence Graph به‌صورت Person → Mission → Situation → Behaviour → Artifact → Outcome → Competency → Level → Scope → Confidence تعریف شد و یک Evidence می‌تواند به چند Capability با Strength متفاوت متصل شود. | FINAL |
+| DEC-311 | 2026-10-04 | Capability Stateها شامل Unproven، Emerging، Demonstrated، Proven و Proven at Scope هستند؛ Flag Profile باید Capability × Level × Proven Scope × Evidence Strength را نشان دهد و به Score کلی تقلیل پیدا نکند. | FINAL |
+| DEC-312 | 2026-10-04 | Gateهای Curriculum شامل Foundation Readiness، Product Judgment Readiness، Real Project Readiness، Ownership Trial و Flag Board هستند و Progression با Completion صرف انجام نمی‌شود. | FINAL |
+| DEC-313 | 2026-10-04 | Progression باید Scope-based باشد و فرد می‌تواند در Capabilityهای مختلف Level و Proven Scope متفاوت داشته باشد. | FINAL |
+| DEC-314 | 2026-10-04 | Parcham AI در Curriculum باید Next Best Experience را بر اساس Profile Gap و Evidence Need پیشنهاد کند، نه صرفاً Next Course. | FINAL |
+| DEC-315 | 2026-10-04 | Mastery بدون Replay پذیرفته نیست؛ Replay باید Same behavioural structure با Surface context متفاوت داشته باشد. | FINAL |
+| DEC-316 | 2026-10-04 | پیش از Real Project یک Product Leadership Simulation یکپارچه به‌عنوان Capstone اجرا می‌شود تا Pattern واقعی فرد در فعال‌شدن هم‌زمان چند Capability مشاهده شود. | FINAL |
+| DEC-317 | 2026-10-04 | هر Real Project باید Learning & Evidence Contract شامل Scope، Decision Rights، Outcome، Constraints و Evidence Opportunities داشته باشد. | FINAL |
+| DEC-318 | 2026-10-04 | Flag Board یک Evidence Review + Responsibility Decision است و نباید Mystery Judgment باشد؛ Candidate باید پیش از Board وضعیت Proven، Unproven، Evidence conflict و Gate Risk خود را بداند. | FINAL |
+| DEC-319 | 2026-10-04 | خروجی Curriculum یک Certification عمومی نیست؛ Flag Profile، Gate Status، Proven Capability Levels/Scopes و Recommended Responsibility خروجی رسمی هستند. | FINAL |
+| DEC-320 | 2026-10-04 | Curriculum بعد از Appointment پایان نمی‌یابد؛ Growth Loop به‌صورت Performance → Evidence → Reflection → Larger Mission → New Scope Proof ادامه دارد و Academy یک Leadership Development Operating System است. | FINAL |
+| DEC-321 | 2026-10-04 | اصل Curriculum Operating Model: «پرچم مسیر آموزشی نمی‌سازد که افراد آن را تمام کنند؛ مسیر اثباتی می‌سازد که سازمان بفهمد چه مسئولیتی را می‌تواند با اطمینان به هر فرد بسپارد.» | FINAL |
 
 ---
 
