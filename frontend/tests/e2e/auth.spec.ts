@@ -11,6 +11,8 @@ async function login(page: Page, username: string, password: string) {
 async function logout(page: Page) {
   await page.getByRole("button", { name: "خروج" }).click();
   await expect(page.getByRole("button", { name: "ورود به آکادمی" })).toBeVisible();
+  // remove the Keycloak SSO session between role switches in this acceptance scenario
+  await page.context().clearCookies();
 }
 
 test("candidate learns, submits; instructor gives feedback; proof remains separate", async ({ page }) => {
