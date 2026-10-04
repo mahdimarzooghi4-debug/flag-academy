@@ -541,6 +541,49 @@
 | DEC-533 | 2026-10-04 | اولین Candidateهای scale/extraction مستقل در آینده AI Workers، Mission Runtime Workers و Evidence Processing هستند؛ Contextهای دیگر بدون نیاز واقعی Microservice نمی‌شوند. | FINAL |
 | DEC-534 | 2026-10-04 | Cloud vendor، Managed PostgreSQL provider، Managed vs self-hosted Temporal، S3 vendor، observability backend و CDN/edge provider عمداً برای Infrastructure Deployment Specification باز ماندند. | FINAL |
 | DEC-535 | 2026-10-04 | تعریف نهایی Technical Architecture v1: Parcham OS یک Modular Monolith مبتنی بر Python/FastAPI و PostgreSQL است که Context ownership را حفظ، propagation را با Outbox+NATS، workflow را با Temporal، AI را با Gateway و کل Candidate Action تا Human Decision را Versioned/Observable/Auditable می‌کند. | FINAL |
+| DEC-536 | 2026-10-04 | API & Data Contract v1 بر این اصل بنا شد که API قرارداد Business است نه انعکاس مستقیم Database و Client فقط Intent ارسال می‌کند، نه State mutation دلخواه. | FINAL |
+| DEC-537 | 2026-10-04 | Namespace عمومی API برابر /api/v1 است و API version از Domain Entity version مستقل است؛ major version فقط برای breaking public contract تغییر می‌کند. | FINAL |
+| DEC-538 | 2026-10-04 | Command و Query در Contract جدا هستند؛ direct patch کردن Profile/Level/Domain State ممنوع است. | FINAL |
+| DEC-539 | 2026-10-04 | Commandهای حساس Authorization، Idempotency-Key، optimistic version precondition و trace/correlation metadata دارند؛ Response envelope غیرضروری success/data استفاده نمی‌شود. | FINAL |
+| DEC-540 | 2026-10-04 | Error Contract استاندارد شامل code، message، details، trace_id و retryable است و Client نباید از متن message Business Logic استخراج کند. | FINAL |
+| DEC-541 | 2026-10-04 | HTTP status semantics رسمی برای success/async/auth/conflict/precondition/domain-invalid/rate-limit/dependency failure تعریف شد و 404 می‌تواند برای جلوگیری از existence leakage استفاده شود. | FINAL |
+| DEC-542 | 2026-10-04 | Mutable/audit-heavy collections از Cursor Pagination استفاده می‌کنند و Filter/Sort در v1 explicit و محدود است؛ query DSL آزاد وجود ندارد. | FINAL |
+| DEC-543 | 2026-10-04 | API زمان را ISO-8601 UTC، DB را TIMESTAMPTZ، Enumها را string-based، Money را Decimal-as-string + currency و Entity ID را UUID opaque نگه می‌دارد. | FINAL |
+| DEC-544 | 2026-10-04 | Aggregateهای mutable Version دارند؛ REST mutation عمومی از ETag/If-Match استفاده می‌کند و Mission Runtime world_state_version را جدا به‌عنوان Business Version نگه می‌دارد. | FINAL |
+| DEC-545 | 2026-10-04 | Commandهای create/decision/action حساس Idempotency-Key اجباری دارند و reuse همان key با payload متفاوت به 409 IDEMPOTENCY_CONFLICT منجر می‌شود. | FINAL |
+| DEC-546 | 2026-10-04 | Candidate Home یک Read Model اختصاصی در GET /api/v1/me/candidate-home است و Journey، Wave، Next Experience، Missions، Profile/Gate summary، Behaviour Commitments و Processing States را یکجا ارائه می‌کند. | FINAL |
+| DEC-547 | 2026-10-04 | Flag Profile API permission-sensitive است، Score کلی ندارد و Capability Lineage API باید مسیر Claim → Pattern → Evidence → Interpretation → Observation → Source را قابل مشاهده کند. | FINAL |
+| DEC-548 | 2026-10-04 | Capability/Curriculum و Mission Design lifecycleها از commandهای versioned Business عبور می‌کنند؛ Active Version مستقیم PATCH نمی‌شود و تغییر فقط با Version جدید انجام می‌شود. | FINAL |
+| DEC-549 | 2026-10-04 | Mission Runtime API حول start/workspace/actions/decisions/complete طراحی می‌شود؛ Workspace فقط Candidate-visible truth را expose می‌کند و Hidden World Truth هرگز به Client داده نمی‌شود. | FINAL |
+| DEC-550 | 2026-10-04 | Decision Record API باید reasoning، evidence، assumptions، expected outcome، revisit trigger، reversibility و world version را پیش از Outcome Freeze کند. | FINAL |
+| DEC-551 | 2026-10-04 | Realtime v1 از SSE UI Event Contract استفاده می‌کند؛ Browser Domain Event داخلی را عیناً دریافت نمی‌کند. | FINAL |
+| DEC-552 | 2026-10-04 | Observation پس از seal قابل Edit نیست؛ Manual Assessor Observation در صورت مجاز بودن از Source مشخص ساخته و سپس sealed می‌شود. | FINAL |
+| DEC-553 | 2026-10-04 | Evidence Case API submit/review/accept/reject/request-context و Candidate Response را پشتیبانی می‌کند؛ Candidate Response فقط Context اضافه می‌کند و Evidence را بازنویسی نمی‌کند. | FINAL |
+| DEC-554 | 2026-10-04 | Independent Review secrecy باید Backend-enforced باشد؛ Reviewer قبل از Submit نظر خودش Review سایر Reviewerها را نمی‌بیند. | FINAL |
+| DEC-555 | 2026-10-04 | Calibration API Resolutionهای ACCEPT_INTERPRETATION_A/B، NEW_INTERPRETATION، INSUFFICIENT_CONTEXT و REQUIRE_REPLAY را پشتیبانی می‌کند. | FINAL |
+| DEC-556 | 2026-10-04 | Profile Update فقط از ProfileUpdateCase approve/reject یا مسیر auto-eligible developmental انجام می‌شود و direct PATCH روی Flag Profile وجود ندارد. | FINAL |
+| DEC-557 | 2026-10-04 | Gate API فقط open-review/decision/remediation/reassessment دارد و هیچ endpoint مستقیم برای AI/System جهت fail کردن Gate وجود ندارد. | FINAL |
+| DEC-558 | 2026-10-04 | Learning Record API Structured Reflection با Situation، Expected، Actual، Evidence refs، My Contribution، Assumption Challenged، Learning Claim و Behaviour Commitment را نگه می‌دارد. | FINAL |
+| DEC-559 | 2026-10-04 | Real Project API بدون Learning & Evidence Contract اجازه start نمی‌دهد و خطای EVIDENCE_CONTRACT_REQUIRED تولید می‌کند. | FINAL |
+| DEC-560 | 2026-10-04 | ResponsibilityAssessment API براساس Profile Snapshot و Responsibility Definition Version، READY/READY_WITH_CONDITIONS/DIFFERENT_SCOPE/NOT_YET/BLOCKED_BY_GATE را همراه rationale تولید می‌کند. | FINAL |
+| DEC-561 | 2026-10-04 | Flag Board API شامل create/freeze/review/conflict resolution/decision است و Evidence Set همان Case بعد از Board Decision تغییر نمی‌کند؛ Appointment endpoint مستقل باقی می‌ماند. | FINAL |
+| DEC-562 | 2026-10-04 | Appointment API جدا از Flag Board است و Override خلاف Recommendation نیازمند override_reason است. | FINAL |
+| DEC-563 | 2026-10-04 | Audit API برای Governance users read-only است و AI Invocation Domain Decision از Browser یا provider credential مستقیم انجام نمی‌شود؛ AI فقط از Gateway/Application Service عبور می‌کند. | FINAL |
+| DEC-564 | 2026-10-04 | PostgreSQL convention برابر snake_case + plural tables است؛ Aggregate tables version/timestamps دارند و JSONB فقط برای داده extensible و schema-validated استفاده می‌شود، نه business state حیاتی. | FINAL |
+| DEC-565 | 2026-10-04 | platform.domain_events، outbox_events و inbox_events Contractهای رسمی persistence هستند؛ Outbox فقط event commit‌شده را publish می‌کند و Inbox با consumer_name + event_id dedupe می‌کند. | FINAL |
+| DEC-566 | 2026-10-04 | Domain Event Schema Registry versioned در Repository نگه‌داری می‌شود؛ breaking change نیازمند event type/version جدید است و Event payload Aggregate Dump نیست. | FINAL |
+| DEC-567 | 2026-10-04 | Core event contracts v1 شامل candidate.admitted، mission assigned/started/action_recorded/completed، observation.sealed، evidence accepted/rejected، pattern.updated، profile.claim_changed، gate events، behaviour_commitment، replay.required، profile.snapshot_created، responsibility.assessed، flag_board.decided و appointment.recorded هستند. | FINAL |
+| DEC-568 | 2026-10-04 | Event Backbone به‌صورت پیش‌فرض ID حمل می‌کند نه PII؛ Data Classification در Envelope است و RESTRICTED eventها consumer allowlist دارند. | FINAL |
+| DEC-569 | 2026-10-04 | OpenAPI FastAPI artifact رسمی CI است؛ breaking change، client regeneration و deprecation lifecycle باید در CI/Release Gate کنترل شوند. | FINAL |
+| DEC-570 | 2026-10-04 | File upload از signed upload session به Object Storage انجام می‌شود و Artifactها content hash/classification/source/version دارند؛ Artifact تاریخی overwrite نمی‌شود. | FINAL |
+| DEC-571 | 2026-10-04 | Async flows Stateهای PENDING/PROCESSING/REVIEW_REQUIRED/COMPLETE/FAILED را به‌صورت First-class expose می‌کنند تا Frontend وضعیت را حدس نزند. | FINAL |
+| DEC-572 | 2026-10-04 | Client فقط retryable=true را خودکار Retry می‌کند و 409 VERSION_CONFLICT نیازمند refresh state است، نه blind retry. | FINAL |
+| DEC-573 | 2026-10-04 | Data retention از classification و retention_policy_ref تبعیت می‌کند؛ rate-limit/network failures به Assessment Evidence تبدیل نمی‌شوند. | FINAL |
+| DEC-574 | 2026-10-04 | External connectors مستقیم Domain Table را تغییر نمی‌دهند و فقط از مسیر Connector → ExternalSourceEvent → Validation → Domain Command/Observation وارد سیستم می‌شوند؛ dedupe با source_system + external_event_id است. | FINAL |
+| DEC-575 | 2026-10-04 | Contract Testing سه لایه Schema Contract، Consumer Contract و Domain Contract دارد و باید Invariantهای no AI gate-fail، stale world-state rejection و no board-before-freeze را enforce کند. | FINAL |
+| DEC-576 | 2026-10-04 | دوازده Contract Invariant نهایی شامل no direct profile update، no direct AI/system gate fail، no hidden world truth exposure، pre-outcome decision freeze، immutable sealed observation، immutable evidence under candidate response، independent review secrecy، evidence freeze before board، appointment separation، non-dump events، contract/event-only cross-context write و full version/lineage/trace/accountable actor برای consequential decisions است. | FINAL |
+| DEC-577 | 2026-10-04 | با نهایی‌شدن API & Data Contract v1، Business و Technical برای ورود به Product Backlog آماده‌اند؛ Kernel implementation ابتدا Identity، Curriculum، Mission Design/Runtime، Observation/Evidence، Flag Profile، Governance، Responsibility و Reflection را پوشش می‌دهد. | FINAL |
+| DEC-578 | 2026-10-04 | تعریف نهایی API & Data Contract v1: Client فقط Intent ارسال می‌کند، Domain صاحب State است، Version/Idempotency از تغییرات محافظت می‌کنند، Contextها با Contract/Event ارتباط دارند و هیچ تصمیم consequential بدون Lineage، Audit و Human Accountability اعمال نمی‌شود. | FINAL |
 
 ---
 
