@@ -134,11 +134,19 @@ jobs:
           inbox=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events;")
           candidate_home=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home;")
           instructor_home=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.instructor_home;")
+          completed_units=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.learning_unit_progress where state = 'COMPLETED';")
+          feedback_submissions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.submissions where status = 'FEEDBACK_PROVIDED';")
+          learning_completed=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home ch, jsonb_array_elements(ch.payload->'what_to_learn') item where item->>'learning_state' = 'LEARNING_COMPLETED';")
+          unproven=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home ch, jsonb_array_elements(ch.payload->'what_to_prove') item where item->>'proof_state' = 'UNPROVEN';")
 
-          test "$published" -ge 3
-          test "$inbox" -ge 3
+          test "$published" -ge 11
+          test "$inbox" -ge 11
           test "$candidate_home" -ge 1
           test "$instructor_home" -ge 1
+          test "$completed_units" -ge 2
+          test "$feedback_submissions" -ge 1
+          test "$learning_completed" -ge 1
+          test "$unproven" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -147,6 +155,10 @@ jobs:
             echo "processed_inbox_events=$inbox"
             echo "candidate_home_rows=$candidate_home"
             echo "instructor_home_rows=$instructor_home"
+            echo "completed_learning_units=$completed_units"
+            echo "feedback_provided_submissions=$feedback_submissions"
+            echo "learning_completed_capabilities=$learning_completed"
+            echo "unproven_capabilities=$unproven"
             echo "browser_oidc_acceptance=PASS"
           } | tee stage-artifacts/acceptance.txt
 
