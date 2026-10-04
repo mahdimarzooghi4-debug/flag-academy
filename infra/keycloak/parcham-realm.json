@@ -60,7 +60,9 @@
       "lastName": "Demo",
       "realmRoles": [
         "CANDIDATE"
-      ]
+      ],
+      "email": "candidate@parcham.local",
+      "emailVerified": true
     },
     {
       "id": "22222222-2222-2222-2222-222222222222",
@@ -70,7 +72,9 @@
       "lastName": "Demo",
       "realmRoles": [
         "INSTRUCTOR"
-      ]
+      ],
+      "email": "instructor@parcham.local",
+      "emailVerified": true
     }
   ]
 }
