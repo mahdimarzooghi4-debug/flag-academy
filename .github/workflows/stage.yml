@@ -44,11 +44,17 @@ jobs:
         shell: bash
         run: |
           make_secret() { python -c 'import secrets; print(secrets.token_urlsafe(24))'; }
-          echo "POSTGRES_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
-          echo "MINIO_ROOT_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
-          echo "KC_BOOTSTRAP_ADMIN_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
-          echo "PARCHAM_DEV_CANDIDATE_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
-          echo "PARCHAM_DEV_INSTRUCTOR_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          set_secret() {
+            name="$1"
+            value="$(make_secret)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          }
+          set_secret POSTGRES_PASSWORD
+          set_secret MINIO_ROOT_PASSWORD
+          set_secret KC_BOOTSTRAP_ADMIN_PASSWORD
+          set_secret PARCHAM_DEV_CANDIDATE_PASSWORD
+          set_secret PARCHAM_DEV_INSTRUCTOR_PASSWORD
 
       - name: Build runtime database URL
         shell: bash
