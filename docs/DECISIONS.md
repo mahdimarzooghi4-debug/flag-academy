@@ -459,6 +459,48 @@
 | DEC-451 | 2026-10-04 | Dependency Direction رسمی Experience → Application/API → Domain است؛ Domain integration از Contracts + Events انجام می‌شود و UI/AI/Analytics حق دورزدن Domain Rules یا direct mutation ندارند. | FINAL |
 | DEC-452 | 2026-10-04 | Kernel غیرقابل‌حذف Parcham OS شامل Curriculum، Mission، Evidence، Flag Profile، Human Governance، Responsibility و Parcham AI است. | FINAL |
 | DEC-453 | 2026-10-04 | سه قانون غیرقابل‌مذاکره Product Architecture: هر Truth یک Owner دارد؛ AI هیچ Domain State مهمی را مستقیماً مالک یا Mutation نمی‌کند؛ هر تصمیم اعتماد/مسئولیت باید از Evidence تا Human Decision قابل ردیابی باشد. | FINAL |
+| DEC-454 | 2026-10-04 | اصل Domain Model: هر Aggregate فقط از Invariantهای خودش محافظت می‌کند و هیچ Transaction نباید برای حفظ یک Business Rule چند Bounded Context مستقل را هم‌زمان Lock کند. | FINAL |
+| DEC-455 | 2026-10-04 | Entityهای اصلی ID داخلی opaque از نوع UUID دارند و موجودیت‌های Versioned، definition_id و version_id جداگانه نگه می‌دارند؛ historical references باید به Version دقیق Pin شوند. | FINAL |
+| DEC-456 | 2026-10-04 | هر Aggregate Root باید State Ownership، Invariants، Commands و Domain Events مشخص داشته باشد؛ Command بیان Intent و Domain Event بیان Fact رخ‌داده است. | FINAL |
+| DEC-457 | 2026-10-04 | Candidate Journey به Organization Context مشخص Pin می‌شود و انتقال Evidence بین Organizationها بدون Policy صریح مجاز نیست. | FINAL |
+| DEC-458 | 2026-10-04 | Admissions Aggregate با AdmissionCase و State Machine DRAFT → SUBMITTED → BASELINE → SIMULATION → CAMP → BOARD → DECIDED و Terminalهای ADMITTED/RESERVED/REJECTED/WITHDRAWN تعریف شد؛ ساخت Journey پس از ADMIT از طریق Event انجام می‌شود. | FINAL |
+| DEC-459 | 2026-10-04 | CapabilityDefinition و CurriculumDefinition Aggregateهای جدا هستند؛ Curriculum به Version مشخص Capability reference می‌دهد و Capability داخل Curriculum embed نمی‌شود. | FINAL |
+| DEC-460 | 2026-10-04 | LearningAttempt فقط مصرف Instruction را ثبت می‌کند و Completion آموزشی به‌خودی‌خود Profile Claim یا Capability Evidence ایجاد نمی‌کند. | FINAL |
+| DEC-461 | 2026-10-04 | MissionTemplate و MissionTemplateVersion Aggregateهای Mission Design هستند؛ Version فعال‌شده immutable است و تغییر Definition فقط با Version جدید انجام می‌شود. | FINAL |
+| DEC-462 | 2026-10-04 | MissionInstance Aggregate اصلی Runtime است و Candidate Action transaction به‌صورت validate action → append domain events → deterministic mutation → increment world version اجرا می‌شود. | FINAL |
+| DEC-463 | 2026-10-04 | Transactional Outbox Pattern بخشی از معماری منطقی است؛ هیچ Event خارجی پیش از Commit موفق Domain Transaction منتشر نمی‌شود. | FINAL |
+| DEC-464 | 2026-10-04 | WorldModelDefinition/Version و BusinessSimulationPack از Mission Runtime جدا هستند و Shared Runtime نباید Business-specific logic را hardcode کند. | FINAL |
+| DEC-465 | 2026-10-04 | Observation یک Aggregate مستقل با State DRAFT → SEALED است؛ پس از Seal immutable می‌شود و Correction فقط با Observation جدید انجام می‌شود. | FINAL |
+| DEC-466 | 2026-10-04 | EvidenceCase Aggregate اصلی Evidence Engine است و Interpretation پذیرفته‌شده می‌تواند SUPERSEDED شود اما حذف نمی‌شود؛ EvidenceConflict و BehaviourPattern Aggregateهای مستقل هستند. | FINAL |
+| DEC-467 | 2026-10-04 | ReviewCase Aggregate عمومی Governance است و Independent Reviewer تا پیش از Submit نظر خودش نباید Review دیگر را ببیند؛ این قاعده باید server-side enforce شود. | FINAL |
+| DEC-468 | 2026-10-04 | CalibrationCase State Machine شامل OPEN → INDEPENDENT_REVIEWS → DISAGREEMENT_DETECTED → CALIBRATION → RESOLVED است و Calibration هیچ Candidate Score تولید نمی‌کند. | FINAL |
+| DEC-469 | 2026-10-04 | FlagProfile Aggregate به‌ازای Person × Organization Context × Track تعریف می‌شود و Current Claim فقط از Accepted Profile Update ساخته می‌شود؛ EvidenceCase حق direct profile mutation ندارد. | FINAL |
+| DEC-470 | 2026-10-04 | ProfileUpdateCase با State PROPOSED → REVIEW_REQUIRED/AUTO_ELIGIBLE → APPROVED → APPLIED تعریف شد؛ Developmental update کم‌ریسک می‌تواند auto-eligible باشد اما Promotion consequential نیازمند Human Review است. | FINAL |
+| DEC-471 | 2026-10-04 | GateAssessment Aggregate مستقل با State UNPROVEN → PASS → AT_RISK → REVIEW_REQUIRED → PASS_CONFIRMED/FAIL و سپس REMEDIATION → REASSESSMENT → PASS/FAIL تعریف شد؛ FlagProfile فقط Current Gate Projection را نمایش می‌دهد. | FINAL |
+| DEC-472 | 2026-10-04 | LearningRecord Aggregate با State DRAFT → COMMITTED → REPLAY_PENDING → VERIFIED/NOT_YET_VERIFIED تعریف شد؛ Behaviour Commitment مستقیماً Profile را تغییر نمی‌دهد. | FINAL |
+| DEC-473 | 2026-10-04 | RealProjectEngagement با Typeهای APPRENTICESHIP و OWNERSHIP_TRIAL و State DRAFT → APPROVED → ACTIVE → REVIEW → COMPLETED/TERMINATED تعریف شد و بدون Learning & Evidence Contract فعال نمی‌شود. | FINAL |
+| DEC-474 | 2026-10-04 | External system data در Real Projects فقط از مسیر External Event → Source Event → Validation → Observation وارد Evidence pipeline می‌شود. | FINAL |
+| DEC-475 | 2026-10-04 | ResponsibilityDefinition Versioned و ResponsibilityAssessment Aggregate مستقل است؛ خروجی READY/READY_WITH_CONDITIONS/DIFFERENT_SCOPE/NOT_YET/BLOCKED_BY_GATE Recommendation است، نه Appointment. | FINAL |
+| DEC-476 | 2026-10-04 | FlagBoardCase Aggregate با State DRAFT_CASE → EVIDENCE_FREEZE → INDEPENDENT_REVIEW → CONFLICT_RESOLUTION → BOARD_READY → BOARD_DECISION → DECISION_ACKNOWLEDGED تعریف شد و READY فقط APPOINTMENT_ELIGIBLE ایجاد می‌کند. | FINAL |
+| DEC-477 | 2026-10-04 | AppointmentDecision Aggregate مستقل از FlagBoardCase است؛ Readiness و Appointment جدا هستند و Override reason/decision maker باید ثبت شود. | FINAL |
+| DEC-478 | 2026-10-04 | NextExperiencePlanner یک Domain/Application Service است که Recommendation را بر اساس Profile، Gate State، Evidence Gaps، Replay Requirements، Learning Commitments، Mission History و Eligibility می‌سازد و Source of Truth Profile نیست. | FINAL |
+| DEC-479 | 2026-10-04 | AIInvocation Aggregate صرفاً برای Audit/Governance AI است و role، mode، provider/model، policy versions، data classification، tool permissions، output schema، latency، cost و result status را نگه می‌دارد. | FINAL |
+| DEC-480 | 2026-10-04 | KnowledgeSource/KnowledgeSnapshot Versioned هستند و هر Retrieval باید به Source Version قابل ردیابی باشد؛ Knowledge هیچ‌وقت Simulation Truth را override نمی‌کند. | FINAL |
+| DEC-481 | 2026-10-04 | Transaction Boundaryها به‌ازای Aggregateهای صاحب Business Operation تعریف شدند و Cross-context consistency فقط از Domain Event + Outbox + Idempotent Consumer انجام می‌شود. | FINAL |
+| DEC-482 | 2026-10-04 | تمام Domain Eventها Envelope مشترک با event/aggregate identity/version، occurred_at، actor، correlation_id، causation_id، organization_context_id، data_classification، payload و trace_id دارند. | FINAL |
+| DEC-483 | 2026-10-04 | Aggregateها optimistic concurrency با expected_aggregate_version دارند؛ Conflict با 409 VERSION_CONFLICT پاسخ داده می‌شود و Last-write-wins ممنوع است. | FINAL |
+| DEC-484 | 2026-10-04 | Governance records مانند Observation، Evidence، Gate/Board Decision و Audit حذف عادی ندارند؛ به‌جای delete از VOIDED/SUPERSEDED/INVALIDATED استفاده می‌شود و حذف واقعی فقط با Retention/Privacy Governance انجام می‌شود. | FINAL |
+| DEC-485 | 2026-10-04 | UI از Read Model Projectionهای جدا مانند CandidateHomeView، MissionWorkspaceView، EvidenceReviewView، FlagProfileView، FlagBoardCaseView و LeadershipReadinessView استفاده می‌کند و Aggregateها برای UI shape طراحی نمی‌شوند. | FINAL |
+| DEC-486 | 2026-10-04 | Aggregate Size Rule: فقط داده‌ای داخل Aggregate می‌ماند که برای حفظ Invariant همان Transaction لازم است؛ Monster Aggregate ممنوع است. | FINAL |
+| DEC-487 | 2026-10-04 | Domain Relationshipها به سه نوع Ownership، Reference و Snapshot تقسیم می‌شوند و برای Governance Decisionها Snapshot بر Live Reference ترجیح دارد. | FINAL |
+| DEC-488 | 2026-10-04 | Cross-context invariant ممنوع است؛ Mission completion نباید در همان Transaction Profile را تغییر دهد و Profile update فقط از pipeline event/evidence/review انجام می‌شود. | FINAL |
+| DEC-489 | 2026-10-04 | هر Command دقیقاً یک Domain Owner دارد؛ اگر Command برای اجرا به چند Context مستقل نیاز داشته باشد، احتمالاً بیش از حد بزرگ طراحی شده است. | FINAL |
+| DEC-490 | 2026-10-04 | Domain Event naming باید past tense + business meaning باشد، مانند mission.started و evidence.accepted؛ نام‌های generic مانند update_done پذیرفته نیستند. | FINAL |
+| DEC-491 | 2026-10-04 | Primary IDها opaque هستند و Business Code جدا نگه داشته می‌شود تا Naming/Versioning با Identity مخلوط نشود. | FINAL |
+| DEC-492 | 2026-10-04 | Logical ER backbone به‌صورت Person → AdmissionCase → CandidateJourney → MissionInstance → Observation → EvidenceCase → BehaviourPattern → ProfileUpdate → FlagProfile → ResponsibilityAssessment → FlagBoardCase → AppointmentDecision تعریف شد؛ Learning Loop موازی نیز Evidence → LearningRecord → BehaviourCommitment → Replay Mission → New Evidence است. | FINAL |
+| DEC-493 | 2026-10-04 | ده Architectural Invariant غیرقابل‌مذاکره Domain Model تثبیت شد: Version pinning، Runtime-only simulation mutation، sealed immutable observation، versioned evidence interpretation، no raw-observation profile mutation، no AI/event direct gate failure، recommendation ≠ appointment، evidence freeze before board، no AI direct DB write و no governance history overwrite. | FINAL |
+| DEC-494 | 2026-10-04 | PostgreSQL schema topology، one-vs-many database، broker، ORM، API transport، serialization، cache و deployment topology عمداً برای Technical Architecture v1 باز ماندند. | FINAL |
+| DEC-495 | 2026-10-04 | تعریف نهایی Domain Model: هر تصمیم مهم در Aggregate صاحب آن نگه داشته می‌شود، هر Context فقط Truth خودش را Mutation می‌کند، ارتباط Contextها با Contract/Event است و کل زنجیره Candidate Experience تا Responsibility دارای auditable lineage است. | FINAL |
 
 ---
 
