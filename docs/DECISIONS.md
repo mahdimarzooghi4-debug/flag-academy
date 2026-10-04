@@ -151,6 +151,17 @@
 | DEC-143 | 2026-10-04 | عبور از Capability 04 نیازمند Evidence در چند Context، رد آگاهانه حداقل یک Vanity Metric، Segment کردن داده، کشف حداقل یک Data Quality Issue پیش از تصمیم، عدم اشتباه Correlation با Causation و اتصال Insight به Decision یا Hypothesis Change است. | FINAL |
 | DEC-144 | 2026-10-04 | حداقل یک Mission Data Thinking باید داده اولیه گمراه‌کننده داشته باشد تا توان Challenge کردن Data پیش از تصمیم سنجیده شود. | FINAL |
 | DEC-145 | 2026-10-04 | اصل فرهنگی Data Thinking: «پرچمدار از داده برای اثبات خودش استفاده نمی‌کند؛ از داده برای نزدیک‌شدن به واقعیت استفاده می‌کند.» | FINAL |
+| DEC-146 | 2026-10-04 | Capability 05 با عنوان Customer Understanding تعریف شد: ساخت تصویر Evidence-based از Actor، Context، Desired Progress، Problem، Constraints و Behavior واقعی مشتری. | FINAL |
+| DEC-147 | 2026-10-04 | اصل Customer Understanding: مشتری منبع Evidence درباره مسئله است، نه الزاماً مرجع طراحی راه‌حل. | FINAL |
+| DEC-148 | 2026-10-04 | Mission Ladder این Capability شامل Feature Request، Bad Interview، Say vs Do، Mixed Customers، Contradictory Voices و Field Discovery است. | FINAL |
+| DEC-149 | 2026-10-04 | مدل Customer Understanding برای هر Segment شامل Actor، Context، Trigger، Desired Progress، Current Behavior، Pain/Friction، Alternatives، Motivation، Constraints و Evidence است. | FINAL |
+| DEC-150 | 2026-10-04 | Artifactهای اصلی Customer Understanding شامل Research Plan، Actor/Stakeholder Map، Interview Guide/Notes، Observation Notes، Evidence Repository، Segment Definition، Current Journey، Needs/Jobs Map، Pain & Motivation Map، Pattern Summary، Customer Model و Research Synthesis هستند. | FINAL |
+| DEC-151 | 2026-10-04 | در Customer Research، Evidence رفتاری و گذشته واقعی از Future Intention و Hypothetical Opinion معتبرتر است؛ حرکت مطلوب از Opinion به Behavior است. | FINAL |
+| DEC-152 | 2026-10-04 | Synthetic Customer برای Practice و Assessment مجاز است اما در پروژه واقعی جای Evidence از انسان و رفتار واقعی را نمی‌گیرد. | FINAL |
+| DEC-153 | 2026-10-04 | در Assessment Mode، AI Actor باید بر اساس World Model رفتار کند و نباید Insight مورد نیاز کاندیدا را آسان یا مستقیم افشا کند. | FINAL |
+| DEC-154 | 2026-10-04 | Research Ethics شامل عدم فریب درباره هدف، عدم استفاده بدون مجوز از اطلاعات محرمانه، عدم Recording بدون اطلاع، عدم فشار به پاسخ‌دهنده و عدم استفاده خارج از Context از Quote است. | FINAL |
+| DEC-155 | 2026-10-04 | عبور از Capability 05 نیازمند Evidence در چند Context، تشخیص حداقل یک Say-vs-Do contradiction، تفکیک Actor/User/Buyer، Segmentation معنادار، حفظ Evidence مخالف و حداقل یک تغییر Hypothesis یا Decision بر اساس Understanding جدید است. | FINAL |
+| DEC-156 | 2026-10-04 | اصل فرهنگی Customer Understanding: «پرچمدار صدای مشتری را جمع نمی‌کند؛ واقعیت زندگی مشتری را می‌فهمد.» | FINAL |
 
 ---
 
