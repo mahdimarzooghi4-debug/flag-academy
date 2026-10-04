@@ -1,6 +1,6 @@
 # 41 — Sprint 2: Learning Experience v1
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED  
 **Approved scope source:** DEC-607
 
 ## Goal
@@ -65,3 +65,28 @@ Capability Learning State is derived from its active learning requirements:
 - all active learning units completed and all active assignments submitted → `LEARNING_COMPLETED`.
 
 This state never mutates Proof State. `LEARNING_COMPLETED` may coexist with `UNPROVEN`.
+
+
+## Acceptance Result
+
+Sprint 2 is accepted on commit `3a7e253213936a2d340bde17ca0458e594d8cb67`.
+
+Verified end-to-end:
+
+- Candidate sees Pre-work and Practice learning units;
+- Candidate explicitly moves Learning Unit `NOT_STARTED → IN_PROGRESS → COMPLETED`;
+- Candidate submits the active Assignment;
+- Instructor sees the real Submission and records append-only Feedback;
+- Candidate receives Instructor Feedback;
+- Capability Learning State becomes `LEARNING_COMPLETED` only after all active learning units are completed and all active assignments are submitted;
+- Proof remains `UNPROVEN`; Learning Completion does not mutate Proof;
+- transactional events are published and consumed through Outbox/Inbox;
+- Candidate and Instructor read models converge under eventual consistency.
+
+Acceptance gates:
+- CI run `37227435115` — PASS;
+- Ephemeral Stage run `37227435125` — PASS;
+- Browser live-OIDC acceptance — PASS;
+- Stage evidence artifact — PASS.
+
+Sprint 2 therefore closes the approved Learning Experience v1 scope.
