@@ -13,6 +13,19 @@ function Loading({ text = "در حال بارگذاری..." }: { text?: string }
   return <div className="center-state">{text}</div>;
 }
 
+async function refreshProjectionEventually(
+  refetch: () => Promise<unknown>,
+  attempts = 12,
+  intervalMs = 500,
+) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await refetch();
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+    }
+  }
+}
+
 export default function App() {
   const auth = useAuth();
 
@@ -97,9 +110,8 @@ function AuthenticatedApp({
         if (error) throw new Error("تکمیل فعالیت یادگیری ناموفق بود.");
       }
     },
-    onSuccess: async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 900));
-      await candidate.refetch();
+    onSuccess: () => {
+      void refreshProjectionEventually(candidate.refetch);
     },
   });
 
@@ -117,9 +129,8 @@ function AuthenticatedApp({
       });
       if (error) throw new Error("ثبت تکلیف ناموفق بود.");
     },
-    onSuccess: async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 800));
-      await candidate.refetch();
+    onSuccess: () => {
+      void refreshProjectionEventually(candidate.refetch);
     },
   });
 
@@ -137,9 +148,8 @@ function AuthenticatedApp({
       });
       if (error) throw new Error("ثبت بازخورد ناموفق بود.");
     },
-    onSuccess: async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 800));
-      await instructor.refetch();
+    onSuccess: () => {
+      void refreshProjectionEventually(instructor.refetch);
     },
   });
 
