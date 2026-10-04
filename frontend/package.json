@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
-    "generate:api": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts"
+    "generate:api": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
@@ -27,6 +28,7 @@
     "openapi-typescript": "^7.6.1",
     "typescript": "~5.7.3",
     "vite": "^6.1.0",
-    "vitest": "^3.0.5"
+    "vitest": "^3.0.5",
+    "@playwright/test": "^1.52.0"
   }
 }
