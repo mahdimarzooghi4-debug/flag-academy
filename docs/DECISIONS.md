@@ -62,6 +62,23 @@
 | DEC-054 | 2026-10-04 | Assessment Camp باید حرفه‌ای و اخلاقی باشد؛ تحقیر و فشار روانی مخرب ابزار ارزیابی محسوب نمی‌شوند. | FINAL |
 | DEC-055 | 2026-10-04 | خروجی الزامی کمپ برای هر فرد: Evidence Ledger، Candidate Competency Map و Admission Recommendation. | FINAL |
 | DEC-056 | 2026-10-04 | Evidence Ledger پرونده زنده فرد است و از Camp تا آموزش، Simulator، پروژه واقعی، انتصاب و عملکرد پس از انتصاب ادامه پیدا می‌کند. | FINAL |
+| DEC-057 | 2026-10-04 | Simulator پرچم یک بازی آموزشی نیست؛ یک موتور تصمیم‌گیری و تولید Evidence است. | FINAL |
+| DEC-058 | 2026-10-04 | واحد پایه Simulation، Mission با Context، Objective، Constraints، Actors، Information State، Decision Points، Consequences و Evidence Opportunities است. | FINAL |
+| DEC-059 | 2026-10-04 | Simulator باید Stateful باشد؛ هر تصمیم وضعیت آینده جهان شبیه‌سازی را تغییر می‌دهد. | FINAL |
+| DEC-060 | 2026-10-04 | Simulator باید علاوه بر تصمیم، سؤال‌ها و اطلاعاتی را که فرد پیش از تصمیم درخواست کرده ثبت کند. | FINAL |
+| DEC-061 | 2026-10-04 | اطلاعات در Simulator محدود و هزینه‌دار است و Information Economy بخشی از سنجش Judgment است. | FINAL |
+| DEC-062 | 2026-10-04 | Event Engine شامل رویدادهای بازار، مشتری، تیم، فنی، مدیریتی، مالی و قانونی است؛ برخی Eventها باید پیامد تصمیم‌های قبلی باشند. | FINAL |
+| DEC-063 | 2026-10-04 | Behavioral Triggerها برای ایجاد فرصت مشاهده مستقیم Competencyها استفاده می‌شوند. | FINAL |
+| DEC-064 | 2026-10-04 | Actorها در Simulator باید State و ویژگی‌های پویا داشته باشند. | FINAL |
+| DEC-065 | 2026-10-04 | Consequence Engine باید پیامدهای چندبعدی و Trade-off محور تولید کند؛ تصمیم خوب الزاماً همه KPIها را بهتر نمی‌کند. | FINAL |
+| DEC-066 | 2026-10-04 | هر تصمیم مهم باید در Decision Log شامل Situation، Available/Requested Information، Decision، Reasoning، Expected/Actual Outcome و Reflection ثبت شود. | FINAL |
+| DEC-067 | 2026-10-04 | جریان استاندارد تولید Evidence در Simulator: Simulation Event → Observed Behavior → Evidence → Competency. | FINAL |
+| DEC-068 | 2026-10-04 | استانداردهای کلی ارزیابی شفاف‌اند، اما نگاشت دقیق رفتار به امتیاز باید تا حدی Hidden بماند تا Rubric به‌سادگی Game نشود. | FINAL |
+| DEC-069 | 2026-10-04 | Failure در Simulator باید ممکن باشد و Post-mortem و رفتار پس از شکست خود Evidence محسوب می‌شود. | FINAL |
+| DEC-070 | 2026-10-04 | Replay هوشمند باید ساختار مسئله مشابه را در Context متفاوت تکرار کند تا Transfer of Learning سنجیده شود. | FINAL |
+| DEC-071 | 2026-10-04 | Difficulty Engine پنج سطح پایه دارد: Clear Mission، Ambiguous Problem، Competing Stakeholders، Crisis & Scarcity، Strategic Complexity. | FINAL |
+| DEC-072 | 2026-10-04 | هسته مشترک Simulator شامل Mission Engine، Actor Engine، Event Engine، Consequence Engine و Evidence Engine است و هر کسب‌وکار Business Simulation Pack اختصاصی دارد. | FINAL |
+| DEC-073 | 2026-10-04 | در Simulator، کیفیت تصمیم، نحوه رسیدن به آن، واکنش به پیامد و یادگیری پس از آن از نتیجه خام مهم‌تر است. | FINAL |
 
 ---
 
