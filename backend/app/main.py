@@ -3,22 +3,34 @@ from __future__ import annotations
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.academy.api import router as academy_router
+from app.config import get_settings
 from app.curriculum.api import router as curriculum_router
 from app.db import engine
 from app.errors import AppError, app_error_handler
 from app.identity.api import router as identity_router
+from app.observability import configure_observability
 from app.read_models.api import router as read_models_router
 
+settings = get_settings()
 app = FastAPI(title="Parcham OS API", version="0.1.0")
 app.add_exception_handler(AppError, app_error_handler)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(identity_router)
 app.include_router(curriculum_router)
 app.include_router(academy_router)
 app.include_router(read_models_router)
+configure_observability(app)
 
 
 @app.middleware("http")

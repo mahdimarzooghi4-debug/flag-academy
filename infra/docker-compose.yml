@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: parcham
+      POSTGRES_PASSWORD: parcham
+      POSTGRES_DB: parcham
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parcham -d parcham"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - parcham-postgres:/var/lib/postgresql/data
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-07T23-21-09Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: parcham
+      MINIO_ROOT_PASSWORD: parcham-development-only
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - parcham-minio:/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/parcham-realm.json:/opt/keycloak/data/import/parcham-realm.json:ro
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.119.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    ports:
+      - "4318:4318"
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+
+volumes:
+  parcham-postgres:
+  parcham-minio:

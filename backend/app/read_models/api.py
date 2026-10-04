@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,11 +14,78 @@ from app.read_models.models import CandidateHomeProjection, InstructorHomeProjec
 router = APIRouter(prefix="/api/v1/me", tags=["read-models"])
 
 
-@router.get("/candidate-home")
+class SessionSummary(BaseModel):
+    session_id: str
+    title: str
+    starts_at: datetime
+    ends_at: datetime
+    delivery_mode: str
+
+
+class JourneySummary(BaseModel):
+    track: str
+    state: str
+
+
+class CohortSummary(BaseModel):
+    id: str
+    name: str
+
+
+class WaveSummary(BaseModel):
+    code: str
+    name: str
+
+
+class LearnItem(BaseModel):
+    capability_version_id: str
+    name: str
+    learning_state: str
+    next_session: SessionSummary | None = None
+
+
+class ProveItem(BaseModel):
+    capability_version_id: str
+    name: str
+    proof_state: str
+
+
+class ProfileSummary(BaseModel):
+    status: str
+
+
+class CandidateHomeResponse(BaseModel):
+    journey: JourneySummary
+    cohort: CohortSummary
+    current_wave: WaveSummary
+    upcoming_sessions: list[SessionSummary]
+    what_to_learn: list[LearnItem]
+    what_to_prove: list[ProveItem]
+    learning_tasks: list[dict]
+    open_missions: list[dict]
+    profile_summary: ProfileSummary
+    processing_states: list[dict]
+
+
+class AssignedClass(BaseModel):
+    id: str
+    title: str
+
+
+class InstructorHomeResponse(BaseModel):
+    assigned_cohort: CohortSummary
+    assigned_classes: list[AssignedClass]
+    upcoming_sessions: list[SessionSummary]
+    candidate_count: int
+    capability_focus: str
+    current_wave: WaveSummary
+
+
+@router.get("/candidate-home", response_model=CandidateHomeResponse)
 async def candidate_home(
     actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> dict:
+) -> CandidateHomeResponse:
     projection = (
         await session.execute(
             select(CandidateHomeProjection).where(
@@ -32,14 +101,14 @@ async def candidate_home(
             "Candidate journey was not found.",
             status_code=404,
         )
-    return projection.payload
+    return CandidateHomeResponse.model_validate(projection.payload)
 
 
-@router.get("/instructor-home")
+@router.get("/instructor-home", response_model=InstructorHomeResponse)
 async def instructor_home(
     actor: Annotated[ActorContext, Depends(require_role("INSTRUCTOR"))],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> dict:
+) -> InstructorHomeResponse:
     projection = (
         await session.execute(
             select(InstructorHomeProjection).where(
@@ -55,4 +124,4 @@ async def instructor_home(
             "Instructor assignment was not found.",
             status_code=404,
         )
-    return projection.payload
+    return InstructorHomeResponse.model_validate(projection.payload)
