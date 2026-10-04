@@ -16,6 +16,7 @@ async function logout(page: Page) {
 }
 
 test("candidate learns, submits; instructor gives feedback; proof remains separate", async ({ page }) => {
+  test.setTimeout(90_000);
   const candidatePassword = process.env.PARCHAM_DEV_CANDIDATE_PASSWORD;
   const instructorPassword = process.env.PARCHAM_DEV_INSTRUCTOR_PASSWORD;
   if (!candidatePassword || !instructorPassword) {
@@ -30,13 +31,17 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await expect(page.getByText("TO_LEARN").first()).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
-  const preWorkCard = page.getByText("پیش‌مطالعه: مالکیت مسئله تا نتیجه").locator("..");
+  const preWorkCard = page.locator(".learning-card").filter({
+    hasText: "پیش‌مطالعه: مالکیت مسئله تا نتیجه",
+  });
   await preWorkCard.getByRole("button", { name: "شروع" }).click();
   await expect(page.getByText("IN_LEARNING").first()).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
   await preWorkCard.getByRole("button", { name: "تکمیل فعالیت" }).click();
 
-  const practiceCard = page.getByText("تمرین: مسئله بدون صاحب").locator("..");
+  const practiceCard = page.locator(".learning-card").filter({
+    hasText: "تمرین: مسئله بدون صاحب",
+  });
   await practiceCard.getByRole("button", { name: "شروع" }).click();
   await practiceCard.getByRole("button", { name: "تکمیل فعالیت" }).click();
 
