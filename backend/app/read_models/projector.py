@@ -429,7 +429,7 @@ async def rebuild_instructor_home(
     ).scalars().all()
 
     assignment_ids = [item.id for item in learning_assignments]
-    submissions: list[Submission] = []
+    submissions: Sequence[Submission] = []
     if assignment_ids:
         submissions = (
             await db.execute(
