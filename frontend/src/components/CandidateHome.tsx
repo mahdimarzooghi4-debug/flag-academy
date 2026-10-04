@@ -122,7 +122,7 @@ export function CandidateHome({
                   </button>
                 ) : (
                   <p className="success-note">این فعالیت یادگیری تکمیل شده است.</p>
-                )
+                )}
               </div>
             ))}
             {preWork.length === 0 ? <p className="muted">پیش‌کاری فعالی ندارید.</p> : null}
@@ -158,7 +158,7 @@ export function CandidateHome({
                   </button>
                 ) : (
                   <p className="success-note">این فعالیت یادگیری تکمیل شده است.</p>
-                )
+                )}
               </div>
             ))}
             {practice.length === 0 ? <p className="muted">تمرین فعالی ندارید.</p> : null}
