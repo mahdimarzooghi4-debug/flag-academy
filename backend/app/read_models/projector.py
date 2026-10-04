@@ -17,7 +17,13 @@ from app.academy.models import (
 from app.curriculum.models import CapabilityVersion, CurriculumWave, WaveCapability
 from app.identity.models import Person
 from app.journey.models import CandidateJourney
-from app.learning.models import (\n    Assignment,\n    InstructorFeedback,\n    LearningUnit,\n    LearningUnitProgress,\n    Submission,\n)
+from app.learning.models import (
+    Assignment,
+    InstructorFeedback,
+    LearningUnit,
+    LearningUnitProgress,
+    Submission,
+)
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
 
 

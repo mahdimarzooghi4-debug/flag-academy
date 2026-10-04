@@ -2,7 +2,12 @@ from uuid import UUID
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
 from app.journey.domain import CandidateJourneyState
-from app.learning.domain import (\n    LearningPhase,\n    LearningUnitProgressState,\n    LearningUnitType,\n    SubmissionStatus,\n)
+from app.learning.domain import (
+    LearningPhase,
+    LearningUnitProgressState,
+    LearningUnitType,
+    SubmissionStatus,
+)
 from app.platform.events import new_event
 
 

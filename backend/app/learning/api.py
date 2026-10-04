@@ -11,7 +11,13 @@ from app.academy.models import ClassOffering, Cohort, CohortMembership, Instruct
 from app.db import get_session
 from app.errors import AppError
 from app.identity.auth import ActorContext, require_role
-from app.learning.models import (\n    Assignment,\n    InstructorFeedback,\n    LearningUnit,\n    LearningUnitProgress,\n    Submission,\n)
+from app.learning.models import (
+    Assignment,
+    InstructorFeedback,
+    LearningUnit,
+    LearningUnitProgress,
+    Submission,
+)
 from app.platform.events import new_event, record_event
 
 router = APIRouter(prefix="/api/v1", tags=["learning"])
