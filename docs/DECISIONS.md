@@ -108,6 +108,15 @@
 | DEC-100 | 2026-10-04 | Flag Board آزمون پایانی کلاسیک نیست؛ بر اساس پرونده Evidence تصمیم READY / NOT YET / DIFFERENT SCOPE می‌گیرد. | FINAL |
 | DEC-101 | 2026-10-04 | عنوان، حکم و نشان رسمی فقط پس از اثبات توانایی و تأیید Flag Board داده می‌شوند؛ نشان نماد دامنه مسئولیتی است که سازمان حاضر است بسپارد. | FINAL |
 | DEC-102 | 2026-10-04 | Growth Loop پس از انتصاب ادامه دارد؛ Evidence Ledger و Flag Profile با عملکرد واقعی به‌روزرسانی می‌شوند و سؤال اصلی تبدیل می‌شود به «مسئولیت بعدی که فرد آماده حمل آن است چیست؟». | FINAL |
+| DEC-103 | 2026-10-04 | واحد طراحی Curriculum پرچم Capability است، نه درس یا محتوای آموزشی. | FINAL |
+| DEC-104 | 2026-10-04 | Curriculum مدیر محصول 15 Capability اصلی دارد: Ownership & Accountability، Problem Framing، Decision Making، Data Thinking، Customer Understanding، Product Discovery، Product Strategy، Prioritization، Metrics & Experimentation، Product Economics، Delivery، Stakeholder Alignment، Product Leadership، System Building و Reflection & Learning. | FINAL |
+| DEC-105 | 2026-10-04 | Curriculum در چهار موج Foundation، Product Discovery، Product Direction & Execution و Product Leadership سازمان‌دهی می‌شود. | FINAL |
+| DEC-106 | 2026-10-04 | چرخه استاندارد هر Capability: Diagnose → Learn → Practice → Mission → Feedback → Reflection → Replay → Evidence. | FINAL |
+| DEC-107 | 2026-10-04 | Evidence هرگز Skip نمی‌شود؛ در صورت وجود شواهد معتبر قبلی فقط آموزش غیرضروری می‌تواند کوتاه یا Skip شود. | FINAL |
+| DEC-108 | 2026-10-04 | هر Capability دو لایه Knowledge Check و Capability Mission دارد و Knowledge Check وزن اصلی Flag Profile را ندارد. | FINAL |
+| DEC-109 | 2026-10-04 | یادگیری در پرچم Artifact-based است و هر Artifact باید به Mission، Outcome و Competency متصل باشد. | FINAL |
+| DEC-110 | 2026-10-04 | استاندارد خروجی برای همه یکسان است اما مسیر رسیدن می‌تواند بر اساس Flag Profile و Evidence شخصی‌سازی شود. | FINAL |
+| DEC-111 | 2026-10-04 | پرچم زمان حضور را استاندارد نمی‌کند؛ استاندارد شایستگی و Evidence لازم برای سپردن مسئولیت را استاندارد می‌کند. | FINAL |
 
 ---
 
