@@ -82,3 +82,102 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    env:
+      POSTGRES_USER: parcham
+      POSTGRES_DB: parcham
+      MINIO_ROOT_USER: parcham
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      PARCHAM_OIDC_ISSUER: http://localhost:8080/realms/parcham
+      PARCHAM_OIDC_AUDIENCE: parcham-api
+      PARCHAM_OIDC_JWKS_URL: http://localhost:8080/realms/parcham/protocol/openid-connect/certs
+      PARCHAM_NATS_URL: nats://localhost:4222
+      PARCHAM_CORS_ORIGINS: http://localhost:5173
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_OIDC_AUTHORITY: http://localhost:8080/realms/parcham
+      VITE_OIDC_CLIENT_ID: parcham-web
+      VITE_OIDC_REDIRECT_URI: http://localhost:5173
+      E2E_BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Generate ephemeral integration credentials
+        shell: bash
+        run: |
+          make_secret() { python -c 'import secrets; print(secrets.token_urlsafe(24))'; }
+          echo "POSTGRES_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "MINIO_ROOT_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "KC_BOOTSTRAP_ADMIN_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "PARCHAM_DEV_CANDIDATE_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+          echo "PARCHAM_DEV_INSTRUCTOR_PASSWORD=$(make_secret)" >> "$GITHUB_ENV"
+      - name: Build database URL
+        shell: bash
+        run: echo "PARCHAM_DATABASE_URL=postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB" >> "$GITHUB_ENV"
+      - name: Start integration infrastructure
+        run: docker compose -f infra/docker-compose.yml up -d postgres nats keycloak
+      - name: Wait for PostgreSQL
+        shell: bash
+        run: |
+          until docker compose -f infra/docker-compose.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+            sleep 2
+          done
+      - name: Seed Keycloak development users
+        run: ./scripts/dev-seed-keycloak.sh
+      - name: Install and seed backend
+        working-directory: backend
+        run: |
+          pip install -e ".[dev]"
+          alembic upgrade head
+          python -m app.seed
+      - name: Start backend
+        working-directory: backend
+        shell: bash
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/parcham-api.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8000/ready >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/parcham-api.log
+          exit 1
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Start frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 0.0.0.0 > /tmp/parcham-web.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://localhost:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/parcham-web.log
+          exit 1
+      - name: Browser E2E with live OIDC
+        working-directory: frontend
+        run: npm run e2e
+      - name: Upload E2E diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            /tmp/parcham-api.log
+            /tmp/parcham-web.log
+          if-no-files-found: ignore
+      - name: Stop integration infrastructure
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v
