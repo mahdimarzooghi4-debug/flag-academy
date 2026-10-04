@@ -79,6 +79,23 @@
 | DEC-071 | 2026-10-04 | Difficulty Engine پنج سطح پایه دارد: Clear Mission، Ambiguous Problem، Competing Stakeholders، Crisis & Scarcity، Strategic Complexity. | FINAL |
 | DEC-072 | 2026-10-04 | هسته مشترک Simulator شامل Mission Engine، Actor Engine، Event Engine، Consequence Engine و Evidence Engine است و هر کسب‌وکار Business Simulation Pack اختصاصی دارد. | FINAL |
 | DEC-073 | 2026-10-04 | در Simulator، کیفیت تصمیم، نحوه رسیدن به آن، واکنش به پیامد و یادگیری پس از آن از نتیجه خام مهم‌تر است. | FINAL |
+| DEC-074 | 2026-10-04 | Parcham AI لایه شناختی Parcham OS است، نه یک چت‌بات جانبی. | FINAL |
+| DEC-075 | 2026-10-04 | هر فرد می‌تواند AI Mentor مبتنی بر Baseline Profile، Flag Profile و Evidence Ledger داشته باشد و مسیر رشد از Course-centric به Person-centric حرکت می‌کند. | FINAL |
+| DEC-076 | 2026-10-04 | رفتار AI باید چهار Mode متمایز داشته باشد: LEARN، PRACTICE، ASSESSMENT و REAL PROJECT؛ در Assessment Mode ارائه Hint یا پاسخ مسئله ممنوع است. | FINAL |
+| DEC-077 | 2026-10-04 | Parcham AI در Simulator نقش Simulation Director را دارد و Actorها، Eventها، State و Difficulty را به‌صورت پویا مدیریت می‌کند. | FINAL |
+| DEC-078 | 2026-10-04 | AI Observer می‌تواند Candidate Evidence پیشنهاد کند، اما تصمیم نهایی شایستگی و پذیرش با انسان مسئول باقی می‌ماند. | FINAL |
+| DEC-079 | 2026-10-04 | AI Assessor Copilot برای جمع‌بندی Evidence، کشف تناقض، کمبود شواهد و Bias Alert استفاده می‌شود و نباید Independent Observation اولیه را آلوده کند. | FINAL |
+| DEC-080 | 2026-10-04 | AI Evidence Analyst مسئول تحلیل روندهای رفتاری، رشد، افت، تناقض و حوزه‌های Unproven در Evidence Ledger است. | FINAL |
+| DEC-081 | 2026-10-04 | AI Reflection Coach باید زنجیره Decision → Outcome → Reflection → Replay → Behaviour Change را پشتیبانی و ثبت کند. | FINAL |
+| DEC-082 | 2026-10-04 | AI Curriculum Orchestrator بر اساس Flag Profile و Evidence Ledger، Next Best Mission / Experience را برای رشد فرد پیشنهاد می‌کند. | FINAL |
+| DEC-083 | 2026-10-04 | AI Business Pack Builder می‌تواند از منابع معتبر کسب‌وکار World Model و Simulation Pack اولیه بسازد، اما استفاده عملی نیازمند Human Validation است. | FINAL |
+| DEC-084 | 2026-10-04 | AI Responsibility Matcher، Mission Requirements را با Flag Profileها تطبیق می‌دهد و Recommended Candidates ارائه می‌کند. | FINAL |
+| DEC-085 | 2026-10-04 | در تصمیم‌های Consequential مانند ADMIT/REJECT، Gate Failure، Certification و Appointment، AI تنها تصمیم‌گیرنده نیست؛ الگو AI Recommendation → Human Review → Accountable Decision است. | FINAL |
+| DEC-086 | 2026-10-04 | اختصاصی‌بودن Parcham AI از Competency Ontology، Evidence Graph، Flag Profile، Knowledge Base، World Models، Mission Library، Simulation History، Decision Logs و Organizational Context ساخته می‌شود؛ Foundation Model الزاماً اختصاصی نیست. | FINAL |
+| DEC-087 | 2026-10-04 | معماری Parcham AI باید تا حد ممکن Vendor-neutral باشد تا از Vendor Lock-in جلوگیری شود. | FINAL |
+| DEC-088 | 2026-10-04 | حافظه Parcham AI باید Structured، Evidence-based و قابل Audit باشد و نباید بر برداشت مبهم درباره فرد تکیه کند. | FINAL |
+| DEC-089 | 2026-10-04 | مفهوم Leadership Digital Twin به‌عنوان مدل زنده و Evidence-based توانایی‌ها، الگوی تصمیم‌گیری، واکنش به فشار، یادگیری و Scope اثبات‌شده هر فرد پذیرفته شد. | FINAL |
+| DEC-090 | 2026-10-04 | تمام Evidenceها و Recommendationهای تولیدشده توسط AI باید دارای Audit Trail، Permission و Data Governance باشند. | FINAL |
 
 ---
 
