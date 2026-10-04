@@ -1,6 +1,6 @@
 # 43 — Sprint 3: Practice Layer Vertical Slice
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED — Stage Acceptance PASS on 2026-10-04  
 **Backlog source:** Epic 07 — Practice Layer (approved Product Backlog v1)
 
 ## Goal
@@ -67,3 +67,25 @@ The current executable UI demonstrates:
 Workshop and Group Exercise are now representable in the contract but remain future executable slices because group/session orchestration is not implemented yet.
 
 Practice kind changes the learning experience, not the Proof rules. A completed Case Study or Guided Exercise still does not directly prove Capability.
+
+
+## Sprint 3 Acceptance
+
+Accepted commit: `490c644d0ed5e8239ef440279826388624fc5067`
+
+Validated end-to-end:
+- Guided Exercise Practice Attempt;
+- Case Study Practice Attempt;
+- Instructor developmental feedback;
+- immutable Attempt history;
+- feedback-driven Replay Attempt;
+- feedback history visible to Candidate and Instructor;
+- Learning completion remains separate from Proof;
+- Candidate remains `UNPROVEN` after Practice and Replay.
+
+CI Run: `37231700807` — PASS  
+Stage Acceptance Run: `37231700888` — PASS
+
+Sprint 3 is **ACCEPTED** against its scoped Definition of Done.
+
+Epic 07 remains partially open for executable Workshop and Group Exercise orchestration, which were explicit non-goals for this sprint.
