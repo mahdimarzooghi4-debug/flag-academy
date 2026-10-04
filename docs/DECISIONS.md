@@ -214,6 +214,19 @@
 | DEC-206 | 2026-10-04 | هر Experiment باید User Risk / Ethical Review داشته باشد، به‌ویژه در Pricing، Trust، Health، Security، Children، Personal Data و Sensitive Behavior. | FINAL |
 | DEC-207 | 2026-10-04 | عبور از Capability 09 نیازمند Evidence در چند Context، Metric Tree، Guardrail، معیار پیشینی Success، Experiment معتبر، تشخیص Caveat در Result مثبت، پذیرش Result منفی بدون Metric Shopping و حداقل یک رد Success ظاهری به‌دلیل آسیب Guardrail است. | FINAL |
 | DEC-208 | 2026-10-04 | اصل فرهنگی Metrics & Experimentation: «پرچمدار عددی را انتخاب نمی‌کند که موفق به نظر برسد؛ معیاری را انتخاب می‌کند که حقیقت موفقیت را آشکار کند.» | FINAL |
+| DEC-209 | 2026-10-04 | Capability 10 با عنوان Product Economics تعریف شد: فهم و مدل‌کردن اثر تصمیم‌های محصول بر Revenue، Cost، Margin، Cash، CAC، LTV، Retention، Pricing و پایداری اقتصادی کسب‌وکار. | FINAL |
+| DEC-210 | 2026-10-04 | مدل اقتصادی پایه پرچم: Customer Acquisition → Activation → Monetization → Retention → Expansion → Cost to Serve → Margin → Cash؛ Economic Model باید Business-specific باشد. | FINAL |
+| DEC-211 | 2026-10-04 | Mission Ladder این Capability شامل Revenue Is Not Profit، CAC Trap، Retention Economics، Pricing Decision، Growth vs Margin، Cash Shock و Economic Product Decision است. | FINAL |
+| DEC-212 | 2026-10-04 | Artifactهای اصلی Product Economics شامل Business Model Map، Revenue/Cost Driver Tree، Unit Economics Model، LTV/CAC Analysis، Payback، Contribution Margin، Pricing Hypothesis، Sensitivity Analysis، Initiative Business Case و Economic Post-mortem هستند. | FINAL |
+| DEC-213 | 2026-10-04 | اصل Unit Economics: Scaling a broken unit economy scales the problem؛ واحد اقتصادی مناسب باید متناسب با Business Model تعریف شود. | FINAL |
+| DEC-214 | 2026-10-04 | LTV، CAC و Forecastهای اقتصادی باید همراه Assumption، Range، Confidence و Key Drivers دیده شوند و نباید به‌صورت عدد قطعی کاذب ارائه شوند. | FINAL |
+| DEC-215 | 2026-10-04 | Pricing بخشی از Product Design است و باید به Value Metric، Buyer، Segment، Willingness to Pay، Cost Structure و رفتار محصول متصل باشد. | FINAL |
+| DEC-216 | 2026-10-04 | Business Case باید حداقل Base / Upside / Downside و Sensitivity به Assumptionهای کلیدی داشته باشد. | FINAL |
+| DEC-217 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Initiative اقتصادی بهتر را انتخاب کند؛ Economic World، داده مالی، Segment behavior، Pricing reaction و Cost consequences را اجرا می‌کند. | FINAL |
+| DEC-218 | 2026-10-04 | اصل Forecasting با AI: AI Forecast حقیقت نیست؛ Scenario Generator است و خروجی باید Assumptions، Range، Confidence و Key Drivers را نشان دهد. | FINAL |
+| DEC-219 | 2026-10-04 | Simulator باید پیامدهای اقتصادی کوتاه‌مدت و بلندمدت تصمیم‌های محصول را در State جهان اعمال و قابل مشاهده کند. | FINAL |
+| DEC-220 | 2026-10-04 | عبور از Capability 10 نیازمند Evidence در چند Context، تحلیل Business Model/Unit Economics، لحاظ Revenue/Margin/Cash، Pricing، Scenario-based Business Case، حداقل یک رد یا اصلاح Growth جذاب به‌دلیل Economics ضعیف و تغییر Recommendation با تغییر Assumption کلیدی است. | FINAL |
+| DEC-221 | 2026-10-04 | اصل فرهنگی Product Economics: «پرچمدار فقط محصولی نمی‌سازد که استفاده شود؛ محصولی می‌سازد که ارزش پایدار برای مشتری و کسب‌وکار ایجاد کند.» | FINAL |
 
 ---
 
