@@ -242,6 +242,23 @@
 | DEC-234 | 2026-10-04 | Team Health یک Constraint واقعی Delivery است؛ Sustainable Load، Overtime، Burnout Risk، Rework و Defect Rate باید در سنجش Delivery دیده شوند. | FINAL |
 | DEC-235 | 2026-10-04 | عبور از Capability 11 نیازمند Evidence در چند Context، مدیریت Dependency/Critical Path، Scope reduction آگاهانه، Early Risk Escalation، Release/Rollback/Monitoring، مدیریت Incident و بازبینی حداقل یک Release موفق با Outcome ناموفق است. | FINAL |
 | DEC-236 | 2026-10-04 | اصل فرهنگی Delivery: «پرچمدار کار را برای بسته‌شدن تحویل نمی‌دهد؛ آن را تا رسیدن به نتیجه واقعی حمل می‌کند.» | FINAL |
+| DEC-237 | 2026-10-04 | Capability 12 با عنوان Stakeholder Alignment تعریف شد: ایجاد درک مشترک، روشن‌کردن اختلاف و Decision Rights، و ساخت Commitment عملی میان Stakeholderهای دارای اطلاعات، قدرت و اولویت متفاوت. | FINAL |
+| DEC-238 | 2026-10-04 | Alignment با Consensus متفاوت است؛ الگوی مطلوب Disagree → Decide → Commit است و موافقت کامل همه شرط Alignment نیست. | FINAL |
+| DEC-239 | 2026-10-04 | مدل Stakeholder پرچم شامل Stakeholder، Interest، Influence، Information، Concern، Decision Role و Commitment Needed است. | FINAL |
+| DEC-240 | 2026-10-04 | Decision Rights در تصمیم‌های مهم باید Decision Owner، Contributors، Veto/Gate Authority، Execution Owners و Informed Stakeholders را روشن کند. | FINAL |
+| DEC-241 | 2026-10-04 | Mission Ladder این Capability شامل Hidden Disagreement، Engineering Pushback، Sales Promise، Executive Disagreement، Competing Functions، No Surprise، Alignment Without Authority و Alignment Recovery است. | FINAL |
+| DEC-242 | 2026-10-04 | Decision Communication استاندارد باید Context، Decision/Question، Evidence، Trade-offs، Decision، Rationale، Owner، Commitment و Open Risks را پوشش دهد. | FINAL |
+| DEC-243 | 2026-10-04 | حقیقت پیام باید برای همه Audienceها یکسان بماند؛ فقط زبان و سطح جزئیات می‌تواند متناسب با Audience تغییر کند. | FINAL |
+| DEC-244 | 2026-10-04 | Artifactهای اصلی Stakeholder Alignment شامل Stakeholder Map، Influence/Interest Map، Decision Rights Map، Alignment Brief، Decision Memo، Communication Plan، Concern Log، Trade-off Record، Commitment Log، Meeting Decision Record، Escalation Brief، Alignment Risk Log و Alignment Recovery Plan هستند. | FINAL |
+| DEC-245 | 2026-10-04 | Meeting خودش Output نیست؛ Outcome معتبر جلسه باید Decision، Commitment، Clarification، Escalation یا Information باشد و Minutes به‌تنهایی Evidence محسوب نمی‌شود. | FINAL |
+| DEC-246 | 2026-10-04 | Conflict حرفه‌ای روی مسئله مجاز و گاهی ضروری است؛ حمله شخصی، تحقیر و بازی قدرت پذیرفته نیست. | FINAL |
+| DEC-247 | 2026-10-04 | Escalation شکست نیست؛ Escalation خوب باید Problem، Impact، Options، Recommendation، Decision Needed و By When را روشن کند. | FINAL |
+| DEC-248 | 2026-10-04 | Stakeholder Trust در Leadership Digital Twin باید بر Evidence رفتاری مثل Early bad-news communication، Reliability، Transparency و رفتار پس از اختلاف بنا شود، نه Popularity Score. | FINAL |
+| DEC-249 | 2026-10-04 | در Assessment Mode، Parcham AI نباید Conflict را حل کند؛ Actorها باید Stateهایی مانند Trust، Alignment، Commitment و Friction داشته باشند و رفتار فرد Consequence واقعی ایجاد کند. | FINAL |
+| DEC-250 | 2026-10-04 | Misalignment در Simulator باید پیامد واقعی در World ایجاد کند و صرفاً Hidden Score منفی نباشد. | FINAL |
+| DEC-251 | 2026-10-04 | در Real Project Mode، AI Stakeholder Copilot می‌تواند Alignment gap، Decision بدون Owner و Riskهای ارتباطی را آشکار کند، اما نباید به‌جای فرد Conversation سخت را انجام دهد. | FINAL |
+| DEC-252 | 2026-10-04 | عبور از Capability 12 نیازمند Evidence در چند Context، روشن‌کردن Decision Rights، تبدیل Conflict به Decision/Commitment، مخالفت حرفه‌ای با Authority، Early bad-news communication، Alignment without authority، Repair یک Misalignment و حفظ Alignment با وجود ناراضی‌ماندن حداقل یک Stakeholder مهم است. | FINAL |
+| DEC-253 | 2026-10-04 | اصل فرهنگی Stakeholder Alignment: «پرچمدار همه را راضی نمی‌کند؛ همه را نسبت به حقیقت، تصمیم و مسئولیت روشن می‌کند.» | FINAL |
 
 ---
 
