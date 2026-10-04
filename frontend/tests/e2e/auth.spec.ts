@@ -42,8 +42,12 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   const practiceCard = page.locator(".learning-card").filter({
     hasText: "تمرین: مسئله بدون صاحب",
   });
-  await practiceCard.getByRole("button", { name: "شروع" }).click();
-  await practiceCard.getByRole("button", { name: "تکمیل فعالیت" }).click();
+  await practiceCard.getByLabel("پاسخ تمرین").fill(
+    "مالکیت Outcome را از تعریف مسئله تا بازیابی نتیجه نگه می‌دارم و نقطه Escalation را شفاف می‌کنم.",
+  );
+  await practiceCard.getByRole("button", { name: "ثبت تمرین" }).click();
+  await expect(practiceCard.getByText("ATTEMPT_SUBMITTED")).toBeVisible();
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
   await page.getByLabel("پاسخ تکلیف").fill(
     "Outcome را مالک می‌شوم، مرز تصمیم را روشن می‌کنم و در شکست مسئول بازیابی نتیجه هستم.",
@@ -57,8 +61,17 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await login(page, "instructor", instructorPassword);
 
   await expect(page.getByText("فضای مدرس")).toBeVisible();
+  await expect(page.getByText("تمرین‌های ثبت‌شده")).toBeVisible();
+  await expect(page.getByText("Candidate Demo").first()).toBeVisible();
+  await page.getByLabel("بازخورد تمرین").fill(
+    "منطق تصمیم روشن است؛ در Attempt بعدی Trigger مشخص برای Escalation و معیار Outcome اضافه کن.",
+  );
+  await page.getByRole("button", { name: "ثبت بازخورد تمرین" }).click();
+  await expect(
+    page.getByText("بازخورد تمرین ثبت شد. این بازخورد توسعه‌ای است و Evidence مستقل محسوب نمی‌شود."),
+  ).toBeVisible();
+
   await expect(page.getByText("ارسال‌های فراگیران")).toBeVisible();
-  await expect(page.getByText("Candidate Demo")).toBeVisible();
   await page.getByLabel("بازخورد مدرس").fill(
     "مرز مسئولیت روشن است؛ در نسخه بعد شاخص Outcome و نقطه Escalation را دقیق‌تر کن.",
   );
@@ -70,6 +83,9 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   await logout(page);
   await login(page, "candidate", candidatePassword);
 
+  await expect(page.getByTestId("candidate-practice-feedback")).toContainText(
+    "Trigger مشخص برای Escalation",
+  );
   await expect(page.getByTestId("candidate-feedback")).toContainText("مرز مسئولیت روشن است");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });

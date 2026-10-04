@@ -3,17 +3,33 @@ import type { InstructorHomeResponse } from "../api/client";
 
 type Props = {
   data: InstructorHomeResponse;
+  onRecordPracticeFeedback?: (
+    practiceAttemptId: string,
+    feedback: string,
+  ) => Promise<void>;
+  submittingPracticeFeedbackId?: string;
   onRecordFeedback?: (submissionId: string, feedback: string) => Promise<void>;
   submittingFeedbackId?: string;
 };
 
 export function InstructorHome({
   data,
+  onRecordPracticeFeedback,
+  submittingPracticeFeedbackId,
   onRecordFeedback,
   submittingFeedbackId,
 }: Props) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+
+  async function savePracticeFeedback(practiceAttemptId: string) {
+    const feedback = (drafts[`practice-${practiceAttemptId}`] ?? "").trim();
+    if (!feedback || !onRecordPracticeFeedback) return;
+    await onRecordPracticeFeedback(practiceAttemptId, feedback);
+    setSavedMessage(
+      "بازخورد تمرین ثبت شد. این بازخورد توسعه‌ای است و Evidence مستقل محسوب نمی‌شود.",
+    );
+  }
 
   async function saveFeedback(submissionId: string) {
     const feedback = (drafts[submissionId] ?? "").trim();
@@ -91,6 +107,70 @@ export function InstructorHome({
             ))}
           </div>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-title">
+          <div>
+            <p className="eyebrow">PRACTICE ATTEMPTS</p>
+            <h2>تمرین‌های ثبت‌شده</h2>
+          </div>
+          <span className="count">{data.practice_attempts?.length ?? 0}</span>
+        </div>
+        <div className="stack">
+          {(data.practice_attempts ?? []).map((item) => (
+            <div className="assignment-card" key={item.id}>
+              <div className="assignment-head">
+                <div>
+                  <strong>{item.practice_title}</strong>
+                  <p className="muted">{item.candidate_name}</p>
+                </div>
+                <span className="state">{item.status}</span>
+              </div>
+              <div className="submission-body">
+                <b>پاسخ تمرین</b>
+                <p>{item.response_text}</p>
+              </div>
+              {item.feedback_text ? (
+                <div className="submission-summary">
+                  <b>بازخورد توسعه‌ای</b>
+                  <p data-testid="instructor-practice-feedback">{item.feedback_text}</p>
+                </div>
+              ) : (
+                <div className="form-stack">
+                  <label htmlFor={`practice-feedback-${item.id}`}>بازخورد تمرین</label>
+                  <textarea
+                    id={`practice-feedback-${item.id}`}
+                    value={drafts[`practice-${item.id}`] ?? ""}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [`practice-${item.id}`]: event.target.value,
+                      }))
+                    }
+                    placeholder="بازخورد توسعه‌ای و قابل اقدام بنویسید..."
+                  />
+                  <button
+                    className="primary"
+                    disabled={
+                      !onRecordPracticeFeedback ||
+                      submittingPracticeFeedbackId === item.id ||
+                      !(drafts[`practice-${item.id}`] ?? "").trim()
+                    }
+                    onClick={() => void savePracticeFeedback(item.id)}
+                  >
+                    {submittingPracticeFeedbackId === item.id
+                      ? "در حال ثبت..."
+                      : "ثبت بازخورد تمرین"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          {(data.practice_attempts ?? []).length === 0 ? (
+            <p className="muted">هنوز تمرینی برای بازخورد ثبت نشده است.</p>
+          ) : null}
+        </div>
       </section>
 
       <section className="panel">

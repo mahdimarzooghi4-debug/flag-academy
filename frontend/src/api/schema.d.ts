@@ -25,6 +25,20 @@ export interface paths {
       responses: { 200: { content: { "application/json": unknown } } };
     };
   };
+  "/api/v1/practice-units/{learning_unit_id}/attempts": {
+    post: {
+      parameters: { path: { learning_unit_id: string } };
+      requestBody: { content: { "application/json": { response_text: string } } };
+      responses: { 201: { content: { "application/json": unknown } } };
+    };
+  };
+  "/api/v1/practice-attempts/{practice_attempt_id}/feedback": {
+    post: {
+      parameters: { path: { practice_attempt_id: string } };
+      requestBody: { content: { "application/json": { feedback_text: string } } };
+      responses: { 201: { content: { "application/json": unknown } } };
+    };
+  };
   "/api/v1/assignments/{assignment_id}/submissions": {
     post: {
       parameters: { path: { assignment_id: string } };
@@ -63,6 +77,10 @@ export interface InstructorHome {
   current_wave: { code: string; name: string };
   learning_units: Array<{ id: string; title: string; phase: string; unit_type: string; body: string }>;
   assignments: Array<{ id: string; title: string; instructions: string; due_at?: string | null; status: string }>;
+  practice_attempts: Array<{
+    id: string; learning_unit_id: string; practice_title: string; candidate_id: string;
+    candidate_name: string; response_text: string; status: string; feedback_text?: string | null;
+  }>;
   submissions: Array<{
     id: string; assignment_id: string; assignment_title: string; candidate_id: string;
     candidate_name: string; content_text: string; status: string; feedback_text?: string | null;

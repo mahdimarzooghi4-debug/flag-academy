@@ -16,6 +16,8 @@ type Props = {
     action: "start" | "complete",
   ) => Promise<void>;
   updatingLearningUnitId?: string;
+  onSubmitPracticeAttempt?: (learningUnitId: string, response: string) => Promise<void>;
+  submittingPracticeUnitId?: string;
   onSubmitAssignment?: (assignmentId: string, content: string) => Promise<void>;
   submittingAssignmentId?: string;
 };
@@ -24,6 +26,8 @@ export function CandidateHome({
   data,
   onUpdateLearningUnit,
   updatingLearningUnitId,
+  onSubmitPracticeAttempt,
+  submittingPracticeUnitId,
   onSubmitAssignment,
   submittingAssignmentId,
 }: Props) {
@@ -38,6 +42,13 @@ export function CandidateHome({
   async function updateUnit(learningUnitId: string, action: "start" | "complete") {
     if (!onUpdateLearningUnit) return;
     await onUpdateLearningUnit(learningUnitId, action);
+  }
+
+  async function submitPractice(learningUnitId: string) {
+    const response = (drafts[`practice-${learningUnitId}`] ?? "").trim();
+    if (!response || !onSubmitPracticeAttempt) return;
+    await onSubmitPracticeAttempt(learningUnitId, response);
+    setSubmittedMessage("تمرین ثبت شد. بازخورد آن توسعه‌ای است و به‌تنهایی Proof ایجاد نمی‌کند.");
   }
 
   async function submit(assignmentId: string) {
@@ -137,27 +148,46 @@ export function CandidateHome({
               <div className="learning-card" key={item.id}>
                 <div className="assignment-head">
                   <strong>{item.title}</strong>
-                  <span className="state">{item.status}</span>
+                  <span className="state">{item.submission_id ? "ATTEMPT_SUBMITTED" : item.status}</span>
                 </div>
                 <p>{item.body}</p>
-                {item.status === "NOT_STARTED" ? (
-                  <button
-                    className="primary"
-                    disabled={!onUpdateLearningUnit || updatingLearningUnitId === item.id}
-                    onClick={() => void updateUnit(item.id, "start")}
-                  >
-                    {updatingLearningUnitId === item.id ? "در حال ثبت..." : "شروع"}
-                  </button>
-                ) : item.status === "IN_PROGRESS" ? (
-                  <button
-                    className="primary"
-                    disabled={!onUpdateLearningUnit || updatingLearningUnitId === item.id}
-                    onClick={() => void updateUnit(item.id, "complete")}
-                  >
-                    {updatingLearningUnitId === item.id ? "در حال ثبت..." : "تکمیل فعالیت"}
-                  </button>
+                {item.submission_id ? (
+                  <div className="submission-summary">
+                    <strong>تمرین شما ثبت شده است.</strong>
+                    {item.feedback_text ? (
+                      <p data-testid="candidate-practice-feedback">
+                        <b>بازخورد تمرین:</b> {item.feedback_text}
+                      </p>
+                    ) : (
+                      <p className="muted">در انتظار بازخورد مدرس.</p>
+                    )}
+                  </div>
                 ) : (
-                  <p className="success-note">این فعالیت یادگیری تکمیل شده است.</p>
+                  <div className="form-stack">
+                    <label htmlFor={`practice-${item.id}`}>پاسخ تمرین</label>
+                    <textarea
+                      id={`practice-${item.id}`}
+                      value={drafts[`practice-${item.id}`] ?? ""}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [`practice-${item.id}`]: event.target.value,
+                        }))
+                      }
+                      placeholder="رویکرد، تصمیم و منطق خود را بنویسید..."
+                    />
+                    <button
+                      className="primary"
+                      disabled={
+                        !onSubmitPracticeAttempt ||
+                        submittingPracticeUnitId === item.id ||
+                        !(drafts[`practice-${item.id}`] ?? "").trim()
+                      }
+                      onClick={() => void submitPractice(item.id)}
+                    >
+                      {submittingPracticeUnitId === item.id ? "در حال ثبت..." : "ثبت تمرین"}
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

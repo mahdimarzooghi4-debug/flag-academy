@@ -115,6 +115,25 @@ function AuthenticatedApp({
     },
   });
 
+  const submitPracticeAttempt = useMutation({
+    mutationFn: async ({
+      learningUnitId,
+      response,
+    }: {
+      learningUnitId: string;
+      response: string;
+    }) => {
+      const { error } = await api.POST("/api/v1/practice-units/{learning_unit_id}/attempts", {
+        params: { path: { learning_unit_id: learningUnitId } },
+        body: { response_text: response },
+      });
+      if (error) throw new Error("ثبت تمرین ناموفق بود.");
+    },
+    onSuccess: () => {
+      void refreshProjectionEventually(candidate.refetch);
+    },
+  });
+
   const submitAssignment = useMutation({
     mutationFn: async ({
       assignmentId,
@@ -131,6 +150,28 @@ function AuthenticatedApp({
     },
     onSuccess: () => {
       void refreshProjectionEventually(candidate.refetch);
+    },
+  });
+
+  const recordPracticeFeedback = useMutation({
+    mutationFn: async ({
+      practiceAttemptId,
+      feedback,
+    }: {
+      practiceAttemptId: string;
+      feedback: string;
+    }) => {
+      const { error } = await api.POST(
+        "/api/v1/practice-attempts/{practice_attempt_id}/feedback",
+        {
+          params: { path: { practice_attempt_id: practiceAttemptId } },
+          body: { feedback_text: feedback },
+        },
+      );
+      if (error) throw new Error("ثبت بازخورد تمرین ناموفق بود.");
+    },
+    onSuccess: () => {
+      void refreshProjectionEventually(instructor.refetch);
     },
   });
 
@@ -159,7 +200,9 @@ function AuthenticatedApp({
     candidate.error ||
     instructor.error ||
     updateLearningUnit.error ||
+    submitPracticeAttempt.error ||
     submitAssignment.error ||
+    recordPracticeFeedback.error ||
     recordFeedback.error;
   if (error) return <div className="center-state error">{error.message}</div>;
 
@@ -182,6 +225,14 @@ function AuthenticatedApp({
               ? updateLearningUnit.variables?.learningUnitId
               : undefined
           }
+          onSubmitPracticeAttempt={async (learningUnitId, response) => {
+            await submitPracticeAttempt.mutateAsync({ learningUnitId, response });
+          }}
+          submittingPracticeUnitId={
+            submitPracticeAttempt.isPending
+              ? submitPracticeAttempt.variables?.learningUnitId
+              : undefined
+          }
           onSubmitAssignment={async (assignmentId, content) => {
             await submitAssignment.mutateAsync({ assignmentId, content });
           }}
@@ -193,6 +244,14 @@ function AuthenticatedApp({
       {!isCandidate && isInstructor && instructor.data ? (
         <InstructorHome
           data={instructor.data}
+          onRecordPracticeFeedback={async (practiceAttemptId, feedback) => {
+            await recordPracticeFeedback.mutateAsync({ practiceAttemptId, feedback });
+          }}
+          submittingPracticeFeedbackId={
+            recordPracticeFeedback.isPending
+              ? recordPracticeFeedback.variables?.practiceAttemptId
+              : undefined
+          }
           onRecordFeedback={async (submissionId, feedback) => {
             await recordFeedback.mutateAsync({ submissionId, feedback });
           }}

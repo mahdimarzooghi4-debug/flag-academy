@@ -549,7 +549,10 @@ async def rebuild_instructor_home(
     )
     assignment_by_id = {item.id: item for item in learning_assignments}
 
-    candidate_ids = list({item.candidate_id for item in submissions})
+    candidate_ids = list(
+        {item.candidate_id for item in submissions}
+        | {item.candidate_id for item in practice_attempts}
+    )
     person_by_id: dict[UUID, Person] = {}
     if candidate_ids:
         people = (
