@@ -1,12 +1,13 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "Parcham OS"
     app_env: str = "development"
-    database_url: str
+    database_url: str = Field()
     oidc_issuer: str = "http://localhost:8080/realms/parcham"
     oidc_audience: str = "parcham-api"
     oidc_jwks_url: str = "http://localhost:8080/realms/parcham/protocol/openid-connect/certs"
