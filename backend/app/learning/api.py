@@ -1,0 +1,364 @@
+from datetime import UTC, datetime
+from typing import Annotated
+from uuid import UUID, uuid4
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.academy.models import ClassOffering, Cohort, CohortMembership, InstructorAssignment
+from app.db import get_session
+from app.errors import AppError
+from app.identity.auth import ActorContext, require_role
+from app.learning.models import Assignment, InstructorFeedback, LearningUnit, Submission
+from app.platform.events import new_event, record_event
+
+router = APIRouter(prefix="/api/v1", tags=["learning"])
+
+
+class LearningUnitResponse(BaseModel):
+    id: UUID
+    class_offering_id: UUID
+    capability_version_id: UUID
+    unit_type: str
+    phase: str
+    title: str
+    body: str
+    resource_url: str | None
+    position: int
+    status: str
+
+
+class AssignmentResponse(BaseModel):
+    id: UUID
+    version: int
+    class_offering_id: UUID
+    capability_version_id: UUID
+    title: str
+    instructions: str
+    due_at: datetime | None
+    status: str
+
+
+class ClassLearningResponse(BaseModel):
+    class_offering_id: UUID
+    learning_units: list[LearningUnitResponse]
+    assignments: list[AssignmentResponse]
+
+
+class SubmissionCreate(BaseModel):
+    content_text: str = Field(min_length=1, max_length=20_000)
+
+
+class SubmissionResponse(BaseModel):
+    id: UUID
+    assignment_id: UUID
+    candidate_id: UUID
+    status: str
+    submitted_at: datetime
+
+
+class FeedbackCreate(BaseModel):
+    feedback_text: str = Field(min_length=1, max_length=20_000)
+
+
+class FeedbackResponse(BaseModel):
+    id: UUID
+    submission_id: UUID
+    instructor_id: UUID
+    feedback_text: str
+    created_at: datetime
+
+
+async def _load_class_context(
+    db: AsyncSession,
+    *,
+    class_offering_id: UUID,
+    organization_context_id: UUID,
+) -> tuple[ClassOffering, Cohort]:
+    row = (
+        await db.execute(
+            select(ClassOffering, Cohort)
+            .join(Cohort, ClassOffering.cohort_id == Cohort.id)
+            .where(
+                ClassOffering.id == class_offering_id,
+                Cohort.organization_context_id == organization_context_id,
+            )
+        )
+    ).first()
+    if row is None:
+        raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+    return row[0], row[1]
+
+
+async def _require_candidate_class_access(
+    db: AsyncSession,
+    *,
+    actor: ActorContext,
+    class_offering_id: UUID,
+) -> tuple[ClassOffering, Cohort]:
+    class_offering, cohort = await _load_class_context(
+        db,
+        class_offering_id=class_offering_id,
+        organization_context_id=actor.organization_context_id,
+    )
+    membership = (
+        await db.execute(
+            select(CohortMembership.id).where(
+                CohortMembership.cohort_id == cohort.id,
+                CohortMembership.person_id == actor.person_id,
+                CohortMembership.member_type == "CANDIDATE",
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None:
+        raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+    return class_offering, cohort
+
+
+async def _require_instructor_class_access(
+    db: AsyncSession,
+    *,
+    actor: ActorContext,
+    class_offering_id: UUID,
+) -> tuple[ClassOffering, Cohort]:
+    class_offering, cohort = await _load_class_context(
+        db,
+        class_offering_id=class_offering_id,
+        organization_context_id=actor.organization_context_id,
+    )
+    assignment = (
+        await db.execute(
+            select(InstructorAssignment.id).where(
+                InstructorAssignment.class_offering_id == class_offering.id,
+                InstructorAssignment.person_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if assignment is None:
+        raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+    return class_offering, cohort
+
+
+@router.get("/classes/{class_offering_id}/learning", response_model=ClassLearningResponse)
+async def class_learning(
+    class_offering_id: UUID,
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE", "INSTRUCTOR"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ClassLearningResponse:
+    if "CANDIDATE" in actor.roles:
+        await _require_candidate_class_access(
+            db,
+            actor=actor,
+            class_offering_id=class_offering_id,
+        )
+    else:
+        await _require_instructor_class_access(
+            db,
+            actor=actor,
+            class_offering_id=class_offering_id,
+        )
+
+    units = (
+        await db.execute(
+            select(LearningUnit)
+            .where(
+                LearningUnit.class_offering_id == class_offering_id,
+                LearningUnit.status == "ACTIVE",
+            )
+            .order_by(LearningUnit.position)
+        )
+    ).scalars().all()
+    assignments = (
+        await db.execute(
+            select(Assignment)
+            .where(
+                Assignment.class_offering_id == class_offering_id,
+                Assignment.status == "ACTIVE",
+            )
+            .order_by(Assignment.due_at)
+        )
+    ).scalars().all()
+
+    return ClassLearningResponse(
+        class_offering_id=class_offering_id,
+        learning_units=[
+            LearningUnitResponse(
+                id=item.id,
+                class_offering_id=item.class_offering_id,
+                capability_version_id=item.capability_version_id,
+                unit_type=item.unit_type,
+                phase=item.phase,
+                title=item.title,
+                body=item.body,
+                resource_url=item.resource_url,
+                position=item.position,
+                status=item.status,
+            )
+            for item in units
+        ],
+        assignments=[
+            AssignmentResponse(
+                id=item.id,
+                version=item.version,
+                class_offering_id=item.class_offering_id,
+                capability_version_id=item.capability_version_id,
+                title=item.title,
+                instructions=item.instructions,
+                due_at=item.due_at,
+                status=item.status,
+            )
+            for item in assignments
+        ],
+    )
+
+
+@router.post(
+    "/assignments/{assignment_id}/submissions",
+    response_model=SubmissionResponse,
+    status_code=201,
+)
+async def submit_assignment(
+    assignment_id: UUID,
+    body: SubmissionCreate,
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> SubmissionResponse:
+    assignment = await db.get(Assignment, assignment_id)
+    if assignment is None or assignment.status != "ACTIVE":
+        raise AppError("ASSIGNMENT_NOT_FOUND", "Assignment not found.", status_code=404)
+
+    _, cohort = await _require_candidate_class_access(
+        db,
+        actor=actor,
+        class_offering_id=assignment.class_offering_id,
+    )
+
+    existing = (
+        await db.execute(
+            select(Submission).where(
+                Submission.assignment_id == assignment.id,
+                Submission.candidate_id == actor.person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise AppError(
+            "SUBMISSION_ALREADY_EXISTS",
+            "This assignment already has a submission.",
+            status_code=409,
+            details={"submission_id": str(existing.id)},
+        )
+
+    now = datetime.now(UTC)
+    submission = Submission(
+        id=uuid4(),
+        assignment_id=assignment.id,
+        candidate_id=actor.person_id,
+        content_text=body.content_text.strip(),
+        status="SUBMITTED",
+        submitted_at=now,
+        updated_at=now,
+    )
+    db.add(submission)
+    await db.flush()
+
+    record_event(
+        db,
+        new_event(
+            event_type="learning.submission_submitted.v1",
+            aggregate_type="Submission",
+            aggregate_id=submission.id,
+            aggregate_version=submission.version,
+            actor={"type": "PERSON", "id": str(actor.person_id)},
+            organization_context_id=actor.organization_context_id,
+            data_classification="INTERNAL",
+            payload={
+                "submission_id": str(submission.id),
+                "assignment_id": str(assignment.id),
+                "candidate_id": str(actor.person_id),
+                "class_offering_id": str(assignment.class_offering_id),
+                "cohort_id": str(cohort.id),
+            },
+            trace_id=actor.trace_id,
+        ),
+    )
+    await db.commit()
+
+    return SubmissionResponse(
+        id=submission.id,
+        assignment_id=submission.assignment_id,
+        candidate_id=submission.candidate_id,
+        status=submission.status,
+        submitted_at=submission.submitted_at,
+    )
+
+
+@router.post(
+    "/submissions/{submission_id}/feedback",
+    response_model=FeedbackResponse,
+    status_code=201,
+)
+async def record_feedback(
+    submission_id: UUID,
+    body: FeedbackCreate,
+    actor: Annotated[ActorContext, Depends(require_role("INSTRUCTOR"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> FeedbackResponse:
+    submission = await db.get(Submission, submission_id)
+    if submission is None:
+        raise AppError("SUBMISSION_NOT_FOUND", "Submission not found.", status_code=404)
+    assignment = await db.get(Assignment, submission.assignment_id)
+    if assignment is None:
+        raise AppError("SUBMISSION_NOT_FOUND", "Submission not found.", status_code=404)
+
+    _, cohort = await _require_instructor_class_access(
+        db,
+        actor=actor,
+        class_offering_id=assignment.class_offering_id,
+    )
+
+    now = datetime.now(UTC)
+    feedback = InstructorFeedback(
+        id=uuid4(),
+        submission_id=submission.id,
+        instructor_id=actor.person_id,
+        feedback_text=body.feedback_text.strip(),
+        created_at=now,
+    )
+    db.add(feedback)
+    submission.status = "FEEDBACK_PROVIDED"
+    submission.version += 1
+    submission.updated_at = now
+
+    record_event(
+        db,
+        new_event(
+            event_type="learning.instructor_feedback_recorded.v1",
+            aggregate_type="Submission",
+            aggregate_id=submission.id,
+            aggregate_version=submission.version,
+            actor={"type": "PERSON", "id": str(actor.person_id)},
+            organization_context_id=actor.organization_context_id,
+            data_classification="INTERNAL",
+            payload={
+                "submission_id": str(submission.id),
+                "assignment_id": str(assignment.id),
+                "candidate_id": str(submission.candidate_id),
+                "class_offering_id": str(assignment.class_offering_id),
+                "cohort_id": str(cohort.id),
+                "feedback_id": str(feedback.id),
+            },
+            trace_id=actor.trace_id,
+        ),
+    )
+    await db.commit()
+
+    return FeedbackResponse(
+        id=feedback.id,
+        submission_id=feedback.submission_id,
+        instructor_id=feedback.instructor_id,
+        feedback_text=feedback.feedback_text,
+        created_at=feedback.created_at,
+    )
