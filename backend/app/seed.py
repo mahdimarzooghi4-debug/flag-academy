@@ -97,6 +97,7 @@ async def seed() -> None:
             updated_at=now,
         )
         db.add_all([org, candidate, instructor])
+        await db.flush()
         db.add_all([
             OrganizationMembership(
                 id=UUID("00000000-0000-0000-0000-000000000111"),
@@ -131,6 +132,8 @@ async def seed() -> None:
                 )
             )
 
+        await db.flush()
+
         curriculum = Curriculum(
             id=CURRICULUM_ID,
             code="PRODUCT_MANAGER",
@@ -139,6 +142,7 @@ async def seed() -> None:
             status="ACTIVE",
         )
         db.add(curriculum)
+        await db.flush()
         for wave_index, (wave_code, wave_name, capability_codes) in enumerate(WAVES, start=1):
             wave_id = UUID(f"30000000-0000-0000-0000-{wave_index:012d}")
             db.add(
@@ -150,6 +154,7 @@ async def seed() -> None:
                     position=wave_index,
                 )
             )
+            await db.flush()
             for position, code in enumerate(capability_codes, start=1):
                 db.add(
                     WaveCapability(
@@ -160,6 +165,7 @@ async def seed() -> None:
                     )
                 )
 
+        await db.flush()
         db.add(
             Cohort(
                 id=COHORT_ID,
@@ -172,6 +178,7 @@ async def seed() -> None:
                 ends_on=date(2027, 1, 31),
             )
         )
+        await db.flush()
         db.add_all([
             CohortMembership(
                 id=UUID("00000000-0000-0000-0000-000000000211"),
@@ -187,6 +194,7 @@ async def seed() -> None:
             ),
         ])
 
+        await db.flush()
         class_id = UUID("00000000-0000-0000-0000-000000000220")
         db.add(
             ClassOffering(
@@ -197,6 +205,7 @@ async def seed() -> None:
                 status="ACTIVE",
             )
         )
+        await db.flush()
         db.add(
             InstructorAssignment(
                 id=UUID("00000000-0000-0000-0000-000000000230"),
