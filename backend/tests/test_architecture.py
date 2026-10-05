@@ -38,3 +38,26 @@ def test_contexts_do_not_import_other_context_infrastructure() -> None:
                     violations.append(f"{path.relative_to(app_root)} -> {node.module}")
 
     assert not violations, "\n".join(violations)
+
+
+def test_evidence_and_mission_runtime_do_not_import_each_other() -> None:
+    app_root = Path(__file__).resolve().parents[1] / "app"
+    violations: list[str] = []
+
+    boundaries = {
+        "evidence": "mission_runtime",
+        "mission_runtime": "evidence",
+    }
+    for context, forbidden_context in boundaries.items():
+        context_root = app_root / context
+        for path in context_root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom) or not node.module:
+                    continue
+                if node.module == f"app.{forbidden_context}" or node.module.startswith(
+                    f"app.{forbidden_context}."
+                ):
+                    violations.append(f"{path.relative_to(app_root)} -> {node.module}")
+
+    assert not violations, "\n".join(violations)
