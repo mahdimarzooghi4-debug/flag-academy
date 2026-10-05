@@ -138,6 +138,7 @@ export function AcademyStudio({
             stakeholder: {
               executive_attention: "NONE",
               executive_checkpoint: "NOT_SCHEDULED",
+              recovery_signal: "NOT_BROADCAST",
             },
             mission: {
               decision_status: "OPEN",
