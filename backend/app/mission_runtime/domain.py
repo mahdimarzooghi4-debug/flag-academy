@@ -612,7 +612,13 @@ def candidate_event_payload(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     allowed = CANDIDATE_EVENT_PAYLOAD_ALLOWLIST.get(event_type, frozenset())
-    return {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    projected = {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    if event_type == "experiment.completed":
+        if "contract" in projected and not experiment_contract_valid(projected["contract"]):
+            projected.pop("contract")
+        if "result" in projected and not experiment_result_valid(projected["result"]):
+            projected.pop("result")
+    return projected
 
 
 def candidate_observation_visible(observation_type: str) -> bool:
@@ -627,4 +633,8 @@ def candidate_observation_payload(
         observation_type,
         frozenset(),
     )
-    return {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    projected = {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    if observation_type == "EXPERIMENT_RESULT_OBSERVED":
+        if "result" in projected and not experiment_result_valid(projected["result"]):
+            projected.pop("result")
+    return projected
