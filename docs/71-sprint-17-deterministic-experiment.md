@@ -1,7 +1,8 @@
 # 71 — Sprint 17: Deterministic Experiment Runtime
 
-**Status:** IN PROGRESS  
-**Date:** 2026-10-05
+**Status:** ACCEPTED  
+**Date:** 2026-10-05  
+**Stage acceptance:** `docs/72-sprint-17-stage-acceptance.md`
 
 ## Goal
 
