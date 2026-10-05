@@ -622,6 +622,8 @@
 | DEC-614 | 2026-10-04 | Learning State هر Capability از فعالیت‌های Learning همان Capability مشتق می‌شود: بدون فعالیت TO_LEARN، با پیشرفت جزئی IN_LEARNING، و فقط پس از تکمیل همه Learning Unitهای فعال و ثبت همه Assignmentهای فعال LEARNING_COMPLETED می‌شود. | FINAL |
 | DEC-615 | 2026-10-04 | LEARNING_COMPLETED، Submission و Instructor Feedback هیچ‌کدام مستقیماً Proof State را تغییر نمی‌دهند؛ Proof همچنان از Evidence Pipeline مستقل تولید می‌شود. | FINAL |
 
+| DEC-616 | 2026-10-05 | «Parcham AI / هوش مصنوعی پرچم» یک سامانه هوش مصنوعی اختصاصی و داخلی، ساخته‌شده برای خود پرچم و تحت مالکیت/کنترل معماری پرچم است؛ این اصطلاح به OpenAI API، Anthropic API یا هیچ API هوش مصنوعی شخص ثالث اشاره ندارد. هرگونه وابستگی معماری به ارائه‌دهنده AI بیرونی فقط با تصمیم صریح جداگانه مجاز است. | FINAL |
+
 ---
 
 ## مواردی که عمداً FINAL نشده‌اند
