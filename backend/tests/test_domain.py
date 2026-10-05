@@ -891,6 +891,9 @@ def test_evidence_interpretation_contract_requires_links_and_qualitative_confide
     numeric_confidence = {**interpretation, "confidence": 0.9}
     assert not interpretation_contract_valid(numeric_confidence)
 
+    undeclared_ai = {**interpretation, "ai_contribution": "EXTERNAL_PROVIDER"}
+    assert not interpretation_contract_valid(undeclared_ai)
+
 
 def test_evidence_interpretation_rejects_unknown_target_type() -> None:
     interpretation = {
