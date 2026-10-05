@@ -675,7 +675,7 @@ async def _advance_simulation_through(
 
             previous_status = instance.status
             instance.status = effect.terminal_status
-            instance.completed_at = effect.due_at
+            instance.completed_at = now
             instance.version += 1
             expired_event = await _append_runtime_event(
                 db,
@@ -719,7 +719,7 @@ async def _advance_simulation_through(
             await _complete_assignment_after_terminal(
                 db,
                 instance=instance,
-                now=effect.due_at,
+                now=now,
             )
             record_event(
                 db,
@@ -2178,20 +2178,13 @@ async def submit_mission_action(
 
     elif body.action_type == MissionActionType.NO_ACTION:
         no_action_code = body.payload.get("no_action_code")
-        rationale = body.payload.get("rationale")
+        rationale = body.reasoning
         if not isinstance(no_action_code, str) or not no_action_code:
             raise AppError(
                 "NO_ACTION_CODE_REQUIRED",
                 "no_action_code is required.",
                 status_code=422,
             )
-        if not isinstance(rationale, str) or not rationale.strip():
-            raise AppError(
-                "NO_ACTION_RATIONALE_REQUIRED",
-                "NO_ACTION requires an explicit rationale.",
-                status_code=422,
-            )
-
         raw_options = _runtime_config(version).get("no_action_options", [])
         option = next(
             (
