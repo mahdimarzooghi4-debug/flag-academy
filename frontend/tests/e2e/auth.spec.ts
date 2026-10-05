@@ -259,7 +259,9 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     "برای کاهش blast radius دامنه recovery را به مشتریان حیاتی محدود می‌کنم و accountability نتیجه را حفظ می‌کنم.",
   );
   await runtimeCard
-    .getByRole("button", { name: "محدودکردن recovery به مشتریان حیاتی" })
+    .getByRole("button", {
+      name: "محدودکردن recovery به مشتریان حیاتی · FULL_ROLLOUT → CRITICAL_CUSTOMERS_ONLY",
+    })
     .click();
 
   await expect(runtimeCard.getByTestId("world-state")).toContainText(
@@ -275,6 +277,9 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     "دامنه recovery به مشتریان حیاتی محدود شد",
   );
   await expect(runtimeCard).toContainText("SCOPE_CHANGE_OBSERVED");
+  await expect(runtimeCard).toContainText("FULL_ROLLOUT");
+  await expect(runtimeCard).toContainText("CRITICAL_CUSTOMERS_ONLY");
+  await expect(runtimeCard).not.toContainText("scope_path");
   await expect(runtimeCard).not.toContainText("world_effect_applied");
 
   await runtimeCard.getByLabel("دلیل واگذاری").fill(
