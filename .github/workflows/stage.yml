@@ -236,6 +236,18 @@ jobs:
           timeout_unbroadcast_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where status = 'TIME_EXPIRED' and world_state #>> '{stakeholder,recovery_signal}' = 'NOT_BROADCAST';")
           pending_state_triggers_on_terminal=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects se join mission_runtime.mission_instances mi on mi.id = se.mission_instance_id where se.trigger_condition is not null and se.status = 'PENDING' and mi.status in ('COMPLETED','TIME_EXPIRED','FAILED_WORLD_STATE','ABORTED','WITHDRAWN','INVALIDATED');")
           invalid_scheduled_trigger_rows=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where (due_at is null and trigger_condition is null) or (due_at is not null and trigger_condition is not null);")
+          sealed_observation_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'observation.sealed.v1';")
+          evidence_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases;")
+          candidate_visible_evidence_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases where candidate_visible is true;")
+          experiment_evidence_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases where observation_type = 'EXPERIMENT_RESULT_OBSERVED';")
+          evidence_interpretations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_interpretations where status = 'ACTIVE';")
+          evidence_reviews=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_reviews;")
+          evidence_candidate_responses=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.candidate_responses;")
+          accepted_evidence_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases where status = 'ACCEPTED';")
+          accepted_experiment_evidence=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases ec join evidence.evidence_interpretations ei on ei.evidence_case_id = ec.id and ei.status = 'ACTIVE' join evidence.evidence_links el on el.interpretation_id = ei.id where ec.status = 'ACCEPTED' and ec.observation_type = 'EXPERIMENT_RESULT_OBSERVED' and ei.behaviour_code = 'METRIC_REASONING' and el.target_type = 'CAPABILITY' and el.target_ref = 'METRICS_EXPERIMENTATION';")
+          evidence_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'evidence.accepted.v1';")
+          evidence_profile_gate_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'profile.%' or event_type like 'gate.%';")
+          evidence_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'evidence' and ccu.table_schema <> 'evidence';")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -339,6 +351,18 @@ jobs:
           test "$timeout_unbroadcast_world_state" -ge 1
           test "$pending_state_triggers_on_terminal" -eq 0
           test "$invalid_scheduled_trigger_rows" -eq 0
+          test "$sealed_observation_events" -ge "$runtime_observations"
+          test "$evidence_cases" -ge "$runtime_observations"
+          test "$candidate_visible_evidence_cases" -ge 1
+          test "$experiment_evidence_cases" -ge 1
+          test "$evidence_interpretations" -ge 1
+          test "$evidence_reviews" -ge 3
+          test "$evidence_candidate_responses" -ge 1
+          test "$accepted_evidence_cases" -ge 1
+          test "$accepted_experiment_evidence" -ge 1
+          test "$evidence_accepted_events" -ge 1
+          test "$evidence_profile_gate_events" -eq 0
+          test "$evidence_cross_context_fks" -eq 0
 
           mkdir -p stage-artifacts
           {
@@ -445,6 +469,24 @@ jobs:
             echo "timeout_unbroadcast_world_state_rows=$timeout_unbroadcast_world_state"
             echo "pending_state_triggers_on_terminal_missions=$pending_state_triggers_on_terminal"
             echo "invalid_scheduled_trigger_rows=$invalid_scheduled_trigger_rows"
+            echo "sealed_observation_events=$sealed_observation_events"
+            echo "evidence_cases=$evidence_cases"
+            echo "candidate_visible_evidence_cases=$candidate_visible_evidence_cases"
+            echo "experiment_evidence_cases=$experiment_evidence_cases"
+            echo "active_evidence_interpretations=$evidence_interpretations"
+            echo "evidence_review_records=$evidence_reviews"
+            echo "evidence_candidate_responses=$evidence_candidate_responses"
+            echo "accepted_evidence_cases=$accepted_evidence_cases"
+            echo "accepted_experiment_evidence=$accepted_experiment_evidence"
+            echo "evidence_accepted_events=$evidence_accepted_events"
+            echo "profile_gate_events_after_evidence=$evidence_profile_gate_events"
+            echo "evidence_cross_context_foreign_keys=$evidence_cross_context_fks"
+            echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
+            echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"
+            echo "candidate_response_mutates_evidence=FORBIDDEN"
+            echo "accepted_evidence_profile_mutation=FORBIDDEN"
+            echo "accepted_evidence_gate_mutation=FORBIDDEN"
+            echo "accepted_evidence_proof_state=UNPROVEN"
             echo "state_trigger_execution=ENGINE_WORLD_STATE_RULE_ONLY"
             echo "scheduled_effect_cancellation=ENGINE_WORLD_STATE_RULE_ONLY"
             echo "no_action_time_advance=CANONICAL_OPTION_ONLY"
