@@ -1,5 +1,6 @@
 from app.academy import models as academy_models  # noqa: F401
 from app.curriculum import models as curriculum_models  # noqa: F401
+from app.evidence import models as evidence_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.journey import models as journey_models  # noqa: F401
 from app.learning import models as learning_models  # noqa: F401

@@ -94,3 +94,39 @@ def test_mission_runtime_contract_is_exposed() -> None:
     advance_props = schemas["AdvanceSimulationRequest"]["properties"]
     assert "expected_world_version" in advance_props
     assert "idempotency_key" in advance_props
+
+
+def test_evidence_engine_contract_is_exposed() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/evidence-cases" in paths
+    assert "/api/v1/evidence-cases/{case_id}" in paths
+    assert "/api/v1/me/evidence-cases" in paths
+    assert "/api/v1/evidence-cases/{case_id}/submit" in paths
+    assert "/api/v1/evidence-cases/{case_id}/reviews" in paths
+    assert "/api/v1/evidence-cases/{case_id}/accept" in paths
+    assert "/api/v1/evidence-cases/{case_id}/reject" in paths
+    assert "/api/v1/evidence-cases/{case_id}/request-context" in paths
+    assert "/api/v1/evidence-cases/{case_id}/candidate-response" in paths
+
+    schemas = app.openapi()["components"]["schemas"]
+    case_props = schemas["EvidenceCaseResponse"]["properties"]
+    assert "source_observation_id" in case_props
+    assert "source_independence_group" in case_props
+    assert "interpretation" in case_props
+    assert "reviews" in case_props
+    assert "candidate_responses" in case_props
+
+    candidate_props = schemas["CandidateEvidenceCaseResponse"]["properties"]
+    assert "accepted_interpretation" in candidate_props
+    assert "reviews" not in candidate_props
+    assert "source_independence_group" not in candidate_props
+    assert "provenance" not in candidate_props
+    assert "source_runtime_event_id" not in candidate_props
+
+    submit_props = schemas["EvidenceSubmitRequest"]["properties"]
+    assert "expected_version" in submit_props
+    assert "interpretation" in submit_props
+
+    response_props = schemas["CandidateResponseCreate"]["properties"]
+    assert "expected_version" in response_props
+    assert "idempotency_key" in response_props

@@ -10,6 +10,13 @@ import {
 import { CandidateHome } from "./components/CandidateHome";
 import { InstructorHome } from "./components/InstructorHome";
 import {
+  AssessorEvidenceWorkspace,
+  CandidateEvidenceWorkspace,
+  type CandidateEvidenceCase,
+  type EvidenceCase,
+  type EvidenceInterpretationDraft,
+} from "./components/EvidenceWorkspace";
+import {
   MissionWorkspace,
   type MissionCatalogItem,
   type MissionInstance,
@@ -88,6 +95,7 @@ function AuthenticatedApp({
   const isCandidate = me.data?.roles.includes("CANDIDATE") ?? false;
   const isInstructor = me.data?.roles.includes("INSTRUCTOR") ?? false;
   const isAdmin = me.data?.roles.includes("ACADEMY_ADMIN") ?? false;
+  const isAssessor = me.data?.roles.includes("ASSESSOR") ?? false;
 
   const capabilities = useQuery({
     queryKey: ["capabilities"],
@@ -156,6 +164,28 @@ function AuthenticatedApp({
       const { data, error } = await api.GET("/api/v1/me/mission-instances");
       if (error || !data) throw new Error("دریافت اجرای مأموریت‌ها ناموفق بود.");
       return data as MissionInstance[];
+    },
+  });
+
+  const assessorEvidence = useQuery({
+    queryKey: ["assessor-evidence-cases"],
+    enabled: isAssessor,
+    refetchInterval: isAssessor ? 1000 : false,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/evidence-cases");
+      if (error || !data) throw new Error("دریافت Evidence Caseها ناموفق بود.");
+      return data as EvidenceCase[];
+    },
+  });
+
+  const candidateEvidence = useQuery({
+    queryKey: ["candidate-evidence-cases"],
+    enabled: isCandidate,
+    refetchInterval: isCandidate ? 1500 : false,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/me/evidence-cases");
+      if (error || !data) throw new Error("دریافت Evidence فراگیر ناموفق بود.");
+      return data as CandidateEvidenceCase[];
     },
   });
 
@@ -471,6 +501,148 @@ function AuthenticatedApp({
     },
   });
 
+  const submitEvidence = useMutation({
+    mutationFn: async ({
+      caseId,
+      version,
+      interpretation,
+    }: {
+      caseId: string;
+      version: number;
+      interpretation: EvidenceInterpretationDraft;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/evidence-cases/{case_id}/submit", {
+        params: { path: { case_id: caseId } },
+        body: { expected_version: version, interpretation },
+      });
+      if (error || !data) throw new Error("ثبت Interpretation ناموفق بود.");
+      return data as EvidenceCase;
+    },
+    onSuccess: async () => {
+      await assessorEvidence.refetch();
+    },
+  });
+
+  const startEvidenceReview = useMutation({
+    mutationFn: async ({
+      caseId,
+      version,
+      rationale,
+    }: {
+      caseId: string;
+      version: number;
+      rationale: string;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/evidence-cases/{case_id}/reviews", {
+        params: { path: { case_id: caseId } },
+        body: { expected_version: version, rationale },
+      });
+      if (error || !data) throw new Error("شروع Review ناموفق بود.");
+      return data as EvidenceCase;
+    },
+    onSuccess: async () => {
+      await assessorEvidence.refetch();
+    },
+  });
+
+  const requestEvidenceContext = useMutation({
+    mutationFn: async ({
+      caseId,
+      version,
+      contextRequest,
+    }: {
+      caseId: string;
+      version: number;
+      contextRequest: string;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/evidence-cases/{case_id}/request-context",
+        {
+          params: { path: { case_id: caseId } },
+          body: { expected_version: version, context_request: contextRequest },
+        },
+      );
+      if (error || !data) throw new Error("درخواست Context ناموفق بود.");
+      return data as EvidenceCase;
+    },
+    onSuccess: async () => {
+      await assessorEvidence.refetch();
+    },
+  });
+
+  const acceptEvidence = useMutation({
+    mutationFn: async ({
+      caseId,
+      version,
+      rationale,
+    }: {
+      caseId: string;
+      version: number;
+      rationale: string;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/evidence-cases/{case_id}/accept", {
+        params: { path: { case_id: caseId } },
+        body: { expected_version: version, rationale },
+      });
+      if (error || !data) throw new Error("پذیرش Evidence ناموفق بود.");
+      return data as EvidenceCase;
+    },
+    onSuccess: async () => {
+      await assessorEvidence.refetch();
+    },
+  });
+
+  const rejectEvidence = useMutation({
+    mutationFn: async ({
+      caseId,
+      version,
+      rationale,
+    }: {
+      caseId: string;
+      version: number;
+      rationale: string;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/evidence-cases/{case_id}/reject", {
+        params: { path: { case_id: caseId } },
+        body: { expected_version: version, rationale },
+      });
+      if (error || !data) throw new Error("رد Evidence ناموفق بود.");
+      return data as EvidenceCase;
+    },
+    onSuccess: async () => {
+      await assessorEvidence.refetch();
+    },
+  });
+
+  const respondEvidenceContext = useMutation({
+    mutationFn: async ({
+      caseId,
+      version,
+      responseText,
+    }: {
+      caseId: string;
+      version: number;
+      responseText: string;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/evidence-cases/{case_id}/candidate-response",
+        {
+          params: { path: { case_id: caseId } },
+          body: {
+            expected_version: version,
+            response_text: responseText,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("ثبت Context فراگیر ناموفق بود.");
+      return data as CandidateEvidenceCase;
+    },
+    onSuccess: async () => {
+      await candidateEvidence.refetch();
+    },
+  });
+
   const recordFeedback = useMutation({
     mutationFn: async ({
       submissionId,
@@ -505,7 +677,9 @@ function AuthenticatedApp({
     assignmentCandidates.isLoading ||
     missionAssignments.isLoading ||
     activeMissions.isLoading ||
-    missionInstances.isLoading
+    missionInstances.isLoading ||
+    assessorEvidence.isLoading ||
+    candidateEvidence.isLoading
   ) return <Loading />;
   const error =
     me.error ||
@@ -517,6 +691,8 @@ function AuthenticatedApp({
     missionAssignments.error ||
     activeMissions.error ||
     missionInstances.error ||
+    assessorEvidence.error ||
+    candidateEvidence.error ||
     createMission.error ||
     validateMission.error ||
     transitionMission.error ||
@@ -528,7 +704,13 @@ function AuthenticatedApp({
     submitPracticeAttempt.error ||
     submitAssignment.error ||
     recordPracticeFeedback.error ||
-    recordFeedback.error;
+    recordFeedback.error ||
+    submitEvidence.error ||
+    startEvidenceReview.error ||
+    requestEvidenceContext.error ||
+    acceptEvidence.error ||
+    rejectEvidence.error ||
+    respondEvidenceContext.error;
   if (error) return <div className="center-state error">{error.message}</div>;
 
   return (
@@ -774,7 +956,51 @@ function AuthenticatedApp({
               }
             />
           </main>
+          {candidateEvidence.data ? (
+            <CandidateEvidenceWorkspace
+              cases={candidateEvidence.data}
+              busy={respondEvidenceContext.isPending}
+              onRespond={async (caseId, version, responseText) => {
+                await respondEvidenceContext.mutateAsync({
+                  caseId,
+                  version,
+                  responseText,
+                });
+              }}
+            />
+          ) : null}
         </>
+      ) : null}
+      {!isAdmin && !isCandidate && !isInstructor && isAssessor && assessorEvidence.data ? (
+        <AssessorEvidenceWorkspace
+          cases={assessorEvidence.data}
+          busy={
+            submitEvidence.isPending ||
+            startEvidenceReview.isPending ||
+            requestEvidenceContext.isPending ||
+            acceptEvidence.isPending ||
+            rejectEvidence.isPending
+          }
+          onSubmit={async (caseId, version, interpretation) => {
+            await submitEvidence.mutateAsync({ caseId, version, interpretation });
+          }}
+          onStartReview={async (caseId, version, rationale) => {
+            await startEvidenceReview.mutateAsync({ caseId, version, rationale });
+          }}
+          onRequestContext={async (caseId, version, contextRequest) => {
+            await requestEvidenceContext.mutateAsync({
+              caseId,
+              version,
+              contextRequest,
+            });
+          }}
+          onAccept={async (caseId, version, rationale) => {
+            await acceptEvidence.mutateAsync({ caseId, version, rationale });
+          }}
+          onReject={async (caseId, version, rationale) => {
+            await rejectEvidence.mutateAsync({ caseId, version, rationale });
+          }}
+        />
       ) : null}
       {!isAdmin && !isCandidate && isInstructor && instructor.data ? (
         <InstructorHome
@@ -795,7 +1021,7 @@ function AuthenticatedApp({
           }
         />
       ) : null}
-      {!isAdmin && !isCandidate && !isInstructor ? (
+      {!isAdmin && !isCandidate && !isInstructor && !isAssessor ? (
         <div className="center-state">برای این حساب Workspace فعالی تعریف نشده است.</div>
       ) : null}
     </>

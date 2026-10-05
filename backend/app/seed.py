@@ -22,6 +22,13 @@ from app.curriculum.models import (
     WaveCapability,
 )
 from app.db import SessionFactory
+from app.evidence.models import (
+    CandidateResponse,
+    EvidenceCase,
+    EvidenceInterpretation,
+    EvidenceLink,
+    EvidenceReview,
+)
 from app.identity.models import Organization, OrganizationMembership, Person
 from app.journey.models import CandidateJourney
 from app.learning.models import (
@@ -53,6 +60,7 @@ ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
 CANDIDATE_ID = UUID("00000000-0000-0000-0000-000000000101")
 INSTRUCTOR_ID = UUID("00000000-0000-0000-0000-000000000102")
 ADMIN_ID = UUID("00000000-0000-0000-0000-000000000103")
+ASSESSOR_ID = UUID("00000000-0000-0000-0000-000000000104")
 COHORT_ID = UUID("00000000-0000-0000-0000-000000000201")
 CURRICULUM_ID = UUID("00000000-0000-0000-0000-000000000301")
 CLASS_ID = UUID("00000000-0000-0000-0000-000000000220")
@@ -87,6 +95,11 @@ async def seed() -> None:
     now = datetime.now(UTC)
     async with SessionFactory() as db:
         for model in (
+            CandidateResponse,
+            EvidenceReview,
+            EvidenceLink,
+            EvidenceInterpretation,
+            EvidenceCase,
             InboxEvent,
             OutboxEvent,
             Observation,
@@ -148,7 +161,14 @@ async def seed() -> None:
             created_at=now,
             updated_at=now,
         )
-        db.add_all([org, candidate, instructor, admin])
+        assessor = Person(
+            id=ASSESSOR_ID,
+            external_subject="44444444-4444-4444-4444-444444444444",
+            display_name="Assessor Demo",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add_all([org, candidate, instructor, admin, assessor])
         await db.flush()
         db.add_all([
             OrganizationMembership(
@@ -170,6 +190,13 @@ async def seed() -> None:
                 person_id=ADMIN_ID,
                 organization_id=ORG_ID,
                 membership_role="ACADEMY_ADMIN",
+                created_at=now,
+            ),
+            OrganizationMembership(
+                id=UUID("00000000-0000-0000-0000-000000000114"),
+                person_id=ASSESSOR_ID,
+                organization_id=ORG_ID,
+                membership_role="ASSESSOR",
                 created_at=now,
             ),
         ])

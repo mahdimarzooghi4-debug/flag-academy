@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.curriculum.api import router as curriculum_router
 from app.db import engine
 from app.errors import AppError, app_error_handler
+from app.evidence.api import router as evidence_router
 from app.identity.api import router as identity_router
 from app.learning.api import router as learning_router
 from app.mission_design.api import router as mission_design_router
@@ -30,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(identity_router)
+app.include_router(evidence_router)
 app.include_router(curriculum_router)
 app.include_router(academy_router)
 app.include_router(learning_router)

@@ -6,6 +6,7 @@ set -eu
 : "${PARCHAM_DEV_CANDIDATE_PASSWORD:?set PARCHAM_DEV_CANDIDATE_PASSWORD}"
 : "${PARCHAM_DEV_INSTRUCTOR_PASSWORD:?set PARCHAM_DEV_INSTRUCTOR_PASSWORD}"
 : "${PARCHAM_DEV_ADMIN_PASSWORD:?set PARCHAM_DEV_ADMIN_PASSWORD}"
+: "${PARCHAM_DEV_ASSESSOR_PASSWORD:?set PARCHAM_DEV_ASSESSOR_PASSWORD}"
 
 COMPOSE="docker compose -f infra/docker-compose.yml"
 KCADM="/opt/keycloak/bin/kcadm.sh"
@@ -18,5 +19,6 @@ done
 $COMPOSE exec -T keycloak "$KCADM" set-password   -r parcham --username candidate --new-password "$PARCHAM_DEV_CANDIDATE_PASSWORD"
 $COMPOSE exec -T keycloak "$KCADM" set-password   -r parcham --username instructor --new-password "$PARCHAM_DEV_INSTRUCTOR_PASSWORD"
 $COMPOSE exec -T keycloak "$KCADM" set-password   -r parcham --username academy-admin --new-password "$PARCHAM_DEV_ADMIN_PASSWORD"
+$COMPOSE exec -T keycloak "$KCADM" set-password   -r parcham --username assessor --new-password "$PARCHAM_DEV_ASSESSOR_PASSWORD"
 
 echo "Development Keycloak users are ready."
