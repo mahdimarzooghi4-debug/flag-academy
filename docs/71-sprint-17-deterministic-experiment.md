@@ -11,6 +11,12 @@ Close the final currently unimplemented Mission Runtime action gap by making `RU
 
 Experiment execution reduces uncertainty inside Canonical Simulation State. It does **not** create Evidence, prove Capability, interpret causality for the Candidate, or mutate Profile/Gate state.
 
+## Parcham AI boundary
+
+In this document and the product architecture, **Parcham AI means the proprietary, Parcham-owned AI system built specifically for Parcham**. It is not shorthand for an OpenAI API, Anthropic API, or any other third-party AI API.
+
+Parcham AI is a first-class internal product capability with its own policies, model/runtime lifecycle and governance boundary. No external AI API dependency is implied by references to AI in the Mission Runtime. Introducing any third-party AI provider as an architectural dependency requires a separate explicit decision.
+
 **Experiment Result ≠ Evidence**  
 **Experiment Result ≠ Proven Capability**  
 **Experiment Result ≠ Automatic Interpretation**
@@ -25,7 +31,7 @@ The runtime contract follows:
 - DEC-196 — Outcome → Behavior → Metric → Baseline → Target → Guardrails → Intervention → Measurement → Interpretation → Decision.
 - DEC-200 — Experiment Contract is frozen before Result.
 - DEC-201 — Experiment method is not assumed to be A/B-only.
-- DEC-204 — Assessment AI must not interpret the Result for the Candidate.
+- DEC-204 — the proprietary Parcham AI in Assessment Mode must not interpret the Result for the Candidate.
 - DEC-206 — Experiment requires User Risk / Ethical Review.
 - DEC-367/378 — Mission Engine produces Observation; Evidence interpretation is downstream.
 
@@ -132,7 +138,7 @@ Expected runtime result:
 - Evidence Engine
 - Experiment Memory beyond this Mission Runtime observation/history
 - statistical inference engine
-- AI interpretation
+- automatic interpretation by Parcham AI
 - automatic success/failure verdict
 - Profile/Gate mutation
 - Candidate-authored arbitrary experiment/result patches
