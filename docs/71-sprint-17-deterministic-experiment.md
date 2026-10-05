@@ -13,9 +13,15 @@ Experiment execution reduces uncertainty inside Canonical Simulation State. It d
 
 ## Parcham AI boundary
 
-In this document and the product architecture, **Parcham AI means the proprietary, Parcham-owned AI system built specifically for Parcham**. It is not shorthand for an OpenAI API, Anthropic API, or any other third-party AI API.
+In this document and the product architecture, **Parcham AI is the self-owned, self-trained intelligence asset of Parcham**.
 
-Parcham AI is a first-class internal product capability with its own policies, model/runtime lifecycle and governance boundary. No external AI API dependency is implied by references to AI in the Mission Runtime. Introducing any third-party AI provider as an architectural dependency requires a separate explicit decision.
+It does not obtain its model, inference or training capability from an external or internal AI API, Foundation Model API, managed AI service or Provider LLM. Its Model Versions, Training Corpus, Evaluation History and Learning Memory are Parcham-owned assets that accumulate over time.
+
+The strategic loop is:
+
+**Parcham Experience → Governed Data → Curated Dataset → Parcham Training → Evaluation → Model Version → Product Use → New Experience**
+
+References to AI in Mission Runtime therefore mean Parcham's own intelligence system.
 
 **Experiment Result ≠ Evidence**  
 **Experiment Result ≠ Proven Capability**  
