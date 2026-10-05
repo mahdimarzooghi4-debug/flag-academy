@@ -136,6 +136,7 @@ class ScheduledEffect(Base):
     label: Mapped[str] = mapped_column(String(255))
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     effect_payload: Mapped[dict] = mapped_column(JSONB)
+    terminal_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     cancellable: Mapped[bool] = mapped_column(default=False)
     cancel_condition: Mapped[dict] = mapped_column(JSONB)
     visibility: Mapped[str] = mapped_column(String(32))

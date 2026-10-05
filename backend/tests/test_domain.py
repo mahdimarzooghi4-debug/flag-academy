@@ -105,7 +105,12 @@ def test_mission_runtime_lifecycle_and_action_contract_are_explicit() -> None:
     )
     assert MissionActionType.REQUEST_INFORMATION.value == "REQUEST_INFORMATION"
     assert MissionActionType.COMMUNICATE.value == "COMMUNICATE"
+    assert MissionActionType.NO_ACTION.value == "NO_ACTION"
     assert MissionActionType.DECIDE.value == "DECIDE"
+    assert runtime_transition_allowed(
+        MissionInstanceStatus.RUNNING.value,
+        MissionInstanceStatus.TIME_EXPIRED.value,
+    )
 
 
 def test_mission_runtime_world_effect_is_deterministic_and_cannot_touch_profile() -> None:
@@ -312,3 +317,36 @@ def test_scheduled_effect_observation_is_factual_and_explicit() -> None:
     assert "judgment" not in visible
     assert visible["world_version_before"] == 2
     assert visible["world_version_after"] == 3
+
+
+def test_no_action_and_timeout_visibility_are_explicit() -> None:
+    assert candidate_event_visible("no_action.committed")
+    assert candidate_event_visible("mission.time_expired")
+    assert candidate_observation_visible("NO_ACTION_OBSERVED")
+    assert candidate_observation_visible("MISSION_TIME_EXPIRED")
+
+    no_action = candidate_event_payload(
+        "no_action.committed",
+        {
+            "no_action_code": "WAIT_30_MINUTES",
+            "reasoning": "Wait for more signal.",
+            "simulation_time_before": "2026-10-05T10:00:00+00:00",
+            "simulation_time_after": "2026-10-05T10:30:00+00:00",
+            "hidden_policy": "DO_NOT_EXPOSE",
+        },
+    )
+    assert "hidden_policy" not in no_action
+    assert no_action["no_action_code"] == "WAIT_30_MINUTES"
+
+    timeout = candidate_observation_payload(
+        "MISSION_TIME_EXPIRED",
+        {
+            "effect_code": "RECOVERY_DECISION_DEADLINE",
+            "expired_at": "2026-10-05T10:30:00+00:00",
+            "world_version_before": 3,
+            "world_version_after": 4,
+            "judgment": "poor decision making",
+        },
+    )
+    assert timeout["effect_code"] == "RECOVERY_DECISION_DEADLINE"
+    assert "judgment" not in timeout

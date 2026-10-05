@@ -146,7 +146,7 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
 
 
 test("academy admin authors, activates, and candidate runs a deterministic mission", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
   const candidatePassword = process.env.PARCHAM_DEV_CANDIDATE_PASSWORD;
   if (!adminPassword || !candidatePassword) {
@@ -293,5 +293,67 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("world state advanced from version 3 to 4");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
+
+  // A second assignment proves that explicit NO_ACTION has a canonical cost of delay
+  // and can end a Mission with TIME_EXPIRED without becoming Candidate failure/proof.
+  await logout(page);
+  await login(page, "academy-admin", adminPassword);
+
+  const activeMissionCardForTimeout = page.locator(".assignment-card").filter({
+    hasText: "OWNERSHIP_RECOVERY_E2E",
+  });
+  await activeMissionCardForTimeout
+    .getByLabel("Candidate برای Assignment")
+    .selectOption({ label: "Candidate Demo" });
+  await activeMissionCardForTimeout
+    .getByRole("button", { name: "اختصاص مأموریت" })
+    .click();
+  await expect(page.getByText("Mission Assignment ثبت شد.")).toBeVisible();
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+
+  const timeoutCard = page
+    .locator(".mission-runtime-card")
+    .filter({ hasText: "OWNERSHIP_RECOVERY_E2E" })
+    .first();
+  await expect(timeoutCard).toContainText("Assignment ASSIGNED");
+  await timeoutCard.getByRole("button", { name: "شروع مأموریت" }).click();
+  await expect(timeoutCard.getByTestId("runtime-status")).toHaveText("RUNNING");
+
+  await timeoutCard.getByLabel("دلیل Escalation").fill(
+    "برای سنجش cost of delay، موضوع را به Business Sponsor می‌برم اما تصمیم عملیاتی جدیدی نمی‌گیرم.",
+  );
+  await timeoutCard
+    .getByRole("button", { name: "Escalate برنامه بازیابی به Business Sponsor" })
+    .click();
+  await expect(timeoutCard).toContainText("Executive recovery checkpoint");
+  await expect(timeoutCard).toContainText("Recovery decision deadline");
+
+  await timeoutCard.getByLabel("دلیل عدم اقدام").fill(
+    "فعلاً اقدام جدیدی انجام نمی‌دهم و آگاهانه تا پایان window تصمیم صبر می‌کنم.",
+  );
+  await timeoutCard
+    .getByRole("button", { name: "۳۰ دقیقه بدون اقدام جدید صبر می‌کنم" })
+    .click();
+
+  await expect(timeoutCard.getByTestId("runtime-status")).toHaveText("TIME_EXPIRED");
+  await expect(timeoutCard).toContainText("Assignment COMPLETED");
+  await expect(timeoutCard.getByTestId("world-state")).toContainText('"level": "CRITICAL"');
+  await expect(timeoutCard.getByTestId("world-state")).toContainText(
+    '"decision_status": "EXPIRED"',
+  );
+  await expect(timeoutCard.getByTestId("world-state")).toContainText(
+    '"escalation_status": "DEADLINE_MISSED"',
+  );
+  await expect(timeoutCard.getByTestId("world-state")).toContainText(
+    '"executive_checkpoint": "DUE"',
+  );
+  await expect(timeoutCard).toContainText("NO_ACTION_OBSERVED");
+  await expect(timeoutCard).toContainText("MISSION_TIME_EXPIRED");
+  await expect(timeoutCard).toContainText("RECOVERY_DECISION_DEADLINE");
+  await expect(
+    timeoutCard.getByRole("button", { name: "Rollback کنترل‌شده و برنامه بازیابی" }),
+  ).toHaveCount(0);
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });

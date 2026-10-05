@@ -263,7 +263,12 @@ function AuthenticatedApp({
     }: {
       instanceId: string;
       worldVersion: number;
-      actionType: "REQUEST_INFORMATION" | "COMMUNICATE" | "ESCALATE" | "DECIDE";
+      actionType:
+        | "REQUEST_INFORMATION"
+        | "COMMUNICATE"
+        | "ESCALATE"
+        | "NO_ACTION"
+        | "DECIDE";
       target?: string;
       actorVersion?: number;
       payload: Record<string, unknown>;
@@ -651,6 +656,22 @@ function AuthenticatedApp({
                 await advanceMissionWorld.mutateAsync({
                   instanceId,
                   worldVersion,
+                });
+              }}
+              onNoAction={async (
+                instanceId,
+                worldVersion,
+                noActionCode,
+                rationale,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "NO_ACTION",
+                  payload: {
+                    no_action_code: noActionCode,
+                  },
+                  reasoning: rationale,
                 });
               }}
               onDecide={async (instanceId, worldVersion, decisionCode, reasoning) => {

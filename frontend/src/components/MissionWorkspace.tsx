@@ -70,6 +70,7 @@ export type MissionInstance = {
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
   escalation_options: Array<{ code: string; label: string; actor_key: string }>;
+  no_action_options: Array<{ code: string; label: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
@@ -108,6 +109,12 @@ type Props = {
     instanceId: string,
     worldVersion: number,
   ) => Promise<void>;
+  onNoAction: (
+    instanceId: string,
+    worldVersion: number,
+    noActionCode: string,
+    rationale: string,
+  ) => Promise<void>;
   onDecide: (
     instanceId: string,
     worldVersion: number,
@@ -125,12 +132,15 @@ export function MissionWorkspace({
   onCommunicate,
   onEscalate,
   onAdvanceWorld,
+  onNoAction,
   onDecide,
   busy,
 }: Props) {
   const [reasoningByInstance, setReasoningByInstance] = useState<Record<string, string>>({});
   const [utteranceByActor, setUtteranceByActor] = useState<Record<string, string>>({});
   const [escalationRationaleByInstance, setEscalationRationaleByInstance] =
+    useState<Record<string, string>>({});
+  const [noActionRationaleByInstance, setNoActionRationaleByInstance] =
     useState<Record<string, string>>({});
 
   const instanceByAssignment = useMemo(() => {
@@ -230,6 +240,51 @@ export function MissionWorkspace({
                               اجرای رویداد بعدی جهان
                             </button>
                           ) : null}
+                        </div>
+                      ) : null}
+                      {instance.no_action_options.length > 0 &&
+                      instance.scheduled_effects.some(
+                        (effect) => effect.status === "PENDING",
+                      ) ? (
+                        <div className="runtime-block">
+                          <strong>عدم اقدام آگاهانه</strong>
+                          <label>
+                            دلیل عدم اقدام
+                            <textarea
+                              aria-label="دلیل عدم اقدام"
+                              value={noActionRationaleByInstance[instance.id] ?? ""}
+                              onChange={(event) =>
+                                setNoActionRationaleByInstance((current) => ({
+                                  ...current,
+                                  [instance.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="چرا فعلاً اقدام جدیدی انجام نمی‌دهید؟"
+                            />
+                          </label>
+                          <div className="action-row">
+                            {instance.no_action_options.map((option) => {
+                              const rationale =
+                                noActionRationaleByInstance[instance.id] ?? "";
+                              return (
+                                <button
+                                  key={option.code}
+                                  className="ghost dark"
+                                  disabled={busy || !rationale.trim()}
+                                  onClick={() =>
+                                    void onNoAction(
+                                      instance.id,
+                                      instance.world_state_version,
+                                      option.code,
+                                      rationale.trim(),
+                                    )
+                                  }
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       ) : null}
                       {instance.actors.length > 0 ? (

@@ -182,6 +182,14 @@ jobs:
           scheduled_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCHEDULED_EFFECT_OBSERVED';")
           advanced_simulation_clock=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where simulation_time > started_at;")
           delayed_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,executive_checkpoint}' = 'DUE' and world_state #>> '{mission,escalation_status}' = 'CHECKPOINT_DUE';")
+          time_expired_instances=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where status = 'TIME_EXPIRED';")
+          no_action_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'NO_ACTION';")
+          no_action_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'no_action.committed';")
+          no_action_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'NO_ACTION_OBSERVED';")
+          deadline_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where effect_code = 'RECOVERY_DECISION_DEADLINE' and terminal_status = 'TIME_EXPIRED' and status = 'APPLIED';")
+          time_expired_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'mission.time_expired';")
+          time_expired_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'MISSION_TIME_EXPIRED';")
+          timeout_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where status = 'TIME_EXPIRED' and world_state #>> '{risk,level}' = 'CRITICAL' and world_state #>> '{mission,decision_status}' = 'EXPIRED' and world_state #>> '{mission,escalation_status}' = 'DEADLINE_MISSED';")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -199,15 +207,15 @@ jobs:
           test "$case_attempts" -ge 1
           test "$active_missions" -ge 1
           test "$mission_versions" -ge 1
-          test "$mission_instances" -ge 1
+          test "$mission_instances" -ge 2
           test "$completed_mission_instances" -ge 1
-          test "$mission_actions" -ge 4
+          test "$mission_actions" -ge 6
           test "$mission_decisions" -ge 1
           test "$runtime_events" -ge 15
           test "$runtime_observations" -ge 6
-          test "$mission_assignments" -ge 1
-          test "$completed_mission_assignments" -ge 1
-          test "$assignment_bound_instances" -ge 1
+          test "$mission_assignments" -ge 2
+          test "$completed_mission_assignments" -ge 2
+          test "$assignment_bound_instances" -ge 2
           test "$unassigned_instances" -eq 0
           test "$hidden_world_truth" -ge 1
           test "$internal_simulation_seeds" -ge 1
@@ -234,6 +242,14 @@ jobs:
           test "$scheduled_observations" -ge 1
           test "$advanced_simulation_clock" -ge 1
           test "$delayed_world_state" -ge 1
+          test "$time_expired_instances" -ge 1
+          test "$no_action_actions" -ge 1
+          test "$no_action_events" -ge 1
+          test "$no_action_observations" -ge 1
+          test "$deadline_effects" -ge 1
+          test "$time_expired_events" -ge 1
+          test "$time_expired_observations" -ge 1
+          test "$timeout_world_state" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -289,6 +305,16 @@ jobs:
             echo "scheduled_effect_observations=$scheduled_observations"
             echo "advanced_simulation_clock_rows=$advanced_simulation_clock"
             echo "delayed_world_state_rows=$delayed_world_state"
+            echo "time_expired_mission_instances=$time_expired_instances"
+            echo "no_action_actions=$no_action_actions"
+            echo "no_action_committed_events=$no_action_events"
+            echo "no_action_observations=$no_action_observations"
+            echo "applied_deadline_effects=$deadline_effects"
+            echo "mission_time_expired_events=$time_expired_events"
+            echo "mission_time_expired_observations=$time_expired_observations"
+            echo "timeout_world_state_rows=$timeout_world_state"
+            echo "no_action_time_advance=CANONICAL_OPTION_ONLY"
+            echo "timeout_transition=SCHEDULED_EFFECT_ONLY"
             echo "scheduled_effect_mutation=ENGINE_RULE_ONLY"
             echo "simulation_clock_advance=NEXT_DUE_EVENT_ONLY"
             echo "escalation_world_mutation=ENGINE_RULE_ONLY"

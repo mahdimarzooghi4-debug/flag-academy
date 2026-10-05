@@ -188,6 +188,22 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
         }
     ),
+    "no_action.committed": frozenset(
+        {
+            "no_action_code",
+            "reasoning",
+            "simulation_time_before",
+            "simulation_time_after",
+        }
+    ),
+    "mission.time_expired": frozenset(
+        {
+            "from_status",
+            "to_status",
+            "effect_code",
+            "expired_at",
+        }
+    ),
     "decision.committed": frozenset({"decision_code"}),
     "mission.completed": frozenset({"from_status", "to_status"}),
 }
@@ -217,6 +233,23 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         {
             "effect_code",
             "due_at",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
+    "NO_ACTION_OBSERVED": frozenset(
+        {
+            "no_action_code",
+            "simulation_time_before",
+            "simulation_time_after",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
+    "MISSION_TIME_EXPIRED": frozenset(
+        {
+            "effect_code",
+            "expired_at",
             "world_version_before",
             "world_version_after",
         }
