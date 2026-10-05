@@ -6,6 +6,7 @@ from pathlib import Path
 CONTEXTS = {
     "academy",
     "curriculum",
+    "evidence",
     "identity",
     "journey",
     "platform",
