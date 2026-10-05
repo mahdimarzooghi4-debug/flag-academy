@@ -17,6 +17,7 @@ from app.mission_runtime.domain import (
     MissionActionType,
     MissionAssignmentStatus,
     MissionInstanceStatus,
+    apply_actor_effect,
     apply_world_effect,
     assignment_transition_allowed,
     candidate_event_payload,
@@ -27,6 +28,7 @@ from app.mission_runtime.domain import (
     runtime_transition_allowed,
 )
 from app.mission_runtime.models import (
+    ActorInstance,
     CandidateAction,
     DecisionRecord,
     MissionAssignment,
@@ -78,6 +80,7 @@ class MissionActionRequest(BaseModel):
     reasoning: str = Field(min_length=1, max_length=5000)
     confidence: int = Field(ge=0, le=100)
     expected_world_version: int = Field(ge=1)
+    expected_actor_version: int | None = Field(default=None, ge=1)
     idempotency_key: str = Field(min_length=1, max_length=160)
     resource_cost: dict[str, Any] = Field(default_factory=dict)
     mode: str = Field(default="CANDIDATE", min_length=1, max_length=32)
@@ -120,6 +123,15 @@ class ObservationResponse(BaseModel):
     occurred_at: datetime
 
 
+class ActorInstanceResponse(BaseModel):
+    id: UUID
+    actor_key: str
+    display_name: str
+    state: dict[str, Any]
+    state_version: int
+    communication_options: list[dict[str, str]]
+
+
 class MissionInstanceResponse(BaseModel):
     id: UUID
     version: int
@@ -134,6 +146,7 @@ class MissionInstanceResponse(BaseModel):
     decision_points: list[dict[str, Any]]
     information_options: list[dict[str, Any]]
     decision_options: list[dict[str, Any]]
+    actors: list[ActorInstanceResponse]
     disclosed_information: list[dict[str, Any]]
     audit_events: list[RuntimeEventResponse]
     observations: list[ObservationResponse]
@@ -165,6 +178,42 @@ def _candidate_visible_paths(version: MissionVersion) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def _actor_runtime_configs(version: MissionVersion) -> dict[str, Any]:
+    value = _runtime_config(version).get("actor_runtime", {})
+    return value if isinstance(value, dict) else {}
+
+
+def _actor_runtime_config(
+    version: MissionVersion,
+    actor_key: str,
+) -> dict[str, Any] | None:
+    value = _actor_runtime_configs(version).get(actor_key)
+    return value if isinstance(value, dict) else None
+
+
+def _actor_candidate_visible_paths(config: dict[str, Any]) -> list[str]:
+    value = config.get("candidate_visible_paths", [])
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def _actor_communication_options(config: dict[str, Any]) -> list[dict[str, str]]:
+    value = config.get("communication_options", [])
+    if not isinstance(value, list):
+        return []
+
+    options: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        code = item.get("code")
+        label = item.get("label")
+        if isinstance(code, str) and code and isinstance(label, str) and label:
+            options.append({"code": code, "label": label})
+    return options
 
 
 async def _load_version_and_template(
