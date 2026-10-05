@@ -150,6 +150,7 @@ jobs:
         shell: bash
         run: |
           python -m app.read_models.consumer > /tmp/parcham-projector.log 2>&1 &
+          python -m app.evidence.consumer > /tmp/parcham-evidence.log 2>&1 &
           python -m app.platform.outbox > /tmp/parcham-outbox.log 2>&1 &
 
       - name: Start backend
@@ -194,6 +195,7 @@ jobs:
             /tmp/parcham-web.log
             /tmp/parcham-outbox.log
             /tmp/parcham-projector.log
+            /tmp/parcham-evidence.log
           if-no-files-found: ignore
       - name: Stop integration infrastructure
         if: always()
