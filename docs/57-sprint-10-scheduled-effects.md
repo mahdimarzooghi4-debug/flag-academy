@@ -1,7 +1,8 @@
 # 57 — Sprint 10 Scheduled Effects & Simulation Clock
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -206,3 +207,12 @@ PostgreSQL + Live OIDC باید اثبات کند:
 - acceptance evidence in GitHub
 
 > **Time is part of the simulation state and must be auditable.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `aede788ff254b2654afef28dd2a59451b3fd0663`
+- Main CI Run: `37281951655` — PASS
+- Ephemeral Stage Run: `37281951536` — PASS
+- Code Review: `docs/reviews/10-sprint-10-scheduled-effects-code-review.md` — PASS
+- Stage evidence: `docs/58-sprint-10-stage-acceptance.md`
