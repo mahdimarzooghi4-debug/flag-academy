@@ -168,6 +168,14 @@ jobs:
           actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
           internal_actor_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded' and payload ? 'actor_effect_applied';")
           actor_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ACTOR_RESPONSE_OBSERVED';")
+          delegation_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'DELEGATE';")
+          delegation_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'delegation.requested';")
+          delegation_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'delegation.accepted';")
+          internal_delegation_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'delegation.accepted' and payload ? 'world_effect_applied' and payload ? 'actor_effect_applied';")
+          delegation_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'DELEGATION_OBSERVED';")
+          delegated_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{mission,delegation_status}' = 'ACTIVE' and world_state #>> '{delivery,accountability_owner}' = 'CANDIDATE' and world_state #>> '{delivery,recovery_coordinator}' = 'DELIVERY_LEAD';")
+          delegated_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where actor_key = 'delivery_lead' and state_version >= 2 and state->>'commitment' = 'OWNS_RECOVERY_COORDINATION' and state->>'delegated_responsibility' = 'RECOVERY_COORDINATION';")
+          hidden_delivery_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where actor_key = 'delivery_lead' and state->>'private_delivery_risk' = 'MEDIUM';")
           escalation_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'ESCALATE';")
           escalation_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'escalation.accepted';")
           internal_escalation_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'escalation.accepted' and payload ? 'world_effect_applied' and payload ? 'actor_effect_applied';")
@@ -242,6 +250,14 @@ jobs:
           test "$actor_response_events" -ge 1
           test "$internal_actor_effects" -ge 1
           test "$actor_observations" -ge 1
+          test "$delegation_actions" -ge 1
+          test "$delegation_requested_events" -ge 1
+          test "$delegation_accepted_events" -ge 1
+          test "$internal_delegation_effects" -ge 1
+          test "$delegation_observations" -ge 1
+          test "$delegated_world_state" -ge 1
+          test "$delegated_actor_state" -ge 1
+          test "$hidden_delivery_actor_state" -ge 1
           test "$escalation_actions" -ge 1
           test "$escalation_events" -ge 1
           test "$internal_escalation_effects" -ge 1
@@ -319,6 +335,14 @@ jobs:
             echo "actor_response_events=$actor_response_events"
             echo "internal_actor_effect_events=$internal_actor_effects"
             echo "actor_response_observations=$actor_observations"
+            echo "delegation_actions=$delegation_actions"
+            echo "delegation_requested_events=$delegation_requested_events"
+            echo "delegation_accepted_events=$delegation_accepted_events"
+            echo "internal_delegation_effect_events=$internal_delegation_effects"
+            echo "delegation_observations=$delegation_observations"
+            echo "delegated_world_state_rows=$delegated_world_state"
+            echo "delegated_actor_state_rows=$delegated_actor_state"
+            echo "hidden_delivery_actor_state_rows=$hidden_delivery_actor_state"
             echo "escalation_actions=$escalation_actions"
             echo "escalation_accepted_events=$escalation_events"
             echo "internal_escalation_effect_events=$internal_escalation_effects"
@@ -361,6 +385,9 @@ jobs:
             echo "timeout_transition=SCHEDULED_EFFECT_ONLY"
             echo "scheduled_effect_mutation=ENGINE_RULE_ONLY"
             echo "simulation_clock_advance=NEXT_DUE_EVENT_ONLY"
+            echo "delegation_world_mutation=ENGINE_RULE_ONLY"
+            echo "delegation_actor_mutation=ENGINE_RULE_ONLY"
+            echo "delegation_accountability_transfer=FORBIDDEN"
             echo "escalation_world_mutation=ENGINE_RULE_ONLY"
             echo "escalation_actor_mutation=ENGINE_RULE_ONLY"
             echo "candidate_actor_state_projection=ALLOWLIST_ONLY"
