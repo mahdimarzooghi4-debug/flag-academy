@@ -305,7 +305,7 @@ v1 حداقل API Process، Worker Process و در صورت نیاز Temporal Wo
 
 ## 25. Observability
 
-OpenTelemetry برای API، Worker، AI Gateway و Event Consumer.
+OpenTelemetry برای API، Worker، Parcham AI Runtime، Training/Evaluation Jobs و Event Consumer.
 
 سه View:
 - Technical Observability
