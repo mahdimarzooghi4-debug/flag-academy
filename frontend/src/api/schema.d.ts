@@ -310,6 +310,7 @@ export interface MissionInstanceResponse {
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
+  actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
   observations: MissionObservation[];
@@ -333,6 +334,7 @@ export interface MissionActionCreate {
   reasoning: string;
   confidence: number;
   expected_world_version: number;
+  expected_actor_version?: number | null;
   idempotency_key: string;
   resource_cost: Record<string, unknown>;
   mode: string;
@@ -362,4 +364,13 @@ export interface MissionAssignmentSummary {
   created_at: string;
   started_at?: string | null;
   completed_at?: string | null;
+}
+
+export interface MissionActorInstance {
+  id: string;
+  actor_key: string;
+  display_name: string;
+  state: Record<string, unknown>;
+  state_version: number;
+  communication_options: Array<{ code: string; label: string }>;
 }
