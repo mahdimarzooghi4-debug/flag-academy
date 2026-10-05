@@ -3001,19 +3001,6 @@ async def submit_mission_action(
                 "Scope-change option must change canonical World State.",
                 status_code=422,
             )
-        applied_scope = _world_state_path_value(next_world, scope_path)
-        if applied_scope != to_scope:
-            raise AppError(
-                "SCOPE_CHANGE_TARGET_NOT_APPLIED",
-                "Scope-change world effect must set the canonical scope path to to_scope.",
-                status_code=422,
-                details={
-                    "scope_change_code": scope_change_code,
-                    "expected_scope": to_scope,
-                    "applied_scope": applied_scope,
-                },
-            )
-
         instance.world_state = next_world
         instance.world_state_version += 1
         instance.version += 1
