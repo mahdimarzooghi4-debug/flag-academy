@@ -46,3 +46,20 @@ def test_mission_design_contract_is_exposed() -> None:
     assert "/api/v1/studio/mission-versions/{version_id}/mark-validated" in paths
     assert "/api/v1/studio/mission-versions/{version_id}/activate" in paths
     assert "/api/v1/studio/mission-versions/{version_id}/retire" in paths
+
+
+def test_mission_runtime_contract_is_exposed() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/missions/active" in paths
+    assert "/api/v1/me/mission-instances" in paths
+    assert "/api/v1/missions/{version_id}/instances" in paths
+    assert "/api/v1/mission-instances/{instance_id}" in paths
+    assert "/api/v1/mission-instances/{instance_id}/actions" in paths
+
+    schemas = app.openapi()["components"]["schemas"]
+    action_props = schemas["MissionActionRequest"]["properties"]
+    assert "expected_world_version" in action_props
+    assert "idempotency_key" in action_props
+    instance_props = schemas["MissionInstanceResponse"]["properties"]
+    assert "world_state_version" in instance_props
+    assert "observations" in instance_props
