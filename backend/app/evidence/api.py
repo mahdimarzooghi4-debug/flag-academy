@@ -526,17 +526,33 @@ async def start_evidence_review(
             details={"current": case.status, "target": EvidenceCaseStatus.UNDER_REVIEW.value},
         )
     if case.status == EvidenceCaseStatus.NEEDS_CONTEXT.value:
-        response_exists = (
+        latest_request_at = (
             await db.execute(
-                select(CandidateResponse.id)
-                .where(CandidateResponse.evidence_case_id == case.id)
+                select(EvidenceReview.created_at)
+                .where(
+                    EvidenceReview.evidence_case_id == case.id,
+                    EvidenceReview.decision == "NEEDS_CONTEXT",
+                )
+                .order_by(EvidenceReview.created_at.desc(), EvidenceReview.id.desc())
                 .limit(1)
             )
         ).scalar_one_or_none()
-        if response_exists is None:
+        latest_response_at = (
+            await db.execute(
+                select(CandidateResponse.created_at)
+                .where(CandidateResponse.evidence_case_id == case.id)
+                .order_by(CandidateResponse.created_at.desc(), CandidateResponse.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if (
+            latest_request_at is None
+            or latest_response_at is None
+            or latest_response_at < latest_request_at
+        ):
             raise AppError(
                 "CANDIDATE_CONTEXT_REQUIRED",
-                "Candidate context must be added before review can resume.",
+                "Candidate context must be added after the latest request before review can resume.",
                 status_code=409,
             )
 
