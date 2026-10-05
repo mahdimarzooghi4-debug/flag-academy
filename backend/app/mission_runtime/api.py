@@ -153,6 +153,7 @@ class MissionInstanceResponse(BaseModel):
     mission_code: str
     title: str
     status: str
+    runtime_phase: str
     world_state: dict[str, Any]
     world_state_version: int
     decision_points: list[dict[str, Any]]
@@ -525,6 +526,21 @@ async def _instance_response(
         if event.event_type == "information.disclosed"
     ]
 
+    waiting_for_world = any(
+        item.status in {
+            ScheduledEffectStatus.PENDING.value,
+            ScheduledEffectStatus.SCHEDULED.value,
+        }
+        for item in scheduled_effects
+    )
+    runtime_phase = (
+        "WAITING_FOR_WORLD"
+        if instance.status == MissionInstanceStatus.RUNNING.value and waiting_for_world
+        else "ACTIVE"
+        if instance.status == MissionInstanceStatus.RUNNING.value
+        else instance.status
+    )
+
     return MissionInstanceResponse(
         id=instance.id,
         version=instance.version,
@@ -534,6 +550,7 @@ async def _instance_response(
         mission_code=template.code,
         title=version.title,
         status=instance.status,
+        runtime_phase=runtime_phase,
         world_state=project_candidate_visible_state(
             instance.world_state,
             _candidate_visible_paths(version),
@@ -1255,6 +1272,28 @@ async def submit_mission_action(
         instance.mission_version_id,
         require_active=False,
     )
+
+    if body.action_type == MissionActionType.DECIDE:
+        pending_effect = (
+            await db.execute(
+                select(ScheduledEffect.id).where(
+                    ScheduledEffect.mission_instance_id == instance.id,
+                    ScheduledEffect.status.in_(
+                        [
+                            ScheduledEffectStatus.PENDING.value,
+                            ScheduledEffectStatus.SCHEDULED.value,
+                        ]
+                    ),
+                )
+            )
+        ).scalar_one_or_none()
+        if pending_effect is not None:
+            raise AppError(
+                "MISSION_WAITING_FOR_WORLD",
+                "A scheduled world consequence must resolve before a final decision.",
+                status_code=409,
+            )
+
     now = datetime.now(UTC)
     action = CandidateAction(
         id=uuid4(),
