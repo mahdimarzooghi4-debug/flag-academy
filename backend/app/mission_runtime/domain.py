@@ -168,6 +168,10 @@ def project_candidate_visible_state(
     return projected
 
 
+def candidate_event_visible(event_type: str) -> bool:
+    return event_type in CANDIDATE_EVENT_PAYLOAD_ALLOWLIST
+
+
 def candidate_event_payload(
     event_type: str,
     payload: dict[str, Any],
