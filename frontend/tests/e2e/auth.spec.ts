@@ -15,6 +15,30 @@ async function logout(page: Page) {
   await page.context().clearCookies();
 }
 
+async function currentAccessToken(page: Page): Promise<string> {
+  const token = await page.evaluate(() => {
+    for (const storage of [window.sessionStorage, window.localStorage]) {
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (!key) continue;
+        const raw = storage.getItem(key);
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw) as { access_token?: unknown };
+          if (typeof parsed.access_token === "string" && parsed.access_token.length > 0) {
+            return parsed.access_token;
+          }
+        } catch {
+          // ignore unrelated browser storage
+        }
+      }
+    }
+    return null;
+  });
+  if (!token) throw new Error("OIDC access token is not available in browser storage");
+  return token;
+}
+
 test("candidate learns, submits; instructor gives feedback; proof remains separate", async ({ page }) => {
   test.setTimeout(90_000);
   const candidatePassword = process.env.PARCHAM_DEV_CANDIDATE_PASSWORD;
@@ -565,6 +589,25 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     "AI NONE",
   );
 
+  const evidenceCaseTestId = await evidenceCard.getAttribute("data-testid");
+  if (!evidenceCaseTestId) throw new Error("Evidence Case test id is missing");
+  const evidenceCaseId = evidenceCaseTestId.replace("evidence-case-", "");
+  const assessorAccessToken = await currentAccessToken(page);
+  const staleReview = await page.context().request.post(
+    `http://localhost:8000/api/v1/evidence-cases/${evidenceCaseId}/reviews`,
+    {
+      headers: {
+        Authorization: `Bearer ${assessorAccessToken}`,
+      },
+      data: {
+        expected_version: 1,
+        rationale: "Stale command must be rejected before human review starts.",
+      },
+    },
+  );
+  expect(staleReview.status()).toBe(409);
+  expect((await staleReview.json()).code).toBe("VERSION_CONFLICT");
+
   await evidenceCard.getByRole("button", { name: "شروع Review" }).click();
   await expect(evidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("UNDER_REVIEW");
   await evidenceCard
@@ -588,6 +631,17 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(candidateEvidenceCard).not.toContainText(
     "Source lineage and interpretation contract reviewed.",
   );
+
+  const candidateAccessToken = await currentAccessToken(page);
+  const assessorOnlyRead = await page.context().request.get(
+    `http://localhost:8000/api/v1/evidence-cases/${evidenceCaseId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${candidateAccessToken}`,
+      },
+    },
+  );
+  expect(assessorOnlyRead.status()).toBe(403);
 
   await candidateEvidenceCard
     .getByLabel("پاسخ Context Evidence")
