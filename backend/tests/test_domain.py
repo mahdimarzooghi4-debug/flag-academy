@@ -281,6 +281,60 @@ def test_escalation_observation_is_explicit_candidate_fact() -> None:
     assert visible["actor_state_version_after"] == 3
 
 
+def test_delegation_visibility_is_factual_and_fail_closed() -> None:
+    assert candidate_event_visible("delegation.requested")
+    assert candidate_event_visible("delegation.accepted")
+    requested = candidate_event_payload(
+        "delegation.requested",
+        {
+            "actor_key": "delivery_lead",
+            "delegation_code": "DELEGATE_RECOVERY_COORDINATION",
+            "rationale": "Delegate coordination while retaining accountability.",
+            "hidden_rule": "DO_NOT_EXPOSE",
+        },
+    )
+    assert requested["delegation_code"] == "DELEGATE_RECOVERY_COORDINATION"
+    assert "hidden_rule" not in requested
+
+    accepted = candidate_event_payload(
+        "delegation.accepted",
+        {
+            "actor_key": "delivery_lead",
+            "delegation_code": "DELEGATE_RECOVERY_COORDINATION",
+            "response": "Accepted.",
+            "world_version_before": 1,
+            "world_version_after": 2,
+            "actor_state_version_before": 1,
+            "actor_state_version_after": 2,
+            "world_effect_applied": {
+                "delivery": {"recovery_coordinator": "DELIVERY_LEAD"},
+            },
+            "actor_effect_applied": {
+                "delegated_responsibility": "RECOVERY_COORDINATION",
+            },
+        },
+    )
+    assert accepted["world_version_after"] == 2
+    assert "world_effect_applied" not in accepted
+    assert "actor_effect_applied" not in accepted
+
+    assert candidate_observation_visible("DELEGATION_OBSERVED")
+    observation = candidate_observation_payload(
+        "DELEGATION_OBSERVED",
+        {
+            "actor_key": "delivery_lead",
+            "delegation_code": "DELEGATE_RECOVERY_COORDINATION",
+            "world_version_before": 1,
+            "world_version_after": 2,
+            "actor_state_version_before": 1,
+            "actor_state_version_after": 2,
+            "judgment": "good delegation",
+        },
+    )
+    assert observation["actor_key"] == "delivery_lead"
+    assert "judgment" not in observation
+
+
 def test_scheduled_effect_payload_hides_internal_effect() -> None:
     assert candidate_event_visible("scheduled_effect.created")
     assert candidate_event_visible("scheduled_effect.applied")
