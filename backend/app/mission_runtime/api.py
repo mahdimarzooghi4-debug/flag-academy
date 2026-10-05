@@ -268,8 +268,27 @@ def _scope_change_options(version: MissionVersion) -> list[dict[str, str]]:
             continue
         code = item.get("code")
         label = item.get("label")
-        if isinstance(code, str) and code and isinstance(label, str) and label:
-            options.append({"code": code, "label": label})
+        from_scope = item.get("from_scope")
+        to_scope = item.get("to_scope")
+        if (
+            isinstance(code, str)
+            and code
+            and isinstance(label, str)
+            and label
+            and isinstance(from_scope, str)
+            and from_scope
+            and isinstance(to_scope, str)
+            and to_scope
+            and from_scope != to_scope
+        ):
+            options.append(
+                {
+                    "code": code,
+                    "label": label,
+                    "from_scope": from_scope,
+                    "to_scope": to_scope,
+                }
+            )
     return options
 
 
@@ -2919,15 +2938,38 @@ async def submit_mission_action(
 
         response = option.get("response")
         world_effect = option.get("world_effect")
+        scope_path = option.get("scope_path")
+        from_scope = option.get("from_scope")
+        to_scope = option.get("to_scope")
         if (
             not isinstance(response, str)
             or not response
             or not isinstance(world_effect, dict)
+            or not isinstance(scope_path, str)
+            or not scope_path
+            or not isinstance(from_scope, str)
+            or not from_scope
+            or not isinstance(to_scope, str)
+            or not to_scope
+            or from_scope == to_scope
         ):
             raise AppError(
                 "MISSION_SCOPE_CHANGE_DEFINITION_INVALID",
-                "Scope-change rule must define response and world_effect.",
+                "Scope-change rule must define response, scope_path, distinct from_scope/to_scope and world_effect.",
                 status_code=422,
+            )
+
+        current_scope = _world_state_path_value(instance.world_state, scope_path)
+        if current_scope != from_scope:
+            raise AppError(
+                "SCOPE_CHANGE_PRECONDITION_NOT_MET",
+                "The canonical Mission scope no longer matches this scope-change option.",
+                status_code=409,
+                details={
+                    "scope_change_code": scope_change_code,
+                    "expected_scope": from_scope,
+                    "current_scope": current_scope,
+                },
             )
 
         try:
@@ -2953,6 +2995,18 @@ async def submit_mission_action(
                 "Scope-change option must change canonical World State.",
                 status_code=422,
             )
+        applied_scope = _world_state_path_value(next_world, scope_path)
+        if applied_scope != to_scope:
+            raise AppError(
+                "SCOPE_CHANGE_TARGET_NOT_APPLIED",
+                "Scope-change world effect must set the canonical scope path to to_scope.",
+                status_code=422,
+                details={
+                    "scope_change_code": scope_change_code,
+                    "expected_scope": to_scope,
+                    "applied_scope": applied_scope,
+                },
+            )
 
         instance.world_state = next_world
         instance.world_state_version += 1
@@ -2967,6 +3021,8 @@ async def submit_mission_action(
             trigger_reference=str(action.id),
             payload={
                 "scope_change_code": scope_change_code,
+                "from_scope": from_scope,
+                "to_scope": to_scope,
                 "rationale": rationale.strip(),
             },
             world_version_before=before,
@@ -2984,6 +3040,9 @@ async def submit_mission_action(
             payload={
                 "scope_change_code": scope_change_code,
                 "response": response,
+                "scope_path": scope_path,
+                "from_scope": from_scope,
+                "to_scope": to_scope,
                 "world_effect_applied": world_effect,
                 "world_version_before": before,
                 "world_version_after": instance.world_state_version,
@@ -3006,6 +3065,8 @@ async def submit_mission_action(
             ),
             payload={
                 "scope_change_code": scope_change_code,
+                "from_scope": from_scope,
+                "to_scope": to_scope,
                 "world_version_before": before,
                 "world_version_after": instance.world_state_version,
             },
@@ -3024,6 +3085,9 @@ async def submit_mission_action(
                 payload={
                     "mission_instance_id": str(instance.id),
                     "scope_change_code": scope_change_code,
+                    "scope_path": scope_path,
+                    "from_scope": from_scope,
+                    "to_scope": to_scope,
                     "world_version_before": before,
                     "world_version_after": instance.world_state_version,
                 },
