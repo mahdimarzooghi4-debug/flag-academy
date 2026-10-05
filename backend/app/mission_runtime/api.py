@@ -25,6 +25,7 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    delegation_preserves_candidate_accountability,
     project_candidate_visible_state,
     runtime_transition_allowed,
 )
@@ -1643,6 +1644,20 @@ async def start_mission_instance(
             "Mission runtime decision_effects are required.",
             status_code=422,
         )
+    delegation_options = runtime.get("delegation_options", [])
+    if (
+        isinstance(delegation_options, list)
+        and delegation_options
+        and not delegation_preserves_candidate_accountability(
+            initial_state,
+            initial_state,
+        )
+    ):
+        raise AppError(
+            "MISSION_DELEGATION_DEFINITION_INVALID",
+            "Missions with delegation must declare mission.accountability_owner=CANDIDATE.",
+            status_code=422,
+        )
 
     now = datetime.now(UTC)
     instance_id = uuid4()
@@ -2716,6 +2731,15 @@ async def submit_mission_action(
                 str(exc),
                 status_code=422,
             ) from exc
+        if not delegation_preserves_candidate_accountability(
+            instance.world_state,
+            next_world,
+        ):
+            raise AppError(
+                "DELEGATION_ACCOUNTABILITY_TRANSFER_FORBIDDEN",
+                "Delegation cannot transfer Candidate accountability for the Mission.",
+                status_code=422,
+            )
 
         instance.world_state = next_world
         instance.world_state_version += 1
