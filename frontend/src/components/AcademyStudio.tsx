@@ -6,6 +6,26 @@ export type CapabilityOption = {
   name: string;
 };
 
+export type MissionAssignmentCandidate = {
+  id: string;
+  display_name: string;
+};
+
+export type MissionAssignmentSummary = {
+  id: string;
+  version: number;
+  candidate_id: string;
+  candidate_name: string;
+  mission_version_id: string;
+  mission_code: string;
+  mission_title: string;
+  status: string;
+  assignment_reason: string;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+};
+
 export type MissionCreateInput = {
   code: string;
   name: string;
@@ -33,6 +53,8 @@ export type MissionCreateInput = {
 type Props = {
   capabilities: CapabilityOption[];
   templates: MissionTemplateResponse[];
+  assignmentCandidates: MissionAssignmentCandidate[];
+  assignments: MissionAssignmentSummary[];
   onCreate: (input: MissionCreateInput) => Promise<void>;
   onValidate: (versionId: string) => Promise<{ valid: boolean; errors: string[]; warnings: string[] }>;
   onTransition: (
@@ -40,15 +62,19 @@ type Props = {
     expectedVersion: number,
     action: "pilot" | "mark-validated" | "activate",
   ) => Promise<void>;
+  onAssign: (versionId: string, candidateId: string) => Promise<void>;
   busy?: boolean;
 };
 
 export function AcademyStudio({
   capabilities,
   templates,
+  assignmentCandidates,
+  assignments,
   onCreate,
   onValidate,
   onTransition,
+  onAssign,
   busy,
 }: Props) {
   const firstCapability = capabilities[0]?.version_id ?? "";
@@ -74,6 +100,10 @@ export function AcademyStudio({
     "مسئولیت Outcome را می‌پذیرد، trade-off را شفاف می‌کند و نقطه Escalation مشخص می‌سازد.",
   );
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [assignmentMessage, setAssignmentMessage] = useState<string | null>(null);
+  const [assignmentCandidateId, setAssignmentCandidateId] = useState(
+    assignmentCandidates[0]?.id ?? "",
+  );
 
   const activeCapabilityId = capabilityVersionId || firstCapability;
   const sortedTemplates = useMemo(
@@ -262,6 +292,7 @@ export function AcademyStudio({
           <span className="count">{templates.length}</span>
         </div>
         {validationMessage ? <p className="success-note">{validationMessage}</p> : null}
+        {assignmentMessage ? <p className="success-note">{assignmentMessage}</p> : null}
         <div className="stack">
           {sortedTemplates.map((template) => {
             const version = template.versions[template.versions.length - 1];
@@ -322,6 +353,43 @@ export function AcademyStudio({
                     >
                       فعال‌سازی
                     </button>
+                  ) : null}
+                  {version.status === "ACTIVE" ? (
+                    <div className="mission-assignment-box">
+                      <label>
+                        Candidate برای Assignment
+                        <select
+                          aria-label="Candidate برای Assignment"
+                          value={assignmentCandidateId}
+                          onChange={(event) => setAssignmentCandidateId(event.target.value)}
+                        >
+                          {assignmentCandidates.map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>
+                              {candidate.display_name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        className="primary"
+                        disabled={busy || !assignmentCandidateId}
+                        onClick={async () => {
+                          await onAssign(version.id, assignmentCandidateId);
+                          setAssignmentMessage("Mission Assignment ثبت شد.");
+                        }}
+                      >
+                        اختصاص مأموریت
+                      </button>
+                      <div className="assignment-list">
+                        {assignments
+                          .filter((item) => item.mission_version_id === version.id)
+                          .map((item) => (
+                            <small key={item.id}>
+                              {item.candidate_name} · {item.status}
+                            </small>
+                          ))}
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               </div>
