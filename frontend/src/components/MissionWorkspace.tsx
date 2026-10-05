@@ -40,7 +40,8 @@ export type MissionScheduledEffect = {
   id: string;
   effect_code: string;
   label: string;
-  due_at: string;
+  due_at?: string | null;
+  trigger_mode: string;
   status: string;
 };
 
@@ -215,7 +216,10 @@ export function MissionWorkspace({
                             <div>
                               <b>{effect.label}</b>
                               <p>
-                                {effect.effect_code} · due {effect.due_at}
+                                {effect.effect_code} ·{" "}
+                                {effect.trigger_mode === "DUE_AT"
+                                  ? `due ${effect.due_at ?? "—"}`
+                                  : "state-triggered"}
                               </p>
                             </div>
                             <span className="state">{effect.status}</span>
@@ -224,7 +228,9 @@ export function MissionWorkspace({
                       </div>
                       {instance.status === "RUNNING" &&
                       instance.scheduled_effects.some(
-                        (effect) => effect.status === "PENDING",
+                        (effect) =>
+                          effect.status === "PENDING" &&
+                          effect.trigger_mode === "DUE_AT",
                       ) ? (
                         <button
                           className="ghost dark"
@@ -246,7 +252,9 @@ export function MissionWorkspace({
                     <>
                       {instance.no_action_options.length > 0 &&
                       instance.scheduled_effects.some(
-                        (effect) => effect.status === "PENDING",
+                        (effect) =>
+                          effect.status === "PENDING" &&
+                          effect.trigger_mode === "DUE_AT",
                       ) ? (
                         <div className="runtime-block">
                           <strong>عدم اقدام آگاهانه</strong>
