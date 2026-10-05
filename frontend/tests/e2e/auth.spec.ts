@@ -145,10 +145,13 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
 });
 
 
-test("academy admin authors and activates a versioned mission", async ({ page }) => {
-  test.setTimeout(90_000);
+test("academy admin authors, activates, and candidate runs a deterministic mission", async ({ page }) => {
+  test.setTimeout(120_000);
   const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
-  if (!adminPassword) throw new Error("Academy Admin OIDC password is required");
+  const candidatePassword = process.env.PARCHAM_DEV_CANDIDATE_PASSWORD;
+  if (!adminPassword || !candidatePassword) {
+    throw new Error("Academy Admin and Candidate OIDC passwords are required");
+  }
 
   await login(page, "academy-admin", adminPassword);
   await expect(page.getByText("طراحی مأموریت")).toBeVisible();
@@ -173,4 +176,30 @@ test("academy admin authors and activates a versioned mission", async ({ page })
 
   await missionCard.getByRole("button", { name: "فعال‌سازی" }).click();
   await expect(missionCard.getByTestId("mission-status")).toHaveText("ACTIVE");
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+
+  await expect(page.getByText("مأموریت‌های شبیه‌سازی")).toBeVisible();
+  const runtimeCard = page.locator(".mission-runtime-card").filter({
+    hasText: "OWNERSHIP_RECOVERY_E2E",
+  });
+  await expect(runtimeCard).toBeVisible();
+  await runtimeCard.getByRole("button", { name: "شروع مأموریت" }).click();
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("RUNNING");
+
+  await runtimeCard.getByRole("button", { name: "درخواست Dependency trace" }).click();
+  await expect(runtimeCard).toContainText("intermittent timeout spikes");
+
+  await runtimeCard.getByLabel("منطق تصمیم").fill(
+    "ریسک ادامه rollout از هزینه rollback بیشتر است؛ rollback کنترل‌شده را شروع می‌کنم و وضعیت را با checkpoint مشخص دوباره ارزیابی می‌کنم.",
+  );
+  await runtimeCard
+    .getByRole("button", { name: "Rollback کنترل‌شده و برنامه بازیابی" })
+    .click();
+
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("COMPLETED");
+  await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
+  await expect(runtimeCard).toContainText("world state advanced from version 1 to 2");
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });

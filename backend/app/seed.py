@@ -34,6 +34,13 @@ from app.learning.models import (
     Submission,
 )
 from app.mission_design.models import MissionTemplate, MissionVersion
+from app.mission_runtime.models import (
+    CandidateAction,
+    DecisionRecord,
+    MissionInstance,
+    Observation,
+    RuntimeEvent,
+)
 from app.platform.events import new_event, record_event
 from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
@@ -79,6 +86,11 @@ async def seed() -> None:
         for model in (
             InboxEvent,
             OutboxEvent,
+            Observation,
+            DecisionRecord,
+            RuntimeEvent,
+            CandidateAction,
+            MissionInstance,
             MissionVersion,
             MissionTemplate,
             DomainEvent,

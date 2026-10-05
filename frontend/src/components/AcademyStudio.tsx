@@ -95,6 +95,33 @@ export function AcademyStudio({
       world_context: {
         setting: "production incident",
         truth_owner: "mission_runtime",
+        runtime_v1: {
+          initial_state: {
+            business: { rollout_status: "DEGRADED" },
+            technical: {
+              error_rate_percent: 13,
+              rollback_available: true,
+              rollback_started: false,
+            },
+            risk: { level: "HIGH" },
+            mission: { decision_status: "OPEN" },
+          },
+          decision_options: [
+            {
+              code: "ROLLBACK_AND_RECOVER",
+              label: "Rollback کنترل‌شده و برنامه بازیابی",
+            },
+          ],
+          decision_effects: {
+            ROLLBACK_AND_RECOVER: {
+              business: { rollout_status: "RECOVERING" },
+              technical: { rollback_started: true },
+              risk: { level: "MEDIUM" },
+              mission: { decision_status: "COMMITTED" },
+            },
+          },
+          complete_after_decision: true,
+        },
       },
       actors: [
         {

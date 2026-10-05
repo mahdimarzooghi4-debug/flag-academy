@@ -10,6 +10,11 @@ import {
 import { CandidateHome } from "./components/CandidateHome";
 import { InstructorHome } from "./components/InstructorHome";
 import {
+  MissionWorkspace,
+  type MissionCatalogItem,
+  type MissionInstance,
+} from "./components/MissionWorkspace";
+import {
   AcademyStudio,
   type CapabilityOption,
   type MissionCreateInput,
@@ -112,6 +117,26 @@ function AuthenticatedApp({
     },
   });
 
+  const activeMissions = useQuery({
+    queryKey: ["active-missions"],
+    enabled: isCandidate,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/missions/active");
+      if (error || !data) throw new Error("دریافت مأموریت‌های فعال ناموفق بود.");
+      return data as MissionCatalogItem[];
+    },
+  });
+
+  const missionInstances = useQuery({
+    queryKey: ["mission-instances"],
+    enabled: isCandidate,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/me/mission-instances");
+      if (error || !data) throw new Error("دریافت اجرای مأموریت‌ها ناموفق بود.");
+      return data as MissionInstance[];
+    },
+  });
+
   const instructor = useQuery({
     queryKey: ["instructor-home"],
     enabled: isInstructor && !isCandidate && !isAdmin,
@@ -178,6 +203,60 @@ function AuthenticatedApp({
     },
     onSuccess: async () => {
       await missionTemplates.refetch();
+    },
+  });
+
+  const startMission = useMutation({
+    mutationFn: async (versionId: string) => {
+      const { data, error } = await api.POST("/api/v1/missions/{version_id}/instances", {
+        params: { path: { version_id: versionId } },
+        body: { idempotency_key: crypto.randomUUID() },
+      });
+      if (error || !data) throw new Error("شروع مأموریت ناموفق بود.");
+      return data as MissionInstance;
+    },
+    onSuccess: async () => {
+      await missionInstances.refetch();
+    },
+  });
+
+  const submitMissionAction = useMutation({
+    mutationFn: async ({
+      instanceId,
+      worldVersion,
+      actionType,
+      payload,
+      reasoning,
+    }: {
+      instanceId: string;
+      worldVersion: number;
+      actionType: "REQUEST_INFORMATION" | "DECIDE";
+      payload: Record<string, unknown>;
+      reasoning: string;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/mission-instances/{instance_id}/actions",
+        {
+          params: { path: { instance_id: instanceId } },
+          body: {
+            action_type: actionType,
+            target: null,
+            payload,
+            reasoning,
+            confidence: 80,
+            expected_world_version: worldVersion,
+            idempotency_key: crypto.randomUUID(),
+            resource_cost: {},
+            mode: "CANDIDATE",
+            provenance: { surface: "WEB" },
+          },
+        },
+      );
+      if (error || !data) throw new Error("ثبت اقدام مأموریت ناموفق بود.");
+      return data as MissionInstance;
+    },
+    onSuccess: async () => {
+      await missionInstances.refetch();
     },
   });
 
@@ -327,7 +406,9 @@ function AuthenticatedApp({
     candidate.isLoading ||
     instructor.isLoading ||
     capabilities.isLoading ||
-    missionTemplates.isLoading
+    missionTemplates.isLoading ||
+    activeMissions.isLoading ||
+    missionInstances.isLoading
   ) return <Loading />;
   const error =
     me.error ||
@@ -335,9 +416,13 @@ function AuthenticatedApp({
     instructor.error ||
     capabilities.error ||
     missionTemplates.error ||
+    activeMissions.error ||
+    missionInstances.error ||
     createMission.error ||
     validateMission.error ||
     transitionMission.error ||
+    startMission.error ||
+    submitMissionAction.error ||
     updateLearningUnit.error ||
     submitPracticeAttempt.error ||
     submitAssignment.error ||
@@ -371,32 +456,74 @@ function AuthenticatedApp({
           }
         />
       ) : null}
-      {!isAdmin && isCandidate && candidate.data ? (
-        <CandidateHome
-          data={candidate.data}
-          onUpdateLearningUnit={async (learningUnitId, action) => {
-            await updateLearningUnit.mutateAsync({ learningUnitId, action });
-          }}
-          updatingLearningUnitId={
-            updateLearningUnit.isPending
-              ? updateLearningUnit.variables?.learningUnitId
-              : undefined
-          }
-          onSubmitPracticeAttempt={async (learningUnitId, response) => {
-            await submitPracticeAttempt.mutateAsync({ learningUnitId, response });
-          }}
-          submittingPracticeUnitId={
-            submitPracticeAttempt.isPending
-              ? submitPracticeAttempt.variables?.learningUnitId
-              : undefined
-          }
-          onSubmitAssignment={async (assignmentId, content) => {
-            await submitAssignment.mutateAsync({ assignmentId, content });
-          }}
-          submittingAssignmentId={
-            submitAssignment.isPending ? submitAssignment.variables?.assignmentId : undefined
-          }
-        />
+      {!isAdmin &&
+      isCandidate &&
+      candidate.data &&
+      activeMissions.data &&
+      missionInstances.data ? (
+        <>
+          <CandidateHome
+            data={candidate.data}
+            onUpdateLearningUnit={async (learningUnitId, action) => {
+              await updateLearningUnit.mutateAsync({ learningUnitId, action });
+            }}
+            updatingLearningUnitId={
+              updateLearningUnit.isPending
+                ? updateLearningUnit.variables?.learningUnitId
+                : undefined
+            }
+            onSubmitPracticeAttempt={async (learningUnitId, response) => {
+              await submitPracticeAttempt.mutateAsync({ learningUnitId, response });
+            }}
+            submittingPracticeUnitId={
+              submitPracticeAttempt.isPending
+                ? submitPracticeAttempt.variables?.learningUnitId
+                : undefined
+            }
+            onSubmitAssignment={async (assignmentId, content) => {
+              await submitAssignment.mutateAsync({ assignmentId, content });
+            }}
+            submittingAssignmentId={
+              submitAssignment.isPending ? submitAssignment.variables?.assignmentId : undefined
+            }
+          />
+          <main className="page-shell mission-shell">
+            <MissionWorkspace
+              missions={activeMissions.data}
+              instances={missionInstances.data}
+              onStart={async (versionId) => {
+                await startMission.mutateAsync(versionId);
+              }}
+              onRequestInformation={async (instanceId, worldVersion, label) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "REQUEST_INFORMATION",
+                  payload: { label },
+                  reasoning: `Request canonical information: ${label}`,
+                });
+              }}
+              onDecide={async (instanceId, worldVersion, decisionCode, reasoning) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "DECIDE",
+                  payload: {
+                    decision_code: decisionCode,
+                    options_considered: [decisionCode],
+                    available_evidence: [],
+                    assumptions: [],
+                    expected_outcome: "کاهش ریسک و آغاز بازیابی کنترل‌شده",
+                    revisit_trigger: "عدم بهبود وضعیت پس از اجرای تصمیم",
+                    reversibility: "REVERSIBLE_WITH_COST",
+                  },
+                  reasoning,
+                });
+              }}
+              busy={startMission.isPending || submitMissionAction.isPending}
+            />
+          </main>
+        </>
       ) : null}
       {!isAdmin && !isCandidate && isInstructor && instructor.data ? (
         <InstructorHome

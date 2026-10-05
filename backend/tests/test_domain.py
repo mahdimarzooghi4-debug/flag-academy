@@ -17,6 +17,12 @@ from app.mission_design.domain import (
     MissionVersionStatus,
     transition_allowed,
 )
+from app.mission_runtime.domain import (
+    MissionActionType,
+    MissionInstanceStatus,
+    apply_world_effect,
+    runtime_transition_allowed,
+)
 from app.platform.events import new_event
 
 
@@ -74,3 +80,43 @@ def test_mission_design_lifecycle_is_explicit() -> None:
     assert transition_allowed(MissionVersionStatus.PILOT.value, MissionVersionStatus.VALIDATED.value)
     assert transition_allowed(MissionVersionStatus.VALIDATED.value, MissionVersionStatus.ACTIVE.value)
     assert not transition_allowed(MissionVersionStatus.DRAFT.value, MissionVersionStatus.ACTIVE.value)
+
+
+def test_mission_runtime_lifecycle_and_action_contract_are_explicit() -> None:
+    assert runtime_transition_allowed(
+        MissionInstanceStatus.CREATED.value,
+        MissionInstanceStatus.ELIGIBILITY_CHECK.value,
+    )
+    assert runtime_transition_allowed(
+        MissionInstanceStatus.READY.value,
+        MissionInstanceStatus.RUNNING.value,
+    )
+    assert runtime_transition_allowed(
+        MissionInstanceStatus.RUNNING.value,
+        MissionInstanceStatus.COMPLETED.value,
+    )
+    assert MissionActionType.REQUEST_INFORMATION.value == "REQUEST_INFORMATION"
+    assert MissionActionType.DECIDE.value == "DECIDE"
+
+
+def test_mission_runtime_world_effect_is_deterministic_and_cannot_touch_profile() -> None:
+    initial = {
+        "technical": {"rollback_started": False},
+        "risk": {"level": "HIGH"},
+    }
+    effect = {
+        "technical": {"rollback_started": True},
+        "risk": {"level": "MEDIUM"},
+    }
+    assert apply_world_effect(initial, effect) == {
+        "technical": {"rollback_started": True},
+        "risk": {"level": "MEDIUM"},
+    }
+    assert initial["technical"]["rollback_started"] is False
+
+    try:
+        apply_world_effect(initial, {"profile": {"proof_state": "PROVEN"}})
+    except ValueError as exc:
+        assert "reserved namespaces" in str(exc)
+    else:
+        raise AssertionError("Mission Runtime must reject direct Profile mutation.")
