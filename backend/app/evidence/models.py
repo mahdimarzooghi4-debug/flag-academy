@@ -26,6 +26,8 @@ class EvidenceCase(Base):
     observation_type: Mapped[str] = mapped_column(String(80))
     observed_fact: Mapped[str] = mapped_column(Text)
     observed_payload: Mapped[dict] = mapped_column(JSONB)
+    candidate_visible: Mapped[bool] = mapped_column(default=False)
+    candidate_visible_payload: Mapped[dict] = mapped_column(JSONB)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     source_independence_group: Mapped[str] = mapped_column(String(255))
     provenance: Mapped[dict] = mapped_column(JSONB)
