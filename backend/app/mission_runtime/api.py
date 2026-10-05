@@ -644,6 +644,13 @@ async def _append_observation(
                 "observation_type": observation.observation_type,
                 "observed_fact": observation.factual_statement,
                 "observed_payload": observation.payload,
+                "candidate_visible": candidate_observation_visible(
+                    observation.observation_type
+                ),
+                "candidate_visible_payload": candidate_observation_payload(
+                    observation.observation_type,
+                    observation.payload,
+                ),
                 "occurred_at": observation.occurred_at.isoformat(),
                 "source_independence_group": f"MISSION_INSTANCE:{instance.id}",
                 "provenance": {
