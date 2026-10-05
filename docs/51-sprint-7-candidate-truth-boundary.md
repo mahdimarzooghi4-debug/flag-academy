@@ -63,9 +63,10 @@ Candidate می‌تواند فقط از مسیر Action معتبر `REQUEST_INFO
 Runtime Event در DB همچنان audit کامل داخلی را نگه می‌دارد.
 
 Candidate API:
-- فقط Event با `visibility=CANDIDATE` را برمی‌گرداند؛
-- payload هر event_type را با allowlist مستقل sanitize می‌کند؛
-- event_type ناشناخته payload خالی می‌گیرد.
+- فقط Event با `visibility=CANDIDATE` را بررسی می‌کند؛
+- خود `event_type` نیز باید در allowlist Candidate باشد؛
+- payload هر event_type مجاز را با allowlist مستقل sanitize می‌کند؛
+- event_type ناشناخته به‌طور کامل از Candidate response حذف می‌شود.
 
 مثال:
 - DB event `decision.committed` می‌تواند `effect_applied` را برای Audit داخلی حفظ کند.
@@ -107,7 +108,7 @@ Candidate:
 - Candidate projection از canonical state مشتق می‌شود، نه بالعکس.
 - Hidden path بدون allowlist هرگز در Candidate response ظاهر نمی‌شود.
 - Runtime Event audit داخلی می‌تواند richer از Candidate event payload باشد.
-- Unknown Runtime Event payload برای Candidate fail-closed است.
+- Unknown Runtime Event Type برای Candidate fail-closed است و اصلاً serialize نمی‌شود.
 - Unknown Observation Type برای Candidate fail-closed است.
 - `effect_applied` در Candidate event payload افشا نمی‌شود.
 - `simulation_seed` internal-only است.
