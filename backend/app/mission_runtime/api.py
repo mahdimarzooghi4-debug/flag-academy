@@ -2947,6 +2947,12 @@ async def submit_mission_action(
                 "Scope change cannot transfer Candidate accountability for the Mission.",
                 status_code=422,
             )
+        if next_world == instance.world_state:
+            raise AppError(
+                "SCOPE_CHANGE_NO_EFFECT",
+                "Scope-change option must change canonical World State.",
+                status_code=422,
+            )
 
         instance.world_state = next_world
         instance.world_state_version += 1
