@@ -291,9 +291,19 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     hasText: "Recovery decision deadline",
   });
   await expect(cancelledDeadline.locator(".state")).toHaveText("CANCELLED");
+  const appliedStateEffect = runtimeCard.locator(".assignment-head").filter({
+    hasText: "Recovery commitment broadcast",
+  });
+  await expect(appliedStateEffect).toContainText("state-triggered");
+  await expect(appliedStateEffect.locator(".state")).toHaveText("APPLIED");
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"recovery_signal": "BROADCAST"',
+  );
   await expect(runtimeCard).toContainText("SCHEDULED_EFFECT_CANCELLED_OBSERVED");
   await expect(runtimeCard).toContainText("DECISION_COMMITTED");
   await expect(runtimeCard).not.toContainText("cancel_condition_matched");
+  await expect(runtimeCard).not.toContainText("trigger_condition_matched");
+  await expect(runtimeCard).not.toContainText("WORLD_STATE_EQUALS");
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
@@ -350,6 +360,14 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     hasText: "Recovery decision deadline",
   });
   await expect(appliedDeadline.locator(".state")).toHaveText("APPLIED");
+  const cancelledStateEffect = timeoutCard.locator(".assignment-head").filter({
+    hasText: "Recovery commitment broadcast",
+  });
+  await expect(cancelledStateEffect).toContainText("state-triggered");
+  await expect(cancelledStateEffect.locator(".state")).toHaveText("CANCELLED");
+  await expect(timeoutCard.getByTestId("world-state")).toContainText(
+    '"recovery_signal": "NOT_BROADCAST"',
+  );
   await expect(timeoutCard.getByTestId("world-state")).toContainText('"level": "CRITICAL"');
   await expect(timeoutCard.getByTestId("world-state")).toContainText(
     '"decision_status": "EXPIRED"',
@@ -363,6 +381,8 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(timeoutCard).toContainText("NO_ACTION_OBSERVED");
   await expect(timeoutCard).toContainText("MISSION_TIME_EXPIRED");
   await expect(timeoutCard).toContainText("RECOVERY_DECISION_DEADLINE");
+  await expect(timeoutCard).not.toContainText("trigger_condition_matched");
+  await expect(timeoutCard).not.toContainText("WORLD_STATE_EQUALS");
   await expect(
     timeoutCard.getByRole("button", { name: "Rollback کنترل‌شده و برنامه بازیابی" }),
   ).toHaveCount(0);
