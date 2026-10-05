@@ -238,6 +238,15 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText(
     '"scope_change_status": "NOT_CHANGED"',
   );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"resource_allocation_status": "NOT_ALLOCATED"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"available_units": 3',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"recovery_capacity_units": 0',
+  );
 
   await runtimeCard
     .getByLabel("پیام به Business Sponsor")
@@ -280,6 +289,36 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("FULL_ROLLOUT");
   await expect(runtimeCard).toContainText("CRITICAL_CUSTOMERS_ONLY");
   await expect(runtimeCard).not.toContainText("scope_path");
+  await expect(runtimeCard).not.toContainText("world_effect_applied");
+
+  await runtimeCard.getByLabel("دلیل تخصیص منبع").fill(
+    "ظرفیت محدود مهندسی را به recovery متعهد می‌کنم چون کاهش ریسک مشتریان حیاتی نسبت به کارهای دیگر اولویت بالاتری دارد.",
+  );
+  await runtimeCard
+    .getByRole("button", {
+      name: "اختصاص ۲ واحد ظرفیت مهندسی به recovery · 2 ENGINEER_EQUIVALENT",
+    })
+    .click();
+
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"resource_allocation_status": "ACTIVE"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"available_units": 1',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"recovery_capacity_units": 2',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"accountability_owner": "CANDIDATE"',
+  );
+  await expect(runtimeCard).toContainText(
+    "دو واحد ظرفیت مهندسی به recovery متعهد شد",
+  );
+  await expect(runtimeCard).toContainText("RESOURCE_ALLOCATION_OBSERVED");
+  await expect(runtimeCard).not.toContainText("available_path");
+  await expect(runtimeCard).not.toContainText("allocated_path");
+  await expect(runtimeCard).not.toContainText("resource_cost_applied");
   await expect(runtimeCard).not.toContainText("world_effect_applied");
 
   await runtimeCard.getByLabel("دلیل واگذاری").fill(
@@ -384,7 +423,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 5 to 6");
+  await expect(runtimeCard).toContainText("world state advanced from version 6 to 7");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
 
