@@ -144,9 +144,9 @@ export function AcademyStudio({
               decision_status: "OPEN",
               escalation_status: "NONE",
               delegation_status: "NOT_DELEGATED",
+              accountability_owner: "CANDIDATE",
             },
             delivery: {
-              accountability_owner: "CANDIDATE",
               recovery_coordinator: "CANDIDATE",
             },
           },
@@ -162,7 +162,7 @@ export function AcademyStudio({
             "mission.decision_status",
             "mission.escalation_status",
             "mission.delegation_status",
-            "delivery.accountability_owner",
+            "mission.accountability_owner",
             "delivery.recovery_coordinator",
           ],
           actor_runtime: {
