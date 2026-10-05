@@ -142,7 +142,9 @@ class ScheduledEffect(Base):
     due_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    trigger_condition: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    trigger_condition: Mapped[dict | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     effect_payload: Mapped[dict] = mapped_column(JSONB)
     terminal_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     cancellable: Mapped[bool] = mapped_column(default=False)
