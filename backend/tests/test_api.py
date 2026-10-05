@@ -120,6 +120,8 @@ def test_evidence_engine_contract_is_exposed() -> None:
     assert "accepted_interpretation" in candidate_props
     assert "reviews" not in candidate_props
     assert "source_independence_group" not in candidate_props
+    assert "provenance" not in candidate_props
+    assert "source_runtime_event_id" not in candidate_props
 
     submit_props = schemas["EvidenceSubmitRequest"]["properties"]
     assert "expected_version" in submit_props
