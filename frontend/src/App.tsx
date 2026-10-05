@@ -296,6 +296,32 @@ function AuthenticatedApp({
     },
   });
 
+  const advanceMissionWorld = useMutation({
+    mutationFn: async ({
+      instanceId,
+      worldVersion,
+    }: {
+      instanceId: string;
+      worldVersion: number;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/mission-instances/{instance_id}/advance-to-next-event",
+        {
+          params: { path: { instance_id: instanceId } },
+          body: {
+            expected_world_version: worldVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("پیشروی زمان شبیه‌سازی ناموفق بود.");
+      return data as MissionInstance;
+    },
+    onSuccess: async () => {
+      await missionInstances.refetch();
+    },
+  });
+
   const assignMission = useMutation({
     mutationFn: async ({
       versionId,
@@ -486,6 +512,7 @@ function AuthenticatedApp({
     validateMission.error ||
     transitionMission.error ||
     assignMission.error ||
+    advanceMissionWorld.error ||
     startMission.error ||
     submitMissionAction.error ||
     updateLearningUnit.error ||
@@ -620,6 +647,12 @@ function AuthenticatedApp({
                   reasoning: rationale,
                 });
               }}
+              onAdvanceWorld={async (instanceId, worldVersion) => {
+                await advanceMissionWorld.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                });
+              }}
               onDecide={async (instanceId, worldVersion, decisionCode, reasoning) => {
                 await submitMissionAction.mutateAsync({
                   instanceId,
@@ -637,7 +670,11 @@ function AuthenticatedApp({
                   reasoning,
                 });
               }}
-              busy={startMission.isPending || submitMissionAction.isPending}
+              busy={
+                startMission.isPending ||
+                submitMissionAction.isPending ||
+                advanceMissionWorld.isPending
+              }
             />
           </main>
         </>

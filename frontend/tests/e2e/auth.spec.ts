@@ -255,6 +255,25 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("ESCALATION_OBSERVED");
   await expect(runtimeCard).not.toContainText("world_effect_applied");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
+  await expect(runtimeCard).toContainText("Executive recovery checkpoint");
+  await expect(runtimeCard).toContainText("PENDING");
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"executive_checkpoint": "NOT_SCHEDULED"',
+  );
+
+  await runtimeCard
+    .getByRole("button", { name: "اجرای رویداد بعدی جهان" })
+    .click();
+
+  await expect(runtimeCard).toContainText("APPLIED");
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"executive_checkpoint": "DUE"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"escalation_status": "CHECKPOINT_DUE"',
+  );
+  await expect(runtimeCard).toContainText("SCHEDULED_EFFECT_OBSERVED");
+  await expect(runtimeCard).not.toContainText("effect_applied");
 
   await runtimeCard.getByRole("button", { name: "درخواست Dependency trace" }).click();
   await expect(runtimeCard).toContainText("intermittent timeout spikes");
@@ -271,7 +290,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 2 to 3");
+  await expect(runtimeCard).toContainText("world state advanced from version 3 to 4");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();

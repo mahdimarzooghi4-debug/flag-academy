@@ -70,6 +70,15 @@ export interface paths {
       responses: { 200: { content: { "application/json": MissionInstanceResponse } } };
     };
   };
+  "/api/v1/mission-instances/{instance_id}/advance-to-next-event": {
+    post: {
+      parameters: { path: { instance_id: string } };
+      requestBody: { content: { "application/json": {
+        expected_world_version: number; idempotency_key: string;
+      } } };
+      responses: { 200: { content: { "application/json": MissionInstanceResponse } } };
+    };
+  };
   "/api/v1/mission-instances/{instance_id}/actions": {
     post: {
       parameters: { path: { instance_id: string } };
@@ -307,6 +316,8 @@ export interface MissionInstanceResponse {
   status: string;
   world_state: Record<string, unknown>;
   world_state_version: number;
+  simulation_time: string;
+  scheduled_effects: MissionScheduledEffect[];
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
@@ -374,4 +385,12 @@ export interface MissionActorInstance {
   state: Record<string, unknown>;
   state_version: number;
   communication_options: Array<{ code: string; label: string }>;
+}
+
+export interface MissionScheduledEffect {
+  id: string;
+  effect_code: string;
+  label: string;
+  due_at: string;
+  status: string;
 }

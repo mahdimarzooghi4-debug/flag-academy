@@ -80,6 +80,7 @@ class MissionInstance(Base):
     world_state: Mapped[dict] = mapped_column(JSONB)
     world_state_version: Mapped[int] = mapped_column(BigInteger, default=1)
     simulation_seed: Mapped[int] = mapped_column(BigInteger)
+    simulation_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     start_idempotency_key: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(
@@ -111,6 +112,42 @@ class ActorInstance(Base):
     state_version: Mapped[int] = mapped_column(BigInteger, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ScheduledEffect(Base):
+    __tablename__ = "scheduled_effects"
+    __table_args__ = (
+        UniqueConstraint(
+            "mission_instance_id",
+            "idempotency_key",
+            name="uq_scheduled_effect_instance_idempotency",
+        ),
+        {"schema": "mission_runtime"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    mission_instance_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mission_runtime.mission_instances.id")
+    )
+    origin_event_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mission_runtime.runtime_events.id")
+    )
+    effect_code: Mapped[str] = mapped_column(String(120))
+    label: Mapped[str] = mapped_column(String(255))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    effect_payload: Mapped[dict] = mapped_column(JSONB)
+    cancellable: Mapped[bool] = mapped_column(default=False)
+    cancel_condition: Mapped[dict] = mapped_column(JSONB)
+    visibility: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    applied_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(200))
 
 
 class CandidateAction(Base):

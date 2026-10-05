@@ -135,7 +135,10 @@ export function AcademyStudio({
               root_cause_code: "DOWNSTREAM_DEPENDENCY",
             },
             risk: { level: "HIGH" },
-            stakeholder: { executive_attention: "NONE" },
+            stakeholder: {
+              executive_attention: "NONE",
+              executive_checkpoint: "NOT_SCHEDULED",
+            },
             mission: {
               decision_status: "OPEN",
               escalation_status: "NONE",
@@ -148,6 +151,7 @@ export function AcademyStudio({
             "technical.rollback_started",
             "risk.level",
             "stakeholder.executive_attention",
+            "stakeholder.executive_checkpoint",
             "mission.decision_status",
             "mission.escalation_status",
           ],
@@ -194,6 +198,20 @@ export function AcademyStudio({
               actor_effect: {
                 commitment: "EXECUTIVE_SPONSORSHIP",
               },
+              scheduled_effects: [
+                {
+                  code: "EXECUTIVE_CHECKPOINT_DUE",
+                  label: "Executive recovery checkpoint",
+                  due_after_seconds: 900,
+                  effect: {
+                    stakeholder: { executive_checkpoint: "DUE" },
+                    mission: { escalation_status: "CHECKPOINT_DUE" },
+                  },
+                  visibility: "CANDIDATE",
+                  cancellable: false,
+                  cancel_condition: {},
+                },
+              ],
             },
           ],
           decision_options: [

@@ -274,3 +274,41 @@ def test_escalation_observation_is_explicit_candidate_fact() -> None:
     )
     assert "judgment" not in visible
     assert visible["actor_state_version_after"] == 3
+
+
+def test_scheduled_effect_payload_hides_internal_effect() -> None:
+    assert candidate_event_visible("scheduled_effect.created")
+    assert candidate_event_visible("scheduled_effect.applied")
+    visible = candidate_event_payload(
+        "scheduled_effect.applied",
+        {
+            "effect_code": "EXECUTIVE_CHECKPOINT_DUE",
+            "label": "Executive recovery checkpoint",
+            "due_at": "2026-10-05T10:00:00+00:00",
+            "effect_applied": {
+                "stakeholder": {"executive_checkpoint": "DUE"},
+            },
+            "world_version_before": 2,
+            "world_version_after": 3,
+        },
+    )
+    assert visible["effect_code"] == "EXECUTIVE_CHECKPOINT_DUE"
+    assert visible["world_version_after"] == 3
+    assert "effect_applied" not in visible
+
+
+def test_scheduled_effect_observation_is_factual_and_explicit() -> None:
+    assert candidate_observation_visible("SCHEDULED_EFFECT_OBSERVED")
+    visible = candidate_observation_payload(
+        "SCHEDULED_EFFECT_OBSERVED",
+        {
+            "effect_code": "EXECUTIVE_CHECKPOINT_DUE",
+            "due_at": "2026-10-05T10:00:00+00:00",
+            "world_version_before": 2,
+            "world_version_after": 3,
+            "judgment": "candidate waited too long",
+        },
+    )
+    assert "judgment" not in visible
+    assert visible["world_version_before"] == 2
+    assert visible["world_version_after"] == 3

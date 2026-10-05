@@ -36,6 +36,14 @@ export type MissionObservation = {
   occurred_at: string;
 };
 
+export type MissionScheduledEffect = {
+  id: string;
+  effect_code: string;
+  label: string;
+  due_at: string;
+  status: string;
+};
+
 export type MissionActorInstance = {
   id: string;
   actor_key: string;
@@ -56,6 +64,8 @@ export type MissionInstance = {
   status: string;
   world_state: Record<string, unknown>;
   world_state_version: number;
+  simulation_time: string;
+  scheduled_effects: MissionScheduledEffect[];
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
@@ -94,6 +104,10 @@ type Props = {
     escalationCode: string,
     rationale: string,
   ) => Promise<void>;
+  onAdvanceWorld: (
+    instanceId: string,
+    worldVersion: number,
+  ) => Promise<void>;
   onDecide: (
     instanceId: string,
     worldVersion: number,
@@ -110,6 +124,7 @@ export function MissionWorkspace({
   onRequestInformation,
   onCommunicate,
   onEscalate,
+  onAdvanceWorld,
   onDecide,
   busy,
 }: Props) {
@@ -177,11 +192,46 @@ export function MissionWorkspace({
                 <>
                   <div className="runtime-meta">
                     <span>World v{instance.world_state_version}</span>
+                    <span>Simulation {instance.simulation_time}</span>
                     <span>Candidate-visible state</span>
                   </div>
 
                   {instance.status === "RUNNING" ? (
                     <>
+                      {instance.scheduled_effects.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>رویدادهای زمان‌بندی‌شده جهان</strong>
+                          <div className="stack">
+                            {instance.scheduled_effects.map((effect) => (
+                              <div key={effect.id} className="assignment-head">
+                                <div>
+                                  <b>{effect.label}</b>
+                                  <p>
+                                    {effect.effect_code} · due {effect.due_at}
+                                  </p>
+                                </div>
+                                <span className="state">{effect.status}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {instance.scheduled_effects.some(
+                            (effect) => effect.status === "PENDING",
+                          ) ? (
+                            <button
+                              className="ghost dark"
+                              disabled={busy}
+                              onClick={() =>
+                                void onAdvanceWorld(
+                                  instance.id,
+                                  instance.world_state_version,
+                                )
+                              }
+                            >
+                              اجرای رویداد بعدی جهان
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {instance.actors.length > 0 ? (
                         <div className="runtime-block">
                           <strong>تعامل با Actorها</strong>
