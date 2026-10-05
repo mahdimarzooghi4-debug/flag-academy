@@ -187,11 +187,10 @@ def experiment_contract_valid(contract: Any) -> bool:
         "decision_rule",
         "duration_stopping_rule",
     )
-    if any(
-        not isinstance(contract.get(key), str) or not contract.get(key).strip()
-        for key in required_text
-    ):
-        return False
+    for key in required_text:
+        value = contract.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return False
 
     for key in ("primary_metrics", "secondary_metrics", "guardrails", "known_risks"):
         value = contract.get(key)
