@@ -135,7 +135,11 @@ export function AcademyStudio({
               root_cause_code: "DOWNSTREAM_DEPENDENCY",
             },
             risk: { level: "HIGH" },
-            mission: { decision_status: "OPEN" },
+            stakeholder: { executive_attention: "NONE" },
+            mission: {
+              decision_status: "OPEN",
+              escalation_status: "NONE",
+            },
           },
           candidate_visible_paths: [
             "business.rollout_status",
@@ -143,7 +147,9 @@ export function AcademyStudio({
             "technical.rollback_available",
             "technical.rollback_started",
             "risk.level",
+            "stakeholder.executive_attention",
             "mission.decision_status",
+            "mission.escalation_status",
           ],
           actor_runtime: {
             business_sponsor: {
@@ -174,6 +180,22 @@ export function AcademyStudio({
               ],
             },
           },
+          escalation_options: [
+            {
+              code: "EXECUTIVE_RECOVERY_ESCALATION",
+              label: "Escalate برنامه بازیابی به Business Sponsor",
+              actor_key: "business_sponsor",
+              response:
+                "Escalation پذیرفته شد. Executive attention فعال است و تصمیم بازیابی در checkpoint بعدی بازبینی می‌شود.",
+              world_effect: {
+                stakeholder: { executive_attention: "ENGAGED" },
+                mission: { escalation_status: "EXECUTIVE_REVIEW" },
+              },
+              actor_effect: {
+                commitment: "EXECUTIVE_SPONSORSHIP",
+              },
+            },
+          ],
           decision_options: [
             {
               code: "ROLLBACK_AND_RECOVER",
