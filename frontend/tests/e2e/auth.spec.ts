@@ -149,8 +149,9 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   test.setTimeout(180_000);
   const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
   const candidatePassword = process.env.PARCHAM_DEV_CANDIDATE_PASSWORD;
-  if (!adminPassword || !candidatePassword) {
-    throw new Error("Academy Admin and Candidate OIDC passwords are required");
+  const assessorPassword = process.env.PARCHAM_DEV_ASSESSOR_PASSWORD;
+  if (!adminPassword || !candidatePassword || !assessorPassword) {
+    throw new Error("Academy Admin, Candidate, and Assessor OIDC passwords are required");
   }
 
   await login(page, "academy-admin", adminPassword);
@@ -538,5 +539,91 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(
     timeoutCard.getByRole("button", { name: "Rollback کنترل‌شده و برنامه بازیابی" }),
   ).toHaveCount(0);
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  // Evidence Engine starts from sealed factual Observation and remains separate from Proof.
+  await logout(page);
+  await login(page, "assessor", assessorPassword);
+
+  await expect(page.getByText("فضای ارزیاب Evidence")).toBeVisible();
+  const evidenceCard = page.locator(".assignment-card").filter({
+    hasText: "EXPERIMENT_RESULT_OBSERVED",
+  }).first();
+  await expect(evidenceCard).toBeVisible();
+  await expect(evidenceCard.locator(".state")).toHaveText("DRAFT");
+  await expect(evidenceCard).toContainText("SEALED");
+  await expect(evidenceCard).toContainText('"error_rate_percent": 13');
+  await expect(evidenceCard).toContainText('"error_rate_percent": 5');
+
+  await evidenceCard.getByRole("button", { name: "ثبت Interpretation" }).click();
+  await expect(evidenceCard.locator(".state")).toHaveText("SUBMITTED");
+  await expect(evidenceCard.getByTestId("assessor-interpretation")).toContainText(
+    "METRIC_REASONING",
+  );
+  await expect(evidenceCard.getByTestId("assessor-interpretation")).toContainText(
+    "AI NONE",
+  );
+
+  await evidenceCard.getByRole("button", { name: "شروع Review" }).click();
+  await expect(evidenceCard.locator(".state")).toHaveText("UNDER_REVIEW");
+  await evidenceCard
+    .getByRole("button", { name: "درخواست Context از Candidate" })
+    .click();
+  await expect(evidenceCard.locator(".state")).toHaveText("NEEDS_CONTEXT");
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+
+  const candidateEvidenceCard = page.locator(".assignment-card").filter({
+    hasText: "EXPERIMENT_RESULT_OBSERVED",
+  }).first();
+  await expect(candidateEvidenceCard).toBeVisible();
+  await expect(candidateEvidenceCard.locator(".state")).toHaveText("NEEDS_CONTEXT");
+  await expect(candidateEvidenceCard.getByTestId("candidate-context-request")).toContainText(
+    "Result چگونه روی تصمیم بعدی تو اثر گذاشت",
+  );
+  await expect(candidateEvidenceCard).not.toContainText("METRIC_REASONING");
+  await expect(candidateEvidenceCard).not.toContainText(
+    "Source lineage and interpretation contract reviewed.",
+  );
+
+  await candidateEvidenceCard
+    .getByLabel("پاسخ Context Evidence")
+    .fill(
+      "Result را فقط به‌عنوان measurement استفاده کردم؛ کاهش error rate به‌تنهایی Proof نیست و تصمیم rollback را با guardrail و context مأموریت سنجیدم.",
+    );
+  await candidateEvidenceCard.getByRole("button", { name: "ارسال Context" }).click();
+  await expect(candidateEvidenceCard).toContainText(
+    "کاهش error rate به‌تنهایی Proof نیست",
+  );
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  await logout(page);
+  await login(page, "assessor", assessorPassword);
+
+  const reviewedEvidenceCard = page.locator(".assignment-card").filter({
+    hasText: "EXPERIMENT_RESULT_OBSERVED",
+  }).first();
+  await expect(reviewedEvidenceCard).toContainText(
+    "کاهش error rate به‌تنهایی Proof نیست",
+  );
+  await reviewedEvidenceCard.getByRole("button", { name: "بازگشت به Review" }).click();
+  await expect(reviewedEvidenceCard.locator(".state")).toHaveText("UNDER_REVIEW");
+  await reviewedEvidenceCard.getByRole("button", { name: "پذیرش Evidence" }).click();
+  await expect(reviewedEvidenceCard.locator(".state")).toHaveText("ACCEPTED");
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+
+  const acceptedEvidenceCard = page.locator(".assignment-card").filter({
+    hasText: "EXPERIMENT_RESULT_OBSERVED",
+  }).first();
+  await expect(acceptedEvidenceCard.locator(".state")).toHaveText("ACCEPTED");
+  await expect(
+    acceptedEvidenceCard.getByTestId("candidate-accepted-interpretation"),
+  ).toContainText("METRIC_REASONING");
+  await expect(
+    acceptedEvidenceCard.getByTestId("candidate-accepted-interpretation"),
+  ).toContainText("Reviewed Evidence");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });
