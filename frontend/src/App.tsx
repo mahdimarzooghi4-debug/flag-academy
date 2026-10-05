@@ -267,6 +267,7 @@ function AuthenticatedApp({
         | "REQUEST_INFORMATION"
         | "COMMUNICATE"
         | "ESCALATE"
+        | "DELEGATE"
         | "NO_ACTION"
         | "DECIDE";
       target?: string;
@@ -647,6 +648,27 @@ function AuthenticatedApp({
                   actorVersion,
                   payload: {
                     escalation_code: escalationCode,
+                    rationale,
+                  },
+                  reasoning: rationale,
+                });
+              }}
+              onDelegate={async (
+                instanceId,
+                worldVersion,
+                actorKey,
+                actorVersion,
+                delegationCode,
+                rationale,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "DELEGATE",
+                  target: actorKey,
+                  actorVersion,
+                  payload: {
+                    delegation_code: delegationCode,
                     rationale,
                   },
                   reasoning: rationale,
