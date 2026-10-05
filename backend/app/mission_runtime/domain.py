@@ -174,7 +174,7 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         }
     ),
     "scheduled_effect.created": frozenset(
-        {"effect_code", "label", "due_at"}
+        {"effect_code", "label", "due_at", "trigger_mode"}
     ),
     "simulation.time_advanced": frozenset(
         {"from_time", "to_time"}
@@ -184,6 +184,7 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "effect_code",
             "label",
             "due_at",
+            "trigger_mode",
             "world_version_before",
             "world_version_after",
         }
@@ -242,6 +243,7 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         {
             "effect_code",
             "due_at",
+            "trigger_mode",
             "world_version_before",
             "world_version_after",
         }

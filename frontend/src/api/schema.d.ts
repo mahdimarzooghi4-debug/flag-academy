@@ -392,6 +392,7 @@ export interface MissionScheduledEffect {
   id: string;
   effect_code: string;
   label: string;
-  due_at: string;
+  due_at?: string | null;
+  trigger_mode: string;
   status: string;
 }

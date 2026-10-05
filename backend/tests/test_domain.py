@@ -290,6 +290,7 @@ def test_scheduled_effect_payload_hides_internal_effect() -> None:
             "effect_code": "EXECUTIVE_CHECKPOINT_DUE",
             "label": "Executive recovery checkpoint",
             "due_at": "2026-10-05T10:00:00+00:00",
+            "trigger_mode": "DUE_AT",
             "effect_applied": {
                 "stakeholder": {"executive_checkpoint": "DUE"},
             },
@@ -299,6 +300,7 @@ def test_scheduled_effect_payload_hides_internal_effect() -> None:
     )
     assert visible["effect_code"] == "EXECUTIVE_CHECKPOINT_DUE"
     assert visible["world_version_after"] == 3
+    assert visible["trigger_mode"] == "DUE_AT"
     assert "effect_applied" not in visible
 
 
@@ -309,6 +311,7 @@ def test_scheduled_effect_observation_is_factual_and_explicit() -> None:
         {
             "effect_code": "EXECUTIVE_CHECKPOINT_DUE",
             "due_at": "2026-10-05T10:00:00+00:00",
+            "trigger_mode": "DUE_AT",
             "world_version_before": 2,
             "world_version_after": 3,
             "judgment": "candidate waited too long",
@@ -385,4 +388,44 @@ def test_scheduled_effect_cancellation_visibility_is_fail_closed() -> None:
         },
     )
     assert observation["world_version"] == 4
+    assert "judgment" not in observation
+
+
+def test_state_triggered_effect_visibility_hides_internal_condition() -> None:
+    visible = candidate_event_payload(
+        "scheduled_effect.applied",
+        {
+            "effect_code": "RECOVERY_COMMITMENT_BROADCAST",
+            "label": "Recovery commitment broadcast",
+            "due_at": None,
+            "trigger_mode": "STATE_TRIGGERED",
+            "effect_applied": {
+                "stakeholder": {"recovery_signal": "BROADCAST"},
+            },
+            "trigger_condition_matched": {
+                "type": "WORLD_STATE_EQUALS",
+                "path": "mission.decision_status",
+                "equals": "COMMITTED",
+            },
+            "world_version_before": 4,
+            "world_version_after": 5,
+        },
+    )
+    assert visible["trigger_mode"] == "STATE_TRIGGERED"
+    assert visible["due_at"] is None
+    assert "effect_applied" not in visible
+    assert "trigger_condition_matched" not in visible
+
+    observation = candidate_observation_payload(
+        "SCHEDULED_EFFECT_OBSERVED",
+        {
+            "effect_code": "RECOVERY_COMMITMENT_BROADCAST",
+            "due_at": None,
+            "trigger_mode": "STATE_TRIGGERED",
+            "world_version_before": 4,
+            "world_version_after": 5,
+            "judgment": "strong recovery leadership",
+        },
+    )
+    assert observation["trigger_mode"] == "STATE_TRIGGERED"
     assert "judgment" not in observation

@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -122,6 +123,10 @@ class ScheduledEffect(Base):
             "idempotency_key",
             name="uq_scheduled_effect_instance_idempotency",
         ),
+        CheckConstraint(
+            "(due_at IS NOT NULL) <> (trigger_condition IS NOT NULL)",
+            name="ck_scheduled_effect_exactly_one_trigger",
+        ),
         {"schema": "mission_runtime"},
     )
 
@@ -134,7 +139,12 @@ class ScheduledEffect(Base):
     )
     effect_code: Mapped[str] = mapped_column(String(120))
     label: Mapped[str] = mapped_column(String(255))
-    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    trigger_condition: Mapped[dict | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     effect_payload: Mapped[dict] = mapped_column(JSONB)
     terminal_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     cancellable: Mapped[bool] = mapped_column(default=False)
