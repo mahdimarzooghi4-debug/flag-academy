@@ -268,6 +268,7 @@ function AuthenticatedApp({
         | "COMMUNICATE"
         | "ESCALATE"
         | "DELEGATE"
+        | "CHANGE_SCOPE"
         | "NO_ACTION"
         | "DECIDE";
       target?: string;
@@ -669,6 +670,23 @@ function AuthenticatedApp({
                   actorVersion,
                   payload: {
                     delegation_code: delegationCode,
+                    rationale,
+                  },
+                  reasoning: rationale,
+                });
+              }}
+              onChangeScope={async (
+                instanceId,
+                worldVersion,
+                scopeChangeCode,
+                rationale,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "CHANGE_SCOPE",
+                  payload: {
+                    scope_change_code: scopeChangeCode,
                     rationale,
                   },
                   reasoning: rationale,
