@@ -444,6 +444,14 @@ async def _instance_response(
         )
     ).scalars().all()
 
+    actor_instances = (
+        await db.execute(
+            select(ActorInstance)
+            .where(ActorInstance.mission_instance_id == instance.id)
+            .order_by(ActorInstance.actor_key)
+        )
+    ).scalars().all()
+
     candidate_events = [
         item
         for item in events
@@ -482,6 +490,24 @@ async def _instance_response(
         decision_points=version.decision_points,
         information_options=_information_options(version),
         decision_options=_decision_options(version),
+        actors=[
+            ActorInstanceResponse(
+                id=item.id,
+                actor_key=item.actor_key,
+                display_name=item.definition_name,
+                state=project_candidate_visible_state(
+                    item.state,
+                    _actor_candidate_visible_paths(
+                        _actor_runtime_config(version, item.actor_key) or {}
+                    ),
+                ),
+                state_version=item.state_version,
+                communication_options=_actor_communication_options(
+                    _actor_runtime_config(version, item.actor_key) or {}
+                ),
+            )
+            for item in actor_instances
+        ],
         disclosed_information=disclosed_information,
         audit_events=[
             RuntimeEventResponse(
