@@ -160,6 +160,14 @@ jobs:
           hidden_world_truth=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{technical,root_cause_code}' = 'DOWNSTREAM_DEPENDENCY';")
           internal_simulation_seeds=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where simulation_seed is not null;")
           internal_decision_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'decision.committed' and payload ? 'effect_applied';")
+          actor_instances=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances;")
+          actor_state_version_2=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state_version >= 2;")
+          actor_supportive=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state->>'commitment' = 'SUPPORTIVE' and (state->>'trust_toward_candidate')::int = 60 and (state->>'current_frustration')::int = 40;")
+          hidden_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state->>'private_escalation_threshold' = 'LOW';")
+          communicate_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'COMMUNICATE';")
+          actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
+          internal_actor_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded' and payload ? 'actor_effect_applied';")
+          actor_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ACTOR_RESPONSE_OBSERVED';")
 
           test "$published" -ge 23
           test "$inbox" -ge 23
@@ -179,10 +187,10 @@ jobs:
           test "$mission_versions" -ge 1
           test "$mission_instances" -ge 1
           test "$completed_mission_instances" -ge 1
-          test "$mission_actions" -ge 2
+          test "$mission_actions" -ge 3
           test "$mission_decisions" -ge 1
-          test "$runtime_events" -ge 8
-          test "$runtime_observations" -ge 3
+          test "$runtime_events" -ge 10
+          test "$runtime_observations" -ge 4
           test "$mission_assignments" -ge 1
           test "$completed_mission_assignments" -ge 1
           test "$assignment_bound_instances" -ge 1
@@ -190,6 +198,14 @@ jobs:
           test "$hidden_world_truth" -ge 1
           test "$internal_simulation_seeds" -ge 1
           test "$internal_decision_effects" -ge 1
+          test "$actor_instances" -ge 1
+          test "$actor_state_version_2" -ge 1
+          test "$actor_supportive" -ge 1
+          test "$hidden_actor_state" -ge 1
+          test "$communicate_actions" -ge 1
+          test "$actor_response_events" -ge 1
+          test "$internal_actor_effects" -ge 1
+          test "$actor_observations" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -223,6 +239,17 @@ jobs:
             echo "hidden_world_truth_rows=$hidden_world_truth"
             echo "internal_simulation_seed_rows=$internal_simulation_seeds"
             echo "internal_decision_effect_events=$internal_decision_effects"
+            echo "actor_instances=$actor_instances"
+            echo "actor_state_version_2_rows=$actor_state_version_2"
+            echo "supportive_actor_state_rows=$actor_supportive"
+            echo "hidden_actor_state_rows=$hidden_actor_state"
+            echo "communicate_actions=$communicate_actions"
+            echo "actor_response_events=$actor_response_events"
+            echo "internal_actor_effect_events=$internal_actor_effects"
+            echo "actor_response_observations=$actor_observations"
+            echo "candidate_actor_state_projection=ALLOWLIST_ONLY"
+            echo "actor_state_mutation=ENGINE_RULE_ONLY"
+            echo "llm_actor_state_mutation=FORBIDDEN"
             echo "candidate_world_truth_projection=ALLOWLIST_ONLY"
             echo "candidate_hidden_world_truth=NOT_EXPOSED"
             echo "candidate_simulation_seed=NOT_EXPOSED"
