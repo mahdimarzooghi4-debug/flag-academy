@@ -29,7 +29,7 @@ async def _ensure_stream(js) -> None:
         await js.add_stream(name=STREAM_NAME, subjects=["parcham.events.>"])
 
 
-async def run_forever() -> None:
+async def _run_once() -> None:
     settings = get_settings()
     temporal_client = await Client.connect(
         settings.temporal_address,
@@ -113,6 +113,14 @@ async def run_forever() -> None:
             await asyncio.sleep(3600)
     finally:
         await nc.close()
+
+
+async def run_forever() -> None:
+    while True:
+        try:
+            await _run_once()
+        except Exception:
+            await asyncio.sleep(2)
 
 
 if __name__ == "__main__":
