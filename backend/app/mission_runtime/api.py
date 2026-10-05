@@ -2411,22 +2411,39 @@ async def submit_mission_action(
             effect_code = scheduled_definition.get("code")
             label = scheduled_definition.get("label")
             delay_seconds = scheduled_definition.get("due_after_seconds")
+            trigger_condition = scheduled_definition.get("trigger_condition")
             effect_payload = scheduled_definition.get("effect")
             terminal_status = scheduled_definition.get("terminal_status")
             visibility = scheduled_definition.get("visibility", "CANDIDATE")
             cancellable = scheduled_definition.get("cancellable", False)
             cancel_condition = scheduled_definition.get("cancel_condition", {})
+            has_due_definition = delay_seconds is not None
+            has_trigger_definition = trigger_condition is not None
+            due_definition_valid = (
+                isinstance(delay_seconds, int)
+                and not isinstance(delay_seconds, bool)
+                and delay_seconds > 0
+            )
+            trigger_definition_valid = (
+                isinstance(trigger_condition, dict)
+                and _scheduled_trigger_condition_valid(trigger_condition)
+            )
             if (
                 not isinstance(effect_code, str)
                 or not effect_code
                 or not isinstance(label, str)
                 or not label
-                or not isinstance(delay_seconds, int)
-                or delay_seconds <= 0
+                or has_due_definition == has_trigger_definition
+                or (has_due_definition and not due_definition_valid)
+                or (has_trigger_definition and not trigger_definition_valid)
                 or not isinstance(effect_payload, dict)
                 or (
                     terminal_status is not None
                     and terminal_status != MissionInstanceStatus.TIME_EXPIRED.value
+                )
+                or (
+                    has_trigger_definition
+                    and terminal_status is not None
                 )
                 or visibility not in {"CANDIDATE", "INTERNAL"}
                 or not isinstance(cancellable, bool)
@@ -2442,7 +2459,7 @@ async def submit_mission_action(
             ):
                 raise AppError(
                     "MISSION_SCHEDULED_EFFECT_DEFINITION_INVALID",
-                    "Scheduled effect requires a valid deterministic definition and cancellation policy.",
+                    "Scheduled effect must define exactly one deterministic trigger and a valid cancellation policy.",
                     status_code=422,
                 )
             try:
@@ -2454,7 +2471,17 @@ async def submit_mission_action(
                     status_code=422,
                 ) from exc
 
-            due_at = instance.simulation_time + timedelta(seconds=delay_seconds)
+            due_at = (
+                instance.simulation_time + timedelta(seconds=delay_seconds)
+                if due_definition_valid and isinstance(delay_seconds, int)
+                else None
+            )
+            stored_trigger_condition = (
+                trigger_condition
+                if trigger_definition_valid and isinstance(trigger_condition, dict)
+                else None
+            )
+            trigger_mode = "DUE_AT" if due_at is not None else "STATE_TRIGGERED"
             scheduled_effect = ScheduledEffect(
                 id=uuid4(),
                 mission_instance_id=instance.id,
@@ -2462,6 +2489,7 @@ async def submit_mission_action(
                 effect_code=effect_code,
                 label=label,
                 due_at=due_at,
+                trigger_condition=stored_trigger_condition,
                 effect_payload=effect_payload,
                 terminal_status=terminal_status,
                 cancellable=cancellable,
@@ -2485,7 +2513,9 @@ async def submit_mission_action(
                 payload={
                     "effect_code": effect_code,
                     "label": label,
-                    "due_at": due_at.isoformat(),
+                    "due_at": due_at.isoformat() if due_at is not None else None,
+                    "trigger_mode": trigger_mode,
+                    "trigger_condition_defined": stored_trigger_condition,
                 },
                 world_version_before=instance.world_state_version,
                 world_version_after=instance.world_state_version,
