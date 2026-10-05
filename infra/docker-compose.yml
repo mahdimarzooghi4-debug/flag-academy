@@ -22,6 +22,20 @@ services:
       - "4222:4222"
       - "8222:8222"
 
+  temporal:
+    image: temporalio/auto-setup:1.27.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-parcham}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "7233:7233"
+
   minio:
     build:
       context: ./minio
