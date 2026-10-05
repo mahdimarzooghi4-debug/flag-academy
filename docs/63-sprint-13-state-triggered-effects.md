@@ -1,7 +1,8 @@
 # 63 — Sprint 13 State-triggered Scheduled Effects
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -241,3 +242,12 @@ PostgreSQL + Live OIDC must prove:
 - acceptance evidence in GitHub
 
 > **Time is one trigger; state is another. Neither may become an implicit source of truth.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `c3bb447dec3e1c2c5c8968a78075bd171fd8976e`
+- Main CI Run: `37304079338` — PASS
+- Ephemeral Stage Run: `37304079367` — PASS
+- Code Review: `docs/reviews/13-sprint-13-state-triggered-effects-code-review.md` — PASS
+- Stage evidence: `docs/64-sprint-13-stage-acceptance.md`
