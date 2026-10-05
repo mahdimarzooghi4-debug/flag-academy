@@ -516,7 +516,7 @@ def _scheduled_effect_trigger_mode(effect: ScheduledEffect) -> str:
 
 
 def _scheduled_effect_due_at_text(effect: ScheduledEffect) -> str | None:
-    return effect.due_at.isoformat() if effect.due_at is not None else None
+    return _scheduled_effect_due_at_text(effect) if effect.due_at is not None else None
 
 
 def _scheduled_cancel_condition_valid(
@@ -561,7 +561,7 @@ async def _cancel_matching_scheduled_effects(
                 ScheduledEffect.status == ScheduledEffectStatus.PENDING.value,
                 ScheduledEffect.cancellable.is_(True),
             )
-            .order_by(ScheduledEffect.due_at, ScheduledEffect.id)
+            .order_by(ScheduledEffect.created_at, ScheduledEffect.id)
             .with_for_update()
         )
     ).scalars().all()
@@ -588,7 +588,7 @@ async def _cancel_matching_scheduled_effects(
             payload={
                 "effect_code": effect.effect_code,
                 "label": effect.label,
-                "due_at": effect.due_at.isoformat(),
+                "due_at": _scheduled_effect_due_at_text(effect),
                 "cancelled_at": instance.simulation_time.isoformat(),
                 "reason_code": reason_code,
                 "cancel_condition_matched": effect.cancel_condition,
@@ -617,7 +617,7 @@ async def _cancel_matching_scheduled_effects(
                 ),
                 payload={
                     "effect_code": effect.effect_code,
-                    "due_at": effect.due_at.isoformat(),
+                    "due_at": _scheduled_effect_due_at_text(effect),
                     "cancelled_at": instance.simulation_time.isoformat(),
                     "reason_code": reason_code,
                     "world_version": instance.world_state_version,
@@ -645,6 +645,148 @@ async def _cancel_matching_scheduled_effects(
                 trace_id=actor.trace_id,
             ),
         )
+
+
+async def _apply_matching_state_triggered_effects(
+    db: AsyncSession,
+    *,
+    instance: MissionInstance,
+    actor: ActorContext,
+    source_event: RuntimeEvent,
+    command_key: str,
+    now: datetime,
+) -> None:
+    causal_source = source_event
+    while instance.status == MissionInstanceStatus.RUNNING.value:
+        pending = (
+            await db.execute(
+                select(ScheduledEffect)
+                .where(
+                    ScheduledEffect.mission_instance_id == instance.id,
+                    ScheduledEffect.status == ScheduledEffectStatus.PENDING.value,
+                    ScheduledEffect.due_at.is_(None),
+                    ScheduledEffect.trigger_condition.is_not(None),
+                )
+                .order_by(ScheduledEffect.created_at, ScheduledEffect.id)
+                .with_for_update()
+            )
+        ).scalars().all()
+
+        effect = next(
+            (
+                item
+                for item in pending
+                if isinstance(item.trigger_condition, dict)
+                and _scheduled_trigger_condition_matches(
+                    instance.world_state,
+                    item.trigger_condition,
+                )
+            ),
+            None,
+        )
+        if effect is None:
+            break
+
+        world_before = instance.world_state_version
+        try:
+            instance.world_state = apply_world_effect(
+                instance.world_state,
+                effect.effect_payload,
+            )
+        except ValueError as exc:
+            raise AppError(
+                "SCHEDULED_EFFECT_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+
+        instance.world_state_version += 1
+        instance.version += 1
+        effect.status = ScheduledEffectStatus.APPLIED.value
+        effect.applied_at = instance.simulation_time
+
+        effect_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="scheduled_effect.applied",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(causal_source.id),
+            payload={
+                "effect_code": effect.effect_code,
+                "label": effect.label,
+                "due_at": None,
+                "trigger_mode": "STATE_TRIGGERED",
+                "effect_applied": effect.effect_payload,
+                "trigger_condition_matched": effect.trigger_condition,
+                "world_version_before": world_before,
+                "world_version_after": instance.world_state_version,
+            },
+            world_version_before=world_before,
+            world_version_after=instance.world_state_version,
+            idempotency_key=f"{command_key}:state-applied:{effect.id}",
+            now=now,
+            effective_at=instance.simulation_time,
+            causal_parent_ids=list(
+                dict.fromkeys(
+                    [str(effect.origin_event_id), str(causal_source.id)]
+                )
+            ),
+            visibility=effect.visibility,
+        )
+
+        if effect.visibility == "CANDIDATE":
+            await _append_observation(
+                db,
+                instance=instance,
+                source_event=effect_event,
+                observation_type="SCHEDULED_EFFECT_OBSERVED",
+                factual_statement=(
+                    f"State-triggered effect '{effect.effect_code}' became applicable; "
+                    f"world state advanced from version {world_before} to "
+                    f"{instance.world_state_version}."
+                ),
+                payload={
+                    "effect_code": effect.effect_code,
+                    "due_at": None,
+                    "trigger_mode": "STATE_TRIGGERED",
+                    "world_version_before": world_before,
+                    "world_version_after": instance.world_state_version,
+                },
+                now=now,
+            )
+
+        record_event(
+            db,
+            new_event(
+                event_type="mission.scheduled_effect_applied.v1",
+                aggregate_type="MissionInstance",
+                aggregate_id=instance.id,
+                aggregate_version=instance.version,
+                actor={"type": "SYSTEM", "id": "MISSION_ENGINE"},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "scheduled_effect_id": str(effect.id),
+                    "effect_code": effect.effect_code,
+                    "trigger_mode": "STATE_TRIGGERED",
+                    "world_version_before": world_before,
+                    "world_version_after": instance.world_state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=effect_event,
+            command_key=f"{command_key}:after-state-applied:{effect.id}",
+            now=now,
+        )
+        causal_source = effect_event
 
 
 async def _complete_assignment_after_terminal(
@@ -771,7 +913,7 @@ async def _advance_simulation_through(
             payload={
                 "effect_code": effect.effect_code,
                 "label": effect.label,
-                "due_at": effect.due_at.isoformat(),
+                "due_at": _scheduled_effect_due_at_text(effect),
                 "effect_applied": effect.effect_payload,
                 "world_version_before": world_before,
                 "world_version_after": instance.world_state_version,
@@ -796,12 +938,12 @@ async def _advance_simulation_through(
                 observation_type="SCHEDULED_EFFECT_OBSERVED",
                 factual_statement=(
                     f"Scheduled effect '{effect.effect_code}' became due at "
-                    f"{effect.due_at.isoformat()}; world state advanced from version "
+                    f"{_scheduled_effect_due_at_text(effect)}; world state advanced from version "
                     f"{world_before} to {instance.world_state_version}."
                 ),
                 payload={
                     "effect_code": effect.effect_code,
-                    "due_at": effect.due_at.isoformat(),
+                    "due_at": _scheduled_effect_due_at_text(effect),
                     "world_version_before": world_before,
                     "world_version_after": instance.world_state_version,
                 },
@@ -822,7 +964,7 @@ async def _advance_simulation_through(
                     "mission_instance_id": str(instance.id),
                     "scheduled_effect_id": str(effect.id),
                     "effect_code": effect.effect_code,
-                    "due_at": effect.due_at.isoformat(),
+                    "due_at": _scheduled_effect_due_at_text(effect),
                     "world_version_before": world_before,
                     "world_version_after": instance.world_state_version,
                 },
@@ -871,7 +1013,7 @@ async def _advance_simulation_through(
                     "from_status": previous_status,
                     "to_status": instance.status,
                     "effect_code": effect.effect_code,
-                    "expired_at": effect.due_at.isoformat(),
+                    "expired_at": _scheduled_effect_due_at_text(effect),
                 },
                 world_version_before=instance.world_state_version,
                 world_version_after=instance.world_state_version,
@@ -888,12 +1030,12 @@ async def _advance_simulation_through(
                     source_event=expired_event,
                     observation_type="MISSION_TIME_EXPIRED",
                     factual_statement=(
-                        f"Mission time expired at {effect.due_at.isoformat()} after "
+                        f"Mission time expired at {_scheduled_effect_due_at_text(effect)} after "
                         f"scheduled effect '{effect.effect_code}'."
                     ),
                     payload={
                         "effect_code": effect.effect_code,
-                        "expired_at": effect.due_at.isoformat(),
+                        "expired_at": _scheduled_effect_due_at_text(effect),
                         "world_version_before": world_before,
                         "world_version_after": instance.world_state_version,
                     },
@@ -918,7 +1060,7 @@ async def _advance_simulation_through(
                         "mission_instance_id": str(instance.id),
                         "scheduled_effect_id": str(effect.id),
                         "effect_code": effect.effect_code,
-                        "expired_at": effect.due_at.isoformat(),
+                        "expired_at": _scheduled_effect_due_at_text(effect),
                         "world_state_version": instance.world_state_version,
                     },
                     trace_id=actor.trace_id,
