@@ -1,7 +1,8 @@
 # 59 — Sprint 11 Explicit NO_ACTION & Timeout
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -224,3 +225,12 @@ PostgreSQL + Live OIDC باید اثبات کند:
 - acceptance evidence in GitHub
 
 > **Waiting is a choice only when the system records what was known, how long was waited, and what consequence became due.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `0bb584148b2d725746d02676f431bddfd2c87eef`
+- Main CI Run: `37293579577` — PASS
+- Ephemeral Stage Run: `37293579568` — PASS
+- Code Review: `docs/reviews/11-sprint-11-no-action-timeout-code-review.md` — PASS
+- Stage evidence: `docs/60-sprint-11-stage-acceptance.md`
