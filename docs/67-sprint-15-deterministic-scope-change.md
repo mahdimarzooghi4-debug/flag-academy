@@ -13,6 +13,8 @@ Close the next Mission Runtime action gap by making `CHANGE_SCOPE` executable th
 
 A scope change does **not** transfer Mission accountability. If a Mission exposes scope change, `mission.accountability_owner` must remain `CANDIDATE`.
 
+Runtime execution scope is not the immutable Mission Version target scope and is not Evidence scope. `CHANGE_SCOPE` mutates only Canonical Simulation State owned by Mission Runtime; it cannot rewrite Mission Design or create/update Proven Scope.
+
 ## Runtime contract
 
 A Mission Version may expose bounded `scope_change_options`. Each option pins:
@@ -102,3 +104,5 @@ Expected deterministic result:
 - Profile/Gate updates
 - LLM-authored scope effects
 - arbitrary Candidate-authored world patches
+- immutable Mission target-scope mutation
+- Evidence-scope / Proven-Scope mutation
