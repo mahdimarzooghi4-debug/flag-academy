@@ -193,9 +193,17 @@ jobs:
           escalation_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ESCALATION_OBSERVED';")
           escalated_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,executive_attention}' = 'ENGAGED' and world_state #>> '{mission,escalation_status}' = 'EXECUTIVE_REVIEW';")
           escalated_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state_version >= 3 and state->>'commitment' = 'EXECUTIVE_SPONSORSHIP';")
+          scheduled_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects;")
+          temporal_scheduled_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where workflow_id is not null and scheduled_at is not null;")
+          applied_scheduled_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where status = 'APPLIED' and applied_at is not null;")
+          scheduled_effect_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.applied';")
+          internal_scheduled_effect_payloads=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.applied' and payload ? 'effect_applied';")
+          scheduled_effect_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCHEDULED_EFFECT_OBSERVED';")
+          delayed_checkpoint_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,checkpoint_status}' = 'ARRIVED' and world_state #>> '{mission,delayed_consequence_status}' = 'CHECKPOINT_READY';")
+          scheduler_inbox=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events where consumer_name = 'mission-scheduled-effect-starter-v1';")
 
-          test "$published" -ge 27
-          test "$inbox" -ge 27
+          test "$published" -ge 29
+          test "$inbox" -ge 30
           test "$candidate_home" -ge 1
           test "$instructor_home" -ge 1
           test "$completed_units" -ge 2
@@ -214,8 +222,8 @@ jobs:
           test "$completed_mission_instances" -ge 1
           test "$mission_actions" -ge 4
           test "$mission_decisions" -ge 1
-          test "$runtime_events" -ge 12
-          test "$runtime_observations" -ge 5
+          test "$runtime_events" -ge 13
+          test "$runtime_observations" -ge 6
           test "$mission_assignments" -ge 1
           test "$completed_mission_assignments" -ge 1
           test "$assignment_bound_instances" -ge 1
@@ -237,6 +245,14 @@ jobs:
           test "$escalation_observations" -ge 1
           test "$escalated_world_state" -ge 1
           test "$escalated_actor_state" -ge 1
+          test "$scheduled_effects" -ge 1
+          test "$temporal_scheduled_effects" -ge 1
+          test "$applied_scheduled_effects" -ge 1
+          test "$scheduled_effect_events" -ge 1
+          test "$internal_scheduled_effect_payloads" -ge 1
+          test "$scheduled_effect_observations" -ge 1
+          test "$delayed_checkpoint_world_state" -ge 1
+          test "$scheduler_inbox" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -284,6 +300,16 @@ jobs:
             echo "escalation_observations=$escalation_observations"
             echo "escalated_world_state_rows=$escalated_world_state"
             echo "escalated_actor_state_rows=$escalated_actor_state"
+            echo "scheduled_effects=$scheduled_effects"
+            echo "temporal_scheduled_effects=$temporal_scheduled_effects"
+            echo "applied_scheduled_effects=$applied_scheduled_effects"
+            echo "scheduled_effect_applied_events=$scheduled_effect_events"
+            echo "internal_scheduled_effect_payloads=$internal_scheduled_effect_payloads"
+            echo "scheduled_effect_observations=$scheduled_effect_observations"
+            echo "delayed_checkpoint_world_state_rows=$delayed_checkpoint_world_state"
+            echo "scheduled_effect_starter_inbox=$scheduler_inbox"
+            echo "scheduled_effect_engine=TEMPORAL_WORKFLOW_ACTIVITY"
+            echo "scheduled_effect_api_sleep=FORBIDDEN"
             echo "escalation_world_mutation=ENGINE_RULE_ONLY"
             echo "escalation_actor_mutation=ENGINE_RULE_ONLY"
             echo "candidate_actor_state_projection=ALLOWLIST_ONLY"
