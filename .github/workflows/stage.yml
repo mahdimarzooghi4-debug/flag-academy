@@ -195,6 +195,15 @@ jobs:
           internal_cancel_condition_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.cancelled' and payload ? 'cancel_condition_matched';")
           scheduled_cancel_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCHEDULED_EFFECT_CANCELLED_OBSERVED';")
           pending_deadlines_on_completed=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects se join mission_runtime.mission_instances mi on mi.id = se.mission_instance_id where se.effect_code = 'RECOVERY_DECISION_DEADLINE' and se.status = 'PENDING' and mi.status = 'COMPLETED';")
+          state_trigger_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where effect_code = 'RECOVERY_COMMITMENT_BROADCAST' and due_at is null and trigger_condition is not null;")
+          applied_state_trigger_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where effect_code = 'RECOVERY_COMMITMENT_BROADCAST' and status = 'APPLIED';")
+          cancelled_state_trigger_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where effect_code = 'RECOVERY_COMMITMENT_BROADCAST' and status = 'CANCELLED';")
+          state_trigger_apply_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.applied' and payload->>'trigger_mode' = 'STATE_TRIGGERED' and payload ? 'trigger_condition_matched';")
+          state_trigger_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCHEDULED_EFFECT_OBSERVED' and payload->>'trigger_mode' = 'STATE_TRIGGERED';")
+          broadcast_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where status = 'COMPLETED' and world_state #>> '{stakeholder,recovery_signal}' = 'BROADCAST';")
+          timeout_unbroadcast_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where status = 'TIME_EXPIRED' and world_state #>> '{stakeholder,recovery_signal}' = 'NOT_BROADCAST';")
+          pending_state_triggers_on_terminal=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects se join mission_runtime.mission_instances mi on mi.id = se.mission_instance_id where se.trigger_condition is not null and se.status = 'PENDING' and mi.status in ('COMPLETED','TIME_EXPIRED','FAILED_WORLD_STATE','ABORTED','WITHDRAWN','INVALIDATED');")
+          invalid_scheduled_trigger_rows=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where (due_at is null and trigger_condition is null) or (due_at is not null and trigger_condition is not null);")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -260,6 +269,15 @@ jobs:
           test "$internal_cancel_condition_events" -ge 1
           test "$scheduled_cancel_observations" -ge 1
           test "$pending_deadlines_on_completed" -eq 0
+          test "$state_trigger_effects" -ge 2
+          test "$applied_state_trigger_effects" -ge 1
+          test "$cancelled_state_trigger_effects" -ge 1
+          test "$state_trigger_apply_events" -ge 1
+          test "$state_trigger_observations" -ge 1
+          test "$broadcast_world_state" -ge 1
+          test "$timeout_unbroadcast_world_state" -ge 1
+          test "$pending_state_triggers_on_terminal" -eq 0
+          test "$invalid_scheduled_trigger_rows" -eq 0
 
           mkdir -p stage-artifacts
           {
@@ -328,6 +346,16 @@ jobs:
             echo "internal_cancel_condition_events=$internal_cancel_condition_events"
             echo "scheduled_effect_cancelled_observations=$scheduled_cancel_observations"
             echo "pending_deadlines_on_completed_missions=$pending_deadlines_on_completed"
+            echo "state_triggered_effects=$state_trigger_effects"
+            echo "applied_state_triggered_effects=$applied_state_trigger_effects"
+            echo "cancelled_state_triggered_effects=$cancelled_state_trigger_effects"
+            echo "state_triggered_apply_events=$state_trigger_apply_events"
+            echo "state_triggered_observations=$state_trigger_observations"
+            echo "broadcast_world_state_rows=$broadcast_world_state"
+            echo "timeout_unbroadcast_world_state_rows=$timeout_unbroadcast_world_state"
+            echo "pending_state_triggers_on_terminal_missions=$pending_state_triggers_on_terminal"
+            echo "invalid_scheduled_trigger_rows=$invalid_scheduled_trigger_rows"
+            echo "state_trigger_execution=ENGINE_WORLD_STATE_RULE_ONLY"
             echo "scheduled_effect_cancellation=ENGINE_WORLD_STATE_RULE_ONLY"
             echo "no_action_time_advance=CANONICAL_OPTION_ONLY"
             echo "timeout_transition=SCHEDULED_EFFECT_ONLY"
