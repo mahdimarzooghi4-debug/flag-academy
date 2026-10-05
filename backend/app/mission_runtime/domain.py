@@ -221,6 +221,32 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
         }
     ),
+    "resource_allocation.requested": frozenset(
+        {
+            "resource_allocation_code",
+            "resource_type",
+            "unit",
+            "quantity",
+            "target",
+            "rationale",
+        }
+    ),
+    "resource_allocation.accepted": frozenset(
+        {
+            "resource_allocation_code",
+            "resource_type",
+            "unit",
+            "quantity",
+            "target",
+            "response",
+            "from_available",
+            "to_available",
+            "from_allocated",
+            "to_allocated",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
     "scheduled_effect.created": frozenset(
         {"effect_code", "label", "due_at", "trigger_mode"}
     ),
@@ -302,6 +328,21 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "scope_change_code",
             "from_scope",
             "to_scope",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
+    "RESOURCE_ALLOCATION_OBSERVED": frozenset(
+        {
+            "resource_allocation_code",
+            "resource_type",
+            "unit",
+            "quantity",
+            "target",
+            "from_available",
+            "to_available",
+            "from_allocated",
+            "to_allocated",
             "world_version_before",
             "world_version_after",
         }
