@@ -124,6 +124,14 @@ def delegation_preserves_candidate_accountability(
     return preserves_candidate_accountability(before_state, after_state)
 
 
+def canonical_resource_balance_matches(value: Any, expected: int) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value == expected
+    )
+
+
 def resource_allocation_transition_valid(
     *,
     quantity: Any,
