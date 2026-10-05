@@ -456,10 +456,17 @@ async def list_mission_assignment_candidates(
                 OrganizationMembership,
                 OrganizationMembership.person_id == Person.id,
             )
+            .join(
+                CandidateJourney,
+                CandidateJourney.person_id == Person.id,
+            )
             .where(
                 OrganizationMembership.organization_id
                 == actor.organization_context_id,
                 OrganizationMembership.membership_role == "CANDIDATE",
+                CandidateJourney.organization_context_id
+                == actor.organization_context_id,
+                CandidateJourney.state == "ACTIVE",
             )
             .order_by(Person.display_name)
         )
@@ -730,7 +737,7 @@ async def start_mission_instance(
         db,
         actor,
         version_id,
-        require_active=True,
+        require_active=False,
     )
     assignment = (
         await db.execute(
@@ -761,6 +768,13 @@ async def start_mission_instance(
     ).scalar_one_or_none()
     if existing_by_assignment is not None:
         return await _instance_response(db, existing_by_assignment)
+
+    if version.status != "ACTIVE":
+        raise AppError(
+            "MISSION_VERSION_NOT_ACTIVE",
+            "Only an active mission version can be started.",
+            status_code=409,
+        )
 
     if assignment.status != MissionAssignmentStatus.ASSIGNED.value:
         raise AppError(
