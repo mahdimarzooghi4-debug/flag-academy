@@ -16,6 +16,15 @@ class MissionInstanceStatus(StrEnum):
     INVALIDATED = "INVALIDATED"
 
 
+
+
+class MissionAssignmentStatus(StrEnum):
+    ASSIGNED = "ASSIGNED"
+    STARTED = "STARTED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
 class MissionActionType(StrEnum):
     REQUEST_INFORMATION = "REQUEST_INFORMATION"
     COMMUNICATE = "COMMUNICATE"
@@ -85,3 +94,23 @@ def apply_world_effect(
         merged.update(deepcopy(patch))
         next_state[namespace] = merged
     return next_state
+
+
+ALLOWED_ASSIGNMENT_TRANSITIONS: dict[
+    MissionAssignmentStatus, frozenset[MissionAssignmentStatus]
+] = {
+    MissionAssignmentStatus.ASSIGNED: frozenset(
+        {MissionAssignmentStatus.STARTED, MissionAssignmentStatus.CANCELLED}
+    ),
+    MissionAssignmentStatus.STARTED: frozenset(
+        {MissionAssignmentStatus.COMPLETED, MissionAssignmentStatus.CANCELLED}
+    ),
+    MissionAssignmentStatus.COMPLETED: frozenset(),
+    MissionAssignmentStatus.CANCELLED: frozenset(),
+}
+
+
+def assignment_transition_allowed(current: str, target: str) -> bool:
+    current_status = MissionAssignmentStatus(current)
+    target_status = MissionAssignmentStatus(target)
+    return target_status in ALLOWED_ASSIGNMENT_TRANSITIONS[current_status]
