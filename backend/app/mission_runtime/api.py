@@ -813,6 +813,15 @@ async def start_mission_instance(
     await db.flush()
 
     previous = instance.status
+    if not runtime_transition_allowed(
+        previous,
+        MissionInstanceStatus.ELIGIBILITY_CHECK.value,
+    ):
+        raise AppError(
+            "MISSION_RUNTIME_TRANSITION_INVALID",
+            "Mission runtime transition is invalid.",
+            status_code=500,
+        )
     instance.status = MissionInstanceStatus.ELIGIBILITY_CHECK.value
     instance.version += 1
     eligibility_state_event = await _append_runtime_event(
