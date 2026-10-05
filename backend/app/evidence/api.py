@@ -48,7 +48,7 @@ class EvidenceInterpretationInput(BaseModel):
     confidence: str = Field(pattern="^(LOW|MEDIUM|HIGH)$")
     context_difficulty: str = Field(min_length=1, max_length=255)
     prompt_contamination: str = Field(min_length=1, max_length=255)
-    ai_contribution: str = Field(min_length=1, max_length=255)
+    ai_contribution: str = Field(pattern="^NONE$")
     mode: str = Field(min_length=1, max_length=32)
     rationale: str = Field(min_length=1, max_length=8000)
     links: list[EvidenceLinkInput] = Field(min_length=1)
