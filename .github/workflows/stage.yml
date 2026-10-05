@@ -89,6 +89,8 @@ jobs:
         run: |
           python -m app.read_models.consumer > /tmp/parcham-projector.log 2>&1 &
           echo $! > /tmp/parcham-projector.pid
+          python -m app.evidence.consumer > /tmp/parcham-evidence.log 2>&1 &
+          echo $! > /tmp/parcham-evidence.pid
           python -m app.platform.outbox > /tmp/parcham-outbox.log 2>&1 &
           echo $! > /tmp/parcham-outbox.pid
 
@@ -500,6 +502,7 @@ jobs:
             /tmp/parcham-web.log
             /tmp/parcham-outbox.log
             /tmp/parcham-projector.log
+            /tmp/parcham-evidence.log
           if-no-files-found: ignore
 
       - name: Destroy ephemeral stage
