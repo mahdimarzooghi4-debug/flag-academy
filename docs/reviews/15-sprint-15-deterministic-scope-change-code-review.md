@@ -4,8 +4,9 @@
 **Date:** 2026-10-05  
 **PR:** #13 — Sprint 15: deterministic scope change  
 **Reviewed implementation head:** `ae60ce14f806657a148a8600f7e150e19a047153`  
+**Verified branch head:** `cb88298f9ba79e236dd84da60efc571aa0fff171`  
 **Baseline CI:** Run `37314778713` on pre-hardening head `d8624be...` — SUCCESS  
-**Final-head CI:** required after this review commit
+**Verified-head CI:** Run `37316241371` on `cb88298...` — SUCCESS
 
 ## Review scope
 
@@ -109,8 +110,18 @@ The E2E path verifies:
 - later DELEGATE/ESCALATE/DECIDE flow remains operational
 - Candidate Proof remains `UNPROVEN`
 
+## Final verification
+
+From reviewed implementation head `ae60ce14...` to verified branch head `cb88298...`, only Sprint 15 documentation changed; no runtime, frontend, test, or Stage implementation file changed.
+
+CI Run `37316241371` passed on `cb88298...`:
+
+- backend lint/type/unit/migrations/OpenAPI — PASS
+- frontend type/unit/build — PASS
+- live OIDC E2E — PASS
+
 ## Review conclusion
 
-No blocking findings remain in the reviewed code. The canonical scope-transition hardening above still requires final-head CI.
+No blocking findings remain.
 
-Sprint 15 implementation is approved for merge **only after** the CI run for the commit containing this revised review document is fully Green.
+Sprint 15 implementation is approved for merge. The documentation commit that records this final verification must itself receive Green CI before merge.
