@@ -1,4 +1,4 @@
-FROM golang:1.24.8-alpine AS build
+FROM golang:1.24.13-alpine3.22 AS build
 
 ARG MINIO_VERSION=RELEASE.2025-10-15T17-29-55Z
 
