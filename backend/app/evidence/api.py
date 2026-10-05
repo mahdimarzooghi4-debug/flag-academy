@@ -305,7 +305,7 @@ async def _full_response(db: AsyncSession, case: EvidenceCase) -> EvidenceCaseRe
         source_runtime_event_id=case.source_runtime_event_id,
         observation_type=case.observation_type,
         observed_fact=case.observed_fact,
-        observed_payload=case.observed_payload,
+        observed_payload=case.candidate_visible_payload,
         occurred_at=case.occurred_at,
         source_independence_group=case.source_independence_group,
         provenance=case.provenance,
@@ -423,6 +423,7 @@ async def list_my_evidence_cases(
             .where(
                 EvidenceCase.organization_context_id == actor.organization_context_id,
                 EvidenceCase.subject_person_id == actor.person_id,
+                EvidenceCase.candidate_visible.is_(True),
             )
             .order_by(EvidenceCase.created_at, EvidenceCase.id)
         )
@@ -616,7 +617,7 @@ async def add_candidate_response(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> CandidateEvidenceCaseResponse:
     case = await _load_case(db, actor=actor, case_id=case_id, for_update=True)
-    if case.subject_person_id != actor.person_id:
+    if case.subject_person_id != actor.person_id or not case.candidate_visible:
         raise AppError("EVIDENCE_CASE_NOT_FOUND", "Evidence case not found.", status_code=404)
 
     existing = (
