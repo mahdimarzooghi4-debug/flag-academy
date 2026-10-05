@@ -310,6 +310,7 @@ export interface MissionInstanceResponse {
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
+  escalation_options: Array<{ code: string; label: string; actor_key: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
