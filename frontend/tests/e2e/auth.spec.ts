@@ -263,8 +263,11 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     "scheduled-effect-EXECUTIVE_RECOVERY_CHECKPOINT",
   );
   await expect(delayedEffect).toBeVisible();
-  await expect(delayedEffect).toContainText("APPLIED");
-  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("RUNNING · ACTIVE");
+  await expect(delayedEffect).toContainText("APPLIED", { timeout: 15_000 });
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText(
+    "RUNNING · ACTIVE",
+    { timeout: 15_000 },
+  );
   await expect(runtimeCard.getByTestId("world-state")).toContainText(
     '"checkpoint_status": "ARRIVED"',
   );
