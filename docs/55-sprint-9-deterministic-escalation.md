@@ -1,7 +1,8 @@
 # 55 — Sprint 9 Deterministic Escalation
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -169,3 +170,12 @@ Ephemeral Stage باید با Live OIDC و PostgreSQL اثبات کند:
 - acceptance record in GitHub
 
 > **Escalation changes the simulated situation; it does not prove the Candidate.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `f6fbc0ca5ec2f1613da48398776dd060160a3428`
+- Main CI Run: `37274740428` — PASS
+- Ephemeral Stage Run: `37274740391` — PASS
+- Code Review: `docs/reviews/09-sprint-9-deterministic-escalation-code-review.md` — PASS
+- Stage evidence: `docs/56-sprint-9-stage-acceptance.md`
