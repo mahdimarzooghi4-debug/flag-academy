@@ -26,9 +26,9 @@ from app.mission_runtime.domain import (
     assignment_transition_allowed,
     candidate_event_payload,
     candidate_event_visible,
-    delegation_preserves_candidate_accountability,
     candidate_observation_payload,
     candidate_observation_visible,
+    delegation_preserves_candidate_accountability,
     project_candidate_visible_state,
     runtime_transition_allowed,
 )
