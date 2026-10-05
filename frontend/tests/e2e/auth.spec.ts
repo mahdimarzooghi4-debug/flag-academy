@@ -220,6 +220,19 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(actorState).toContainText('"commitment": "CONDITIONAL"');
   await expect(runtimeCard).not.toContainText("private_escalation_threshold");
 
+  const deliveryLeadState = runtimeCard.getByTestId("actor-state-delivery_lead");
+  await expect(runtimeCard).toContainText("Delivery Lead");
+  await expect(deliveryLeadState).toContainText('"capacity_status": "AVAILABLE"');
+  await expect(deliveryLeadState).toContainText('"commitment": "UNASSIGNED"');
+  await expect(deliveryLeadState).toContainText('"delegated_responsibility": "NONE"');
+  await expect(runtimeCard).not.toContainText("private_delivery_risk");
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"accountability_owner": "CANDIDATE"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"recovery_coordinator": "CANDIDATE"',
+  );
+
   await runtimeCard
     .getByLabel("پیام به Business Sponsor")
     .fill(
@@ -235,6 +248,37 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("Actor v2");
   await expect(runtimeCard).toContainText("مالکیت روشن شد.");
   await expect(runtimeCard).not.toContainText("private_escalation_threshold");
+
+  await runtimeCard.getByLabel("دلیل واگذاری").fill(
+    "هماهنگی rollback و جمع‌آوری وضعیت را به Delivery Lead می‌سپارم؛ accountability نتیجه و تصمیم نهایی همچنان با من می‌ماند.",
+  );
+  await runtimeCard
+    .getByRole("button", { name: "واگذاری هماهنگی بازیابی به Delivery Lead" })
+    .click();
+
+  await expect(deliveryLeadState).toContainText(
+    '"commitment": "OWNS_RECOVERY_COORDINATION"',
+  );
+  await expect(deliveryLeadState).toContainText(
+    '"delegated_responsibility": "RECOVERY_COORDINATION"',
+  );
+  await expect(runtimeCard).toContainText("Actor v2");
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"delegation_status": "ACTIVE"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"accountability_owner": "CANDIDATE"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"recovery_coordinator": "DELIVERY_LEAD"',
+  );
+  await expect(runtimeCard).toContainText(
+    "accountability نتیجه همچنان با شما می‌ماند",
+  );
+  await expect(runtimeCard).toContainText("DELEGATION_OBSERVED");
+  await expect(runtimeCard).not.toContainText("world_effect_applied");
+  await expect(runtimeCard).not.toContainText("actor_effect_applied");
+  await expect(runtimeCard).not.toContainText("private_delivery_risk");
 
   await runtimeCard.getByLabel("دلیل Escalation").fill(
     "ریسک rollout از مرز تصمیم تیم عبور کرده و Executive attention برای recovery checkpoint لازم است.",
@@ -307,7 +351,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 3 to 4");
+  await expect(runtimeCard).toContainText("world state advanced from version 4 to 5");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
 
