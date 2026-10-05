@@ -2980,6 +2980,12 @@ async def submit_mission_action(
                 str(exc),
                 status_code=422,
             ) from exc
+        if _world_state_path_value(next_world, scope_path) != to_scope:
+            raise AppError(
+                "MISSION_SCOPE_CHANGE_DEFINITION_INVALID",
+                "Scope-change world_effect must produce the declared to_scope at scope_path.",
+                status_code=422,
+            )
         if not preserves_candidate_accountability(
             instance.world_state,
             next_world,
