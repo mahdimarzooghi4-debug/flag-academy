@@ -188,6 +188,15 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
         }
     ),
+    "scheduled_effect.cancelled": frozenset(
+        {
+            "effect_code",
+            "label",
+            "due_at",
+            "cancelled_at",
+            "reason_code",
+        }
+    ),
     "no_action.committed": frozenset(
         {
             "no_action_code",
@@ -235,6 +244,15 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "due_at",
             "world_version_before",
             "world_version_after",
+        }
+    ),
+    "SCHEDULED_EFFECT_CANCELLED_OBSERVED": frozenset(
+        {
+            "effect_code",
+            "due_at",
+            "cancelled_at",
+            "reason_code",
+            "world_version",
         }
     ),
     "NO_ACTION_OBSERVED": frozenset(

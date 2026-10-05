@@ -350,3 +350,39 @@ def test_no_action_and_timeout_visibility_are_explicit() -> None:
     )
     assert timeout["effect_code"] == "RECOVERY_DECISION_DEADLINE"
     assert "judgment" not in timeout
+
+
+def test_scheduled_effect_cancellation_visibility_is_fail_closed() -> None:
+    assert candidate_event_visible("scheduled_effect.cancelled")
+    visible = candidate_event_payload(
+        "scheduled_effect.cancelled",
+        {
+            "effect_code": "RECOVERY_DECISION_DEADLINE",
+            "label": "Recovery decision deadline",
+            "due_at": "2026-10-05T10:30:00+00:00",
+            "cancelled_at": "2026-10-05T10:18:00+00:00",
+            "reason_code": "DECISION_COMMITTED",
+            "cancel_condition_matched": {
+                "type": "WORLD_STATE_EQUALS",
+                "path": "mission.decision_status",
+                "equals": "COMMITTED",
+            },
+        },
+    )
+    assert visible["reason_code"] == "DECISION_COMMITTED"
+    assert "cancel_condition_matched" not in visible
+
+    assert candidate_observation_visible("SCHEDULED_EFFECT_CANCELLED_OBSERVED")
+    observation = candidate_observation_payload(
+        "SCHEDULED_EFFECT_CANCELLED_OBSERVED",
+        {
+            "effect_code": "RECOVERY_DECISION_DEADLINE",
+            "due_at": "2026-10-05T10:30:00+00:00",
+            "cancelled_at": "2026-10-05T10:18:00+00:00",
+            "reason_code": "DECISION_COMMITTED",
+            "world_version": 4,
+            "judgment": "good timing",
+        },
+    )
+    assert observation["world_version"] == 4
+    assert "judgment" not in observation
