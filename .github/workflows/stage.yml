@@ -162,7 +162,7 @@ jobs:
           internal_decision_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'decision.committed' and payload ? 'effect_applied';")
           actor_instances=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances;")
           actor_state_version_2=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state_version >= 2;")
-          actor_supportive=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state->>'commitment' = 'SUPPORTIVE' and (state->>'trust_toward_candidate')::int = 60 and (state->>'current_frustration')::int = 40;")
+          actor_aligned=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where (state->>'trust_toward_candidate')::int = 60 and (state->>'current_frustration')::int = 40;")
           hidden_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state->>'private_escalation_threshold' = 'LOW';")
           communicate_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'COMMUNICATE';")
           actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
@@ -206,7 +206,7 @@ jobs:
           test "$internal_decision_effects" -ge 1
           test "$actor_instances" -ge 1
           test "$actor_state_version_2" -ge 1
-          test "$actor_supportive" -ge 1
+          test "$actor_aligned" -ge 1
           test "$hidden_actor_state" -ge 1
           test "$communicate_actions" -ge 1
           test "$actor_response_events" -ge 1
@@ -253,7 +253,7 @@ jobs:
             echo "internal_decision_effect_events=$internal_decision_effects"
             echo "actor_instances=$actor_instances"
             echo "actor_state_version_2_rows=$actor_state_version_2"
-            echo "supportive_actor_state_rows=$actor_supportive"
+            echo "aligned_actor_state_rows=$actor_aligned"
             echo "hidden_actor_state_rows=$hidden_actor_state"
             echo "communicate_actions=$communicate_actions"
             echo "actor_response_events=$actor_response_events"
