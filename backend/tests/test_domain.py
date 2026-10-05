@@ -28,9 +28,11 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    canonical_resource_balance_matches,
     delegation_preserves_candidate_accountability,
     preserves_candidate_accountability,
     project_candidate_visible_state,
+    resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
 from app.platform.events import new_event
@@ -354,6 +356,113 @@ def test_delegation_visibility_is_factual_and_fail_closed() -> None:
         },
     )
     assert observation["actor_key"] == "delivery_lead"
+    assert "judgment" not in observation
+
+
+def test_canonical_resource_balance_requires_strict_integer() -> None:
+    assert canonical_resource_balance_matches(1, 1)
+    assert not canonical_resource_balance_matches(True, 1)
+    assert not canonical_resource_balance_matches("1", 1)
+
+
+def test_resource_allocation_arithmetic_is_balanced_and_nonnegative() -> None:
+    assert resource_allocation_transition_valid(
+        quantity=2,
+        from_available=3,
+        to_available=1,
+        from_allocated=0,
+        to_allocated=2,
+    )
+    assert not resource_allocation_transition_valid(
+        quantity=4,
+        from_available=3,
+        to_available=-1,
+        from_allocated=0,
+        to_allocated=4,
+    )
+    assert not resource_allocation_transition_valid(
+        quantity=2,
+        from_available=3,
+        to_available=2,
+        from_allocated=0,
+        to_allocated=2,
+    )
+    assert not resource_allocation_transition_valid(
+        quantity=True,
+        from_available=3,
+        to_available=2,
+        from_allocated=0,
+        to_allocated=1,
+    )
+
+
+def test_resource_allocation_visibility_is_factual_and_fail_closed() -> None:
+    assert candidate_event_visible("resource_allocation.requested")
+    assert candidate_event_visible("resource_allocation.accepted")
+    requested = candidate_event_payload(
+        "resource_allocation.requested",
+        {
+            "resource_allocation_code": "ALLOCATE_TWO_ENGINEERS_TO_RECOVERY",
+            "resource_type": "ENGINEERING_CAPACITY",
+            "unit": "ENGINEER_EQUIVALENT",
+            "quantity": 2,
+            "target": "RECOVERY_EXECUTION",
+            "rationale": "Commit scarce capacity to recovery.",
+            "available_path": "resources.engineering_capacity.available_units",
+        },
+    )
+    assert requested["quantity"] == 2
+    assert "available_path" not in requested
+
+    accepted = candidate_event_payload(
+        "resource_allocation.accepted",
+        {
+            "resource_allocation_code": "ALLOCATE_TWO_ENGINEERS_TO_RECOVERY",
+            "resource_type": "ENGINEERING_CAPACITY",
+            "unit": "ENGINEER_EQUIVALENT",
+            "quantity": 2,
+            "target": "RECOVERY_EXECUTION",
+            "response": "Accepted.",
+            "from_available": 3,
+            "to_available": 1,
+            "from_allocated": 0,
+            "to_allocated": 2,
+            "world_version_before": 2,
+            "world_version_after": 3,
+            "available_path": "resources.engineering_capacity.available_units",
+            "allocated_path": "delivery.recovery_capacity_units",
+            "resource_cost_applied": {"engineering_capacity_units": 2},
+            "world_effect_applied": {
+                "resources": {"engineering_capacity": {"available_units": 1}},
+            },
+        },
+    )
+    assert accepted["to_available"] == 1
+    assert accepted["to_allocated"] == 2
+    assert "available_path" not in accepted
+    assert "allocated_path" not in accepted
+    assert "resource_cost_applied" not in accepted
+    assert "world_effect_applied" not in accepted
+
+    assert candidate_observation_visible("RESOURCE_ALLOCATION_OBSERVED")
+    observation = candidate_observation_payload(
+        "RESOURCE_ALLOCATION_OBSERVED",
+        {
+            "resource_allocation_code": "ALLOCATE_TWO_ENGINEERS_TO_RECOVERY",
+            "resource_type": "ENGINEERING_CAPACITY",
+            "unit": "ENGINEER_EQUIVALENT",
+            "quantity": 2,
+            "target": "RECOVERY_EXECUTION",
+            "from_available": 3,
+            "to_available": 1,
+            "from_allocated": 0,
+            "to_allocated": 2,
+            "world_version_before": 2,
+            "world_version_after": 3,
+            "judgment": "good prioritization",
+        },
+    )
+    assert observation["quantity"] == 2
     assert "judgment" not in observation
 
 

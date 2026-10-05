@@ -145,11 +145,18 @@ export function AcademyStudio({
               escalation_status: "NONE",
               delegation_status: "NOT_DELEGATED",
               scope_change_status: "NOT_CHANGED",
+              resource_allocation_status: "NOT_ALLOCATED",
               accountability_owner: "CANDIDATE",
             },
             delivery: {
               recovery_coordinator: "CANDIDATE",
               scope: "FULL_ROLLOUT",
+              recovery_capacity_units: 0,
+            },
+            resources: {
+              engineering_capacity: {
+                available_units: 3,
+              },
             },
           },
           candidate_visible_paths: [
@@ -165,9 +172,12 @@ export function AcademyStudio({
             "mission.escalation_status",
             "mission.delegation_status",
             "mission.scope_change_status",
+            "mission.resource_allocation_status",
             "mission.accountability_owner",
             "delivery.recovery_coordinator",
             "delivery.scope",
+            "delivery.recovery_capacity_units",
+            "resources.engineering_capacity.available_units",
           ],
           actor_runtime: {
             business_sponsor: {
@@ -242,6 +252,34 @@ export function AcademyStudio({
               world_effect: {
                 mission: { scope_change_status: "ACTIVE" },
                 delivery: { scope: "CRITICAL_CUSTOMERS_ONLY" },
+              },
+            },
+          ],
+          resource_allocation_options: [
+            {
+              code: "ALLOCATE_TWO_ENGINEERS_TO_RECOVERY",
+              label: "اختصاص ۲ واحد ظرفیت مهندسی به recovery",
+              resource_type: "ENGINEERING_CAPACITY",
+              unit: "ENGINEER_EQUIVALENT",
+              quantity: 2,
+              target: "RECOVERY_EXECUTION",
+              available_path: "resources.engineering_capacity.available_units",
+              allocated_path: "delivery.recovery_capacity_units",
+              from_available: 3,
+              to_available: 1,
+              from_allocated: 0,
+              to_allocated: 2,
+              resource_cost: {
+                engineering_capacity_units: 2,
+              },
+              response:
+                "دو واحد ظرفیت مهندسی به recovery متعهد شد؛ یک واحد ظرفیت برای سایر کارها باقی ماند.",
+              world_effect: {
+                mission: { resource_allocation_status: "ACTIVE" },
+                delivery: { recovery_capacity_units: 2 },
+                resources: {
+                  engineering_capacity: { available_units: 1 },
+                },
               },
             },
           ],

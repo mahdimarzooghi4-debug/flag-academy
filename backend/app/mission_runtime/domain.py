@@ -124,6 +124,43 @@ def delegation_preserves_candidate_accountability(
     return preserves_candidate_accountability(before_state, after_state)
 
 
+def canonical_resource_balance_matches(value: Any, expected: Any) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and isinstance(expected, int)
+        and not isinstance(expected, bool)
+        and value == expected
+    )
+
+
+def resource_allocation_transition_valid(
+    *,
+    quantity: Any,
+    from_available: Any,
+    to_available: Any,
+    from_allocated: Any,
+    to_allocated: Any,
+) -> bool:
+    values = (
+        quantity,
+        from_available,
+        to_available,
+        from_allocated,
+        to_allocated,
+    )
+    if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
+        return False
+    if quantity <= 0:
+        return False
+    if min(from_available, to_available, from_allocated, to_allocated) < 0:
+        return False
+    return (
+        to_available == from_available - quantity
+        and to_allocated == from_allocated + quantity
+    )
+
+
 def apply_actor_effect(
     actor_state: dict[str, Any],
     effect: dict[str, Any],
@@ -221,6 +258,32 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
         }
     ),
+    "resource_allocation.requested": frozenset(
+        {
+            "resource_allocation_code",
+            "resource_type",
+            "unit",
+            "quantity",
+            "target",
+            "rationale",
+        }
+    ),
+    "resource_allocation.accepted": frozenset(
+        {
+            "resource_allocation_code",
+            "resource_type",
+            "unit",
+            "quantity",
+            "target",
+            "response",
+            "from_available",
+            "to_available",
+            "from_allocated",
+            "to_allocated",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
     "scheduled_effect.created": frozenset(
         {"effect_code", "label", "due_at", "trigger_mode"}
     ),
@@ -302,6 +365,21 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "scope_change_code",
             "from_scope",
             "to_scope",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
+    "RESOURCE_ALLOCATION_OBSERVED": frozenset(
+        {
+            "resource_allocation_code",
+            "resource_type",
+            "unit",
+            "quantity",
+            "target",
+            "from_available",
+            "to_available",
+            "from_allocated",
+            "to_allocated",
             "world_version_before",
             "world_version_after",
         }

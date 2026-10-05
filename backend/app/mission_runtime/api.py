@@ -25,9 +25,11 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    canonical_resource_balance_matches,
     delegation_preserves_candidate_accountability,
     preserves_candidate_accountability,
     project_candidate_visible_state,
+    resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
 from app.mission_runtime.models import (
@@ -169,6 +171,7 @@ class MissionInstanceResponse(BaseModel):
     escalation_options: list[dict[str, str]]
     delegation_options: list[dict[str, str]]
     scope_change_options: list[dict[str, str]]
+    resource_allocation_options: list[dict[str, Any]]
     no_action_options: list[dict[str, str]]
     actors: list[ActorInstanceResponse]
     disclosed_information: list[dict[str, Any]]
@@ -287,6 +290,49 @@ def _scope_change_options(version: MissionVersion) -> list[dict[str, str]]:
                     "label": label,
                     "from_scope": from_scope,
                     "to_scope": to_scope,
+                }
+            )
+    return options
+
+
+def _resource_allocation_options(version: MissionVersion) -> list[dict[str, Any]]:
+    value = _runtime_config(version).get("resource_allocation_options", [])
+    if not isinstance(value, list):
+        return []
+
+    options: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        code = item.get("code")
+        label = item.get("label")
+        resource_type = item.get("resource_type")
+        unit = item.get("unit")
+        quantity = item.get("quantity")
+        target = item.get("target")
+        if (
+            isinstance(code, str)
+            and code
+            and isinstance(label, str)
+            and label
+            and isinstance(resource_type, str)
+            and resource_type
+            and isinstance(unit, str)
+            and unit
+            and isinstance(quantity, int)
+            and not isinstance(quantity, bool)
+            and quantity > 0
+            and isinstance(target, str)
+            and target
+        ):
+            options.append(
+                {
+                    "code": code,
+                    "label": label,
+                    "resource_type": resource_type,
+                    "unit": unit,
+                    "quantity": quantity,
+                    "target": target,
                 }
             )
     return options
@@ -1263,6 +1309,7 @@ async def _instance_response(
         escalation_options=_escalation_options(version),
         delegation_options=_delegation_options(version),
         scope_change_options=_scope_change_options(version),
+        resource_allocation_options=_resource_allocation_options(version),
         no_action_options=_no_action_options(version),
         actors=[
             ActorInstanceResponse(
@@ -1708,6 +1755,20 @@ async def start_mission_instance(
         raise AppError(
             "MISSION_SCOPE_CHANGE_DEFINITION_INVALID",
             "Missions with scope changes must declare mission.accountability_owner=CANDIDATE.",
+            status_code=422,
+        )
+    resource_allocation_options = runtime.get("resource_allocation_options", [])
+    if (
+        isinstance(resource_allocation_options, list)
+        and resource_allocation_options
+        and not preserves_candidate_accountability(
+            initial_state,
+            initial_state,
+        )
+    ):
+        raise AppError(
+            "MISSION_RESOURCE_ALLOCATION_DEFINITION_INVALID",
+            "Missions with resource allocation must declare mission.accountability_owner=CANDIDATE.",
             status_code=422,
         )
 
@@ -3097,6 +3158,277 @@ async def submit_mission_action(
             actor=actor,
             source_event=event,
             command_key=f"{body.idempotency_key}:after-scope-change",
+            now=now,
+        )
+
+    elif body.action_type == MissionActionType.ALLOCATE_RESOURCE:
+        allocation_code = body.payload.get("resource_allocation_code")
+        rationale = body.payload.get("rationale")
+        if not isinstance(allocation_code, str) or not allocation_code:
+            raise AppError(
+                "RESOURCE_ALLOCATION_CODE_REQUIRED",
+                "resource_allocation_code is required.",
+                status_code=422,
+            )
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise AppError(
+                "RESOURCE_ALLOCATION_RATIONALE_REQUIRED",
+                "Candidate resource-allocation rationale is required.",
+                status_code=422,
+            )
+
+        raw_options = _runtime_config(version).get("resource_allocation_options", [])
+        option = next(
+            (
+                item
+                for item in raw_options
+                if isinstance(item, dict)
+                and item.get("code") == allocation_code
+            ),
+            None,
+        ) if isinstance(raw_options, list) else None
+        if option is None:
+            raise AppError(
+                "RESOURCE_ALLOCATION_NOT_ALLOWED",
+                "Resource allocation is not defined by the mission world model.",
+                status_code=422,
+            )
+
+        response = option.get("response")
+        resource_type = option.get("resource_type")
+        unit = option.get("unit")
+        quantity = option.get("quantity")
+        target = option.get("target")
+        available_path = option.get("available_path")
+        allocated_path = option.get("allocated_path")
+        from_available = option.get("from_available")
+        to_available = option.get("to_available")
+        from_allocated = option.get("from_allocated")
+        to_allocated = option.get("to_allocated")
+        pinned_resource_cost = option.get("resource_cost")
+        world_effect = option.get("world_effect")
+        if (
+            not isinstance(response, str)
+            or not response
+            or not isinstance(resource_type, str)
+            or not resource_type
+            or not isinstance(unit, str)
+            or not unit
+            or not isinstance(target, str)
+            or not target
+            or not isinstance(available_path, str)
+            or not available_path
+            or not isinstance(allocated_path, str)
+            or not allocated_path
+            or available_path == allocated_path
+            or not resource_allocation_transition_valid(
+                quantity=quantity,
+                from_available=from_available,
+                to_available=to_available,
+                from_allocated=from_allocated,
+                to_allocated=to_allocated,
+            )
+            or not isinstance(pinned_resource_cost, dict)
+            or not pinned_resource_cost
+            or not isinstance(world_effect, dict)
+        ):
+            raise AppError(
+                "MISSION_RESOURCE_ALLOCATION_DEFINITION_INVALID",
+                "Resource allocation must define a positive, balanced canonical resource transition.",
+                status_code=422,
+            )
+
+        current_available = _world_state_path_value(
+            instance.world_state,
+            available_path,
+        )
+        current_allocated = _world_state_path_value(
+            instance.world_state,
+            allocated_path,
+        )
+        if (
+            not canonical_resource_balance_matches(
+                current_available,
+                from_available,
+            )
+            or not canonical_resource_balance_matches(
+                current_allocated,
+                from_allocated,
+            )
+        ):
+            raise AppError(
+                "RESOURCE_ALLOCATION_PRECONDITION_NOT_MET",
+                "Canonical resource balances no longer match this allocation option.",
+                status_code=409,
+            )
+
+        try:
+            next_world = apply_world_effect(instance.world_state, world_effect)
+        except ValueError as exc:
+            raise AppError(
+                "MISSION_RESOURCE_ALLOCATION_EFFECT_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+
+        if (
+            not canonical_resource_balance_matches(
+                _world_state_path_value(next_world, available_path),
+                to_available,
+            )
+            or not canonical_resource_balance_matches(
+                _world_state_path_value(next_world, allocated_path),
+                to_allocated,
+            )
+        ):
+            raise AppError(
+                "MISSION_RESOURCE_ALLOCATION_DEFINITION_INVALID",
+                "Resource-allocation world_effect must produce the declared canonical balances.",
+                status_code=422,
+            )
+        if not preserves_candidate_accountability(
+            instance.world_state,
+            next_world,
+        ):
+            raise AppError(
+                "RESOURCE_ALLOCATION_ACCOUNTABILITY_TRANSFER_FORBIDDEN",
+                "Resource allocation cannot transfer Candidate accountability for the Mission.",
+                status_code=422,
+            )
+        if next_world == instance.world_state:
+            raise AppError(
+                "RESOURCE_ALLOCATION_NO_EFFECT",
+                "Resource allocation must change Canonical Simulation State.",
+                status_code=422,
+            )
+
+        action.resource_cost = pinned_resource_cost
+        instance.world_state = next_world
+        instance.world_state_version += 1
+        instance.version += 1
+
+        requested_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="resource_allocation.requested",
+            source="CANDIDATE",
+            trigger_type="BEHAVIOUR_TRIGGERED",
+            trigger_reference=str(action.id),
+            payload={
+                "resource_allocation_code": allocation_code,
+                "resource_type": resource_type,
+                "unit": unit,
+                "quantity": quantity,
+                "target": target,
+                "rationale": rationale.strip(),
+            },
+            world_version_before=before,
+            world_version_after=before,
+            idempotency_key=f"{body.idempotency_key}:requested",
+            now=now,
+        )
+        event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="resource_allocation.accepted",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(requested_event.id),
+            payload={
+                "resource_allocation_code": allocation_code,
+                "resource_type": resource_type,
+                "unit": unit,
+                "quantity": quantity,
+                "target": target,
+                "response": response,
+                "available_path": available_path,
+                "allocated_path": allocated_path,
+                "from_available": from_available,
+                "to_available": to_available,
+                "from_allocated": from_allocated,
+                "to_allocated": to_allocated,
+                "resource_cost_applied": pinned_resource_cost,
+                "world_effect_applied": world_effect,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+            },
+            world_version_before=before,
+            world_version_after=instance.world_state_version,
+            idempotency_key=f"{body.idempotency_key}:accepted",
+            now=now,
+            causal_parent_ids=[str(requested_event.id)],
+        )
+        await _append_observation(
+            db,
+            instance=instance,
+            source_event=event,
+            observation_type="RESOURCE_ALLOCATION_OBSERVED",
+            factual_statement=(
+                f"Candidate allocated {quantity} {unit} of '{resource_type}' "
+                f"to '{target}'; available balance changed from "
+                f"{from_available} to {to_available} and allocated balance "
+                f"changed from {from_allocated} to {to_allocated}."
+            ),
+            payload={
+                "resource_allocation_code": allocation_code,
+                "resource_type": resource_type,
+                "unit": unit,
+                "quantity": quantity,
+                "target": target,
+                "from_available": from_available,
+                "to_available": to_available,
+                "from_allocated": from_allocated,
+                "to_allocated": to_allocated,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+            },
+            now=now,
+        )
+        record_event(
+            db,
+            new_event(
+                event_type="mission.resource_allocation_processed.v1",
+                aggregate_type="MissionInstance",
+                aggregate_id=instance.id,
+                aggregate_version=instance.version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "resource_allocation_code": allocation_code,
+                    "resource_type": resource_type,
+                    "unit": unit,
+                    "quantity": quantity,
+                    "target": target,
+                    "available_path": available_path,
+                    "allocated_path": allocated_path,
+                    "from_available": from_available,
+                    "to_available": to_available,
+                    "from_allocated": from_allocated,
+                    "to_allocated": to_allocated,
+                    "resource_cost": pinned_resource_cost,
+                    "world_version_before": before,
+                    "world_version_after": instance.world_state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-resource-allocation",
+            now=now,
+        )
+        await _apply_matching_state_triggered_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-resource-allocation",
             now=now,
         )
 

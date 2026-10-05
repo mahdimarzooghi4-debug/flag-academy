@@ -78,6 +78,14 @@ export type MissionInstance = {
     from_scope: string;
     to_scope: string;
   }>;
+  resource_allocation_options: Array<{
+    code: string;
+    label: string;
+    resource_type: string;
+    unit: string;
+    quantity: number;
+    target: string;
+  }>;
   no_action_options: Array<{ code: string; label: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
@@ -127,6 +135,12 @@ type Props = {
     scopeChangeCode: string,
     rationale: string,
   ) => Promise<void>;
+  onAllocateResource: (
+    instanceId: string,
+    worldVersion: number,
+    resourceAllocationCode: string,
+    rationale: string,
+  ) => Promise<void>;
   onAdvanceWorld: (
     instanceId: string,
     worldVersion: number,
@@ -155,6 +169,7 @@ export function MissionWorkspace({
   onEscalate,
   onDelegate,
   onChangeScope,
+  onAllocateResource,
   onAdvanceWorld,
   onNoAction,
   onDecide,
@@ -167,6 +182,8 @@ export function MissionWorkspace({
   const [delegationRationaleByInstance, setDelegationRationaleByInstance] =
     useState<Record<string, string>>({});
   const [scopeRationaleByInstance, setScopeRationaleByInstance] =
+    useState<Record<string, string>>({});
+  const [resourceRationaleByInstance, setResourceRationaleByInstance] =
     useState<Record<string, string>>({});
   const [noActionRationaleByInstance, setNoActionRationaleByInstance] =
     useState<Record<string, string>>({});
@@ -437,6 +454,59 @@ export function MissionWorkspace({
                             .map((event) => (
                               <p key={event.id} className="success-note">
                                 نتیجه تغییر دامنه: {String(event.payload.response ?? "")}
+                              </p>
+                            ))}
+                        </div>
+                      ) : null}
+
+                      {instance.resource_allocation_options.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>تخصیص منبع</strong>
+                          <label>
+                            دلیل تخصیص منبع
+                            <textarea
+                              aria-label="دلیل تخصیص منبع"
+                              value={resourceRationaleByInstance[instance.id] ?? ""}
+                              onChange={(event) =>
+                                setResourceRationaleByInstance((current) => ({
+                                  ...current,
+                                  [instance.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="این منبع محدود را چرا به این هدف متعهد می‌کنید؟"
+                            />
+                          </label>
+                          <div className="action-row">
+                            {instance.resource_allocation_options.map((option) => {
+                              const rationale =
+                                resourceRationaleByInstance[instance.id] ?? "";
+                              return (
+                                <button
+                                  key={option.code}
+                                  className="ghost dark"
+                                  disabled={busy || !rationale.trim()}
+                                  onClick={() =>
+                                    void onAllocateResource(
+                                      instance.id,
+                                      instance.world_state_version,
+                                      option.code,
+                                      rationale.trim(),
+                                    )
+                                  }
+                                >
+                                  {option.label} · {option.quantity} {option.unit}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {instance.audit_events
+                            .filter(
+                              (event) =>
+                                event.event_type === "resource_allocation.accepted",
+                            )
+                            .map((event) => (
+                              <p key={event.id} className="success-note">
+                                نتیجه تخصیص منبع: {String(event.payload.response ?? "")}
                               </p>
                             ))}
                         </div>
