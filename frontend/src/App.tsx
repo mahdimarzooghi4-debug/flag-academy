@@ -670,7 +670,6 @@ function AuthenticatedApp({
                   actionType: "NO_ACTION",
                   payload: {
                     no_action_code: noActionCode,
-                    rationale,
                   },
                   reasoning: rationale,
                 });
