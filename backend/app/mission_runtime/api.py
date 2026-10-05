@@ -624,6 +624,38 @@ async def _append_observation(
     )
     db.add(observation)
     await db.flush()
+
+    record_event(
+        db,
+        new_event(
+            event_type="observation.sealed.v1",
+            aggregate_type="Observation",
+            aggregate_id=observation.id,
+            aggregate_version=1,
+            actor={"type": "SYSTEM", "id": "MISSION_ENGINE"},
+            organization_context_id=instance.organization_context_id,
+            data_classification="CONFIDENTIAL",
+            payload={
+                "observation_id": str(observation.id),
+                "subject_person_id": str(instance.candidate_id),
+                "source_context": "MISSION_RUNTIME",
+                "source_reference": f"MISSION_INSTANCE:{instance.id}",
+                "source_runtime_event_id": str(source_event.id),
+                "observation_type": observation.observation_type,
+                "observed_fact": observation.factual_statement,
+                "observed_payload": observation.payload,
+                "occurred_at": observation.occurred_at.isoformat(),
+                "source_independence_group": f"MISSION_INSTANCE:{instance.id}",
+                "provenance": {
+                    "mission_instance_id": str(instance.id),
+                    "runtime_event_id": str(source_event.id),
+                    "runtime_event_sequence": source_event.sequence_number,
+                    "observation_sequence": observation.sequence_number,
+                },
+            },
+            trace_id=f"mission-runtime:{instance.id}",
+        ),
+    )
     return observation
 
 
