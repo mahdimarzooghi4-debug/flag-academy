@@ -525,7 +525,7 @@
 | DEC-517 | 2026-10-04 | AIInvocation باید Role، Mode، Model، Policy Version، Prompt Policy Version، Tool Permissions، Data Classification، Output Schema، Cost، Latency و Policy Violation را برای Audit ثبت کند. | FINAL |
 | DEC-518 | 2026-10-04 | UIهای اصلی از Read Model Projectionهای اختصاصی استفاده می‌کنند و Domain Truth نباید با ad-hoc join چند endpoint در Browser ساخته شود. | FINAL |
 | DEC-519 | 2026-10-04 | Background processing با Workerهای جدا برای Outbox، Event Consumption، Projection، Evidence preprocessing، AI invocation و scheduled activity انجام می‌شود؛ Codebase همچنان Modular Monolith می‌ماند. | FINAL |
-| DEC-520 | 2026-10-04 | OpenTelemetry استاندارد observability برای API، Worker، AI Gateway و Event Consumer است و سه View Technical، AI و Assessment باید وجود داشته باشد. | FINAL |
+| DEC-520 | 2026-10-04 | OpenTelemetry استاندارد observability برای API، Worker، AI Gateway و Event Consumer است و سه View Technical، AI و Assessment باید وجود داشته باشد. | SUPERSEDED → DEC-622 |
 | DEC-521 | 2026-10-04 | Logs structured JSON با sensitive-data masking هستند و اصل «Logs are for operations; Audit is for accountability» قطعی شد. | FINAL |
 | DEC-522 | 2026-10-04 | Test strategy شامل Domain Invariant Tests، Integration Tests، Simulation Determinism Tests، Assessment Integrity Tests، Playwright E2E و Offline Evaluation Set برای AI Roleهاست. | FINAL |
 | DEC-523 | 2026-10-04 | Missionهای VALIDATED باید Golden Mission Tests با Initial State، Seed، Candidate Actions و Expected Event Sequence داشته باشند. | FINAL |
@@ -568,7 +568,7 @@
 | DEC-560 | 2026-10-04 | ResponsibilityAssessment API براساس Profile Snapshot و Responsibility Definition Version، READY/READY_WITH_CONDITIONS/DIFFERENT_SCOPE/NOT_YET/BLOCKED_BY_GATE را همراه rationale تولید می‌کند. | FINAL |
 | DEC-561 | 2026-10-04 | Flag Board API شامل create/freeze/review/conflict resolution/decision است و Evidence Set همان Case بعد از Board Decision تغییر نمی‌کند؛ Appointment endpoint مستقل باقی می‌ماند. | FINAL |
 | DEC-562 | 2026-10-04 | Appointment API جدا از Flag Board است و Override خلاف Recommendation نیازمند override_reason است. | FINAL |
-| DEC-563 | 2026-10-04 | Audit API برای Governance users read-only است و AI Invocation Domain Decision از Browser یا provider credential مستقیم انجام نمی‌شود؛ AI فقط از Gateway/Application Service عبور می‌کند. | FINAL |
+| DEC-563 | 2026-10-04 | Audit API برای Governance users read-only است و AI Invocation Domain Decision از Browser یا provider credential مستقیم انجام نمی‌شود؛ AI فقط از Gateway/Application Service عبور می‌کند. | SUPERSEDED → DEC-623 |
 | DEC-564 | 2026-10-04 | PostgreSQL convention برابر snake_case + plural tables است؛ Aggregate tables version/timestamps دارند و JSONB فقط برای داده extensible و schema-validated استفاده می‌شود، نه business state حیاتی. | FINAL |
 | DEC-565 | 2026-10-04 | platform.domain_events، outbox_events و inbox_events Contractهای رسمی persistence هستند؛ Outbox فقط event commit‌شده را publish می‌کند و Inbox با consumer_name + event_id dedupe می‌کند. | FINAL |
 | DEC-566 | 2026-10-04 | Domain Event Schema Registry versioned در Repository نگه‌داری می‌شود؛ breaking change نیازمند event type/version جدید است و Event payload Aggregate Dump نیست. | FINAL |
@@ -628,6 +628,9 @@
 | DEC-619 | 2026-10-05 | Audit هوش پرچم به‌جای provider/model باید model_id/model_version، training_data_version، evaluation_version، policy versions، mode، data classification، tool permissions، output schema، latency، compute metadata و result status را ثبت کند تا lineage هر خروجی به نسخه واقعی Parcham AI قابل ردیابی باشد. | FINAL |
 | DEC-620 | 2026-10-05 | Data Classification و Governance برای Parcham AI همچنان الزامی است، اما مفهوم Provider eligibility حذف می‌شود؛ Policy تعیین می‌کند کدام داده با چه purpose و retention می‌تواند وارد inference، memory، dataset و training داخلی پرچم شود. | FINAL |
 | DEC-621 | 2026-10-05 | Self-learning در پرچم به معنی وابستگی به مدل زنده و خودتغییردهنده بدون کنترل نیست؛ Training/Evaluation/Model Version باید قابل Audit و Versioned باشد و نسخه Production فقط از مسیر ارزیابی و Promotion تعریف‌شده پرچم فعال شود. | FINAL |
+| DEC-622 | 2026-10-05 | Observability هوش پرچم مستقیماً Parcham AI Runtime، Training Jobs، Evaluation Runs و Model Promotion را با OpenTelemetry/Audit پوشش می‌دهد؛ مفهوم AI Gateway به‌عنوان واسط Provider حذف شده است. | FINAL |
+| DEC-623 | 2026-10-05 | Browser یا Domain هیچ Provider credential یا AI provider path ندارد؛ AI invocation فقط به Parcham-owned Runtime/Model Version داخل مرزهای Application/Policy پرچم متصل است. APIهای Parcham OS ممکن است برای عملیات محصول وجود داشته باشند، اما منبع هوش، inference یا training نیستند. | FINAL |
+| DEC-624 | 2026-10-05 | در تصمیم‌های قدیمی که واژه LLM باقی مانده، منظور از آن پس از DEC-617 فقط مدل زبانی/هوش اختصاصی متعلق به Parcham AI است و نباید به Provider LLM یا Foundation Model خارجی تفسیر شود. | FINAL |
 
 ---
 
