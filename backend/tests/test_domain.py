@@ -236,3 +236,41 @@ def test_actor_effect_is_deterministic_and_cannot_touch_governance_state() -> No
         assert "reserved keys" in str(exc)
     else:
         raise AssertionError("Actor Runtime must reject direct Profile mutation.")
+
+
+def test_escalation_candidate_payload_hides_internal_effects() -> None:
+    payload = {
+        "actor_key": "business_sponsor",
+        "escalation_code": "EXECUTIVE_RECOVERY_ESCALATION",
+        "response": "Escalation accepted.",
+        "world_version_before": 1,
+        "world_version_after": 2,
+        "actor_state_version_before": 2,
+        "actor_state_version_after": 3,
+        "world_effect_applied": {"stakeholder": {"executive_attention": "ENGAGED"}},
+        "actor_effect_applied": {"commitment": "EXECUTIVE_SPONSORSHIP"},
+    }
+    assert candidate_event_visible("escalation.accepted")
+    visible = candidate_event_payload("escalation.accepted", payload)
+    assert visible["escalation_code"] == "EXECUTIVE_RECOVERY_ESCALATION"
+    assert visible["world_version_after"] == 2
+    assert "world_effect_applied" not in visible
+    assert "actor_effect_applied" not in visible
+
+
+def test_escalation_observation_is_explicit_candidate_fact() -> None:
+    assert candidate_observation_visible("ESCALATION_OBSERVED")
+    visible = candidate_observation_payload(
+        "ESCALATION_OBSERVED",
+        {
+            "actor_key": "business_sponsor",
+            "escalation_code": "EXECUTIVE_RECOVERY_ESCALATION",
+            "world_version_before": 1,
+            "world_version_after": 2,
+            "actor_state_version_before": 2,
+            "actor_state_version_after": 3,
+            "judgment": "strong leadership",
+        },
+    )
+    assert "judgment" not in visible
+    assert visible["actor_state_version_after"] == 3
