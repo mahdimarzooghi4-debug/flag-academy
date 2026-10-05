@@ -132,7 +132,9 @@ Acceptance means **reviewed evidence only**. It does not imply a Capability Clai
 
 ## Candidate response boundary
 
-Candidate may see only own Evidence Cases through a candidate-safe projection.
+Candidate may see only own Evidence Cases through a candidate-safe projection. Mission Runtime pins both canonical Observation payload and the candidate-visible projection into the sealed event; Evidence Engine persists both and never reconstructs Candidate visibility from raw payload later.
+
+A non-candidate-visible Observation is not listed to the Candidate and cannot enter REQUEST_CONTEXT, preventing hidden-world leakage and deadlocked context requests.
 
 Before ACCEPTED, hidden assessor interpretation/mapping/review notes are not exposed. Candidate may see:
 
@@ -156,7 +158,7 @@ Candidate Response:
 
 Sprint 18 does not invoke Parcham AI.
 
-The schema records `ai_contribution` so future Parcham-owned model proposals have explicit provenance. Any future Parcham AI Interpretation remains a Proposal until human review according to consequence policy.
+The schema records `ai_contribution` so future Parcham-owned model proposals have explicit provenance. In Sprint 18 the only valid value is `NONE`; no UI or API caller may claim AI contribution before an explicit Parcham AI integration contract exists. Any future Parcham AI Interpretation remains a Proposal until human review according to consequence policy.
 
 No external or internal AI-provider dependency is introduced.
 
