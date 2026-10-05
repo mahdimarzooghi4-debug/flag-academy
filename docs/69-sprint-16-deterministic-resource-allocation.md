@@ -1,6 +1,6 @@
 # 69 — Sprint 16: Deterministic Resource Allocation
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED  
 **Date:** 2026-10-05
 
 ## Goal
