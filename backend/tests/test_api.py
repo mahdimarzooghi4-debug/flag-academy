@@ -50,6 +50,9 @@ def test_mission_design_contract_is_exposed() -> None:
 
 def test_mission_runtime_contract_is_exposed() -> None:
     paths = app.openapi()["paths"]
+    assert "/api/v1/mission-assignments" in paths
+    assert "/api/v1/studio/mission-assignment-candidates" in paths
+    assert "/api/v1/studio/mission-assignments" in paths
     assert "/api/v1/missions/active" in paths
     assert "/api/v1/me/mission-instances" in paths
     assert "/api/v1/missions/{version_id}/instances" in paths
@@ -57,6 +60,15 @@ def test_mission_runtime_contract_is_exposed() -> None:
     assert "/api/v1/mission-instances/{instance_id}/actions" in paths
 
     schemas = app.openapi()["components"]["schemas"]
+    assignment_props = schemas["MissionAssignmentCreateRequest"]["properties"]
+    assert "candidate_id" in assignment_props
+    assert "mission_version_id" in assignment_props
+    start_props = schemas["MissionStartRequest"]["properties"]
+    assert "assignment_id" in start_props
+    catalog_props = schemas["MissionCatalogItem"]["properties"]
+    assert "assignment_id" in catalog_props
+    assert "assignment_status" in catalog_props
+
     action_props = schemas["MissionActionRequest"]["properties"]
     assert "expected_world_version" in action_props
     assert "idempotency_key" in action_props
