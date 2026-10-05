@@ -172,11 +172,19 @@ jobs:
           escalation_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'escalation.accepted';")
           internal_escalation_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'escalation.accepted' and payload ? 'world_effect_applied' and payload ? 'actor_effect_applied';")
           escalation_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ESCALATION_OBSERVED';")
-          escalated_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,executive_attention}' = 'ENGAGED' and world_state #>> '{mission,escalation_status}' = 'EXECUTIVE_REVIEW';")
+          escalated_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,executive_attention}' = 'ENGAGED';")
           escalated_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state_version >= 3 and state->>'commitment' = 'EXECUTIVE_SPONSORSHIP';")
+          scheduled_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects;")
+          applied_scheduled_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where status = 'APPLIED' and effect_code = 'EXECUTIVE_CHECKPOINT_DUE';")
+          scheduled_created_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.created';")
+          scheduled_applied_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.applied' and payload ? 'effect_applied';")
+          simulation_time_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'simulation.time_advanced';")
+          scheduled_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCHEDULED_EFFECT_OBSERVED';")
+          advanced_simulation_clock=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where simulation_time > started_at;")
+          delayed_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,executive_checkpoint}' = 'DUE' and world_state #>> '{mission,escalation_status}' = 'CHECKPOINT_DUE';")
 
-          test "$published" -ge 27
-          test "$inbox" -ge 27
+          test "$published" -ge 28
+          test "$inbox" -ge 28
           test "$candidate_home" -ge 1
           test "$instructor_home" -ge 1
           test "$completed_units" -ge 2
@@ -195,8 +203,8 @@ jobs:
           test "$completed_mission_instances" -ge 1
           test "$mission_actions" -ge 4
           test "$mission_decisions" -ge 1
-          test "$runtime_events" -ge 12
-          test "$runtime_observations" -ge 5
+          test "$runtime_events" -ge 15
+          test "$runtime_observations" -ge 6
           test "$mission_assignments" -ge 1
           test "$completed_mission_assignments" -ge 1
           test "$assignment_bound_instances" -ge 1
@@ -218,6 +226,14 @@ jobs:
           test "$escalation_observations" -ge 1
           test "$escalated_world_state" -ge 1
           test "$escalated_actor_state" -ge 1
+          test "$scheduled_effects" -ge 1
+          test "$applied_scheduled_effects" -ge 1
+          test "$scheduled_created_events" -ge 1
+          test "$scheduled_applied_events" -ge 1
+          test "$simulation_time_events" -ge 1
+          test "$scheduled_observations" -ge 1
+          test "$advanced_simulation_clock" -ge 1
+          test "$delayed_world_state" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -265,6 +281,16 @@ jobs:
             echo "escalation_observations=$escalation_observations"
             echo "escalated_world_state_rows=$escalated_world_state"
             echo "escalated_actor_state_rows=$escalated_actor_state"
+            echo "scheduled_effects=$scheduled_effects"
+            echo "applied_scheduled_effects=$applied_scheduled_effects"
+            echo "scheduled_effect_created_events=$scheduled_created_events"
+            echo "scheduled_effect_applied_events=$scheduled_applied_events"
+            echo "simulation_time_advanced_events=$simulation_time_events"
+            echo "scheduled_effect_observations=$scheduled_observations"
+            echo "advanced_simulation_clock_rows=$advanced_simulation_clock"
+            echo "delayed_world_state_rows=$delayed_world_state"
+            echo "scheduled_effect_mutation=ENGINE_RULE_ONLY"
+            echo "simulation_clock_advance=NEXT_DUE_EVENT_ONLY"
             echo "escalation_world_mutation=ENGINE_RULE_ONLY"
             echo "escalation_actor_mutation=ENGINE_RULE_ONLY"
             echo "candidate_actor_state_projection=ALLOWLIST_ONLY"
