@@ -71,6 +71,7 @@ export type MissionInstance = {
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
   escalation_options: Array<{ code: string; label: string; actor_key: string }>;
+  delegation_options: Array<{ code: string; label: string; actor_key: string }>;
   no_action_options: Array<{ code: string; label: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
@@ -106,6 +107,14 @@ type Props = {
     escalationCode: string,
     rationale: string,
   ) => Promise<void>;
+  onDelegate: (
+    instanceId: string,
+    worldVersion: number,
+    actorKey: string,
+    actorVersion: number,
+    delegationCode: string,
+    rationale: string,
+  ) => Promise<void>;
   onAdvanceWorld: (
     instanceId: string,
     worldVersion: number,
@@ -132,6 +141,7 @@ export function MissionWorkspace({
   onRequestInformation,
   onCommunicate,
   onEscalate,
+  onDelegate,
   onAdvanceWorld,
   onNoAction,
   onDecide,
@@ -140,6 +150,8 @@ export function MissionWorkspace({
   const [reasoningByInstance, setReasoningByInstance] = useState<Record<string, string>>({});
   const [utteranceByActor, setUtteranceByActor] = useState<Record<string, string>>({});
   const [escalationRationaleByInstance, setEscalationRationaleByInstance] =
+    useState<Record<string, string>>({});
+  const [delegationRationaleByInstance, setDelegationRationaleByInstance] =
     useState<Record<string, string>>({});
   const [noActionRationaleByInstance, setNoActionRationaleByInstance] =
     useState<Record<string, string>>({});
@@ -363,6 +375,66 @@ export function MissionWorkspace({
                               );
                             })}
                           </div>
+                        </div>
+                      ) : null}
+
+                      {instance.delegation_options.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>Delegation</strong>
+                          <label>
+                            دلیل واگذاری
+                            <textarea
+                              aria-label="دلیل واگذاری"
+                              value={delegationRationaleByInstance[instance.id] ?? ""}
+                              onChange={(event) =>
+                                setDelegationRationaleByInstance((current) => ({
+                                  ...current,
+                                  [instance.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="چه مسئولیتی را چرا واگذار می‌کنید و accountability کجا می‌ماند؟"
+                            />
+                          </label>
+                          <div className="action-row">
+                            {instance.delegation_options.map((option) => {
+                              const targetActor = instance.actors.find(
+                                (actor) => actor.actor_key === option.actor_key,
+                              );
+                              const rationale =
+                                delegationRationaleByInstance[instance.id] ?? "";
+                              return (
+                                <button
+                                  key={option.code}
+                                  className="ghost dark"
+                                  disabled={
+                                    busy ||
+                                    !targetActor ||
+                                    !rationale.trim()
+                                  }
+                                  onClick={() => {
+                                    if (!targetActor) return;
+                                    void onDelegate(
+                                      instance.id,
+                                      instance.world_state_version,
+                                      targetActor.actor_key,
+                                      targetActor.state_version,
+                                      option.code,
+                                      rationale.trim(),
+                                    );
+                                  }}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {instance.audit_events
+                            .filter((event) => event.event_type === "delegation.accepted")
+                            .map((event) => (
+                              <p key={event.id} className="success-note">
+                                نتیجه واگذاری: {String(event.payload.response ?? "")}
+                              </p>
+                            ))}
                         </div>
                       ) : null}
 
