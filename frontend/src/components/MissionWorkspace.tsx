@@ -206,42 +206,44 @@ export function MissionWorkspace({
                     <span>Candidate-visible state</span>
                   </div>
 
+                  {instance.scheduled_effects.length > 0 ? (
+                    <div className="runtime-block">
+                      <strong>رویدادهای زمان‌بندی‌شده جهان</strong>
+                      <div className="stack">
+                        {instance.scheduled_effects.map((effect) => (
+                          <div key={effect.id} className="assignment-head">
+                            <div>
+                              <b>{effect.label}</b>
+                              <p>
+                                {effect.effect_code} · due {effect.due_at}
+                              </p>
+                            </div>
+                            <span className="state">{effect.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {instance.status === "RUNNING" &&
+                      instance.scheduled_effects.some(
+                        (effect) => effect.status === "PENDING",
+                      ) ? (
+                        <button
+                          className="ghost dark"
+                          disabled={busy}
+                          onClick={() =>
+                            void onAdvanceWorld(
+                              instance.id,
+                              instance.world_state_version,
+                            )
+                          }
+                        >
+                          اجرای رویداد بعدی جهان
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {instance.status === "RUNNING" ? (
                     <>
-                      {instance.scheduled_effects.length > 0 ? (
-                        <div className="runtime-block">
-                          <strong>رویدادهای زمان‌بندی‌شده جهان</strong>
-                          <div className="stack">
-                            {instance.scheduled_effects.map((effect) => (
-                              <div key={effect.id} className="assignment-head">
-                                <div>
-                                  <b>{effect.label}</b>
-                                  <p>
-                                    {effect.effect_code} · due {effect.due_at}
-                                  </p>
-                                </div>
-                                <span className="state">{effect.status}</span>
-                              </div>
-                            ))}
-                          </div>
-                          {instance.scheduled_effects.some(
-                            (effect) => effect.status === "PENDING",
-                          ) ? (
-                            <button
-                              className="ghost dark"
-                              disabled={busy}
-                              onClick={() =>
-                                void onAdvanceWorld(
-                                  instance.id,
-                                  instance.world_state_version,
-                                )
-                              }
-                            >
-                              اجرای رویداد بعدی جهان
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
                       {instance.no_action_options.length > 0 &&
                       instance.scheduled_effects.some(
                         (effect) => effect.status === "PENDING",
