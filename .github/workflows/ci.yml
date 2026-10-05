@@ -95,6 +95,9 @@ jobs:
       PARCHAM_OIDC_AUDIENCE: parcham-api
       PARCHAM_OIDC_JWKS_URL: http://localhost:8080/realms/parcham/protocol/openid-connect/certs
       PARCHAM_NATS_URL: nats://localhost:4222
+      PARCHAM_TEMPORAL_ADDRESS: localhost:7233
+      PARCHAM_TEMPORAL_NAMESPACE: default
+      PARCHAM_TEMPORAL_TASK_QUEUE: parcham-mission-runtime-v1
       PARCHAM_CORS_ORIGINS: http://localhost:5173
       VITE_API_BASE_URL: http://localhost:8000
       VITE_OIDC_AUTHORITY: http://localhost:8080/realms/parcham
@@ -129,13 +132,25 @@ jobs:
         shell: bash
         run: echo "PARCHAM_DATABASE_URL=postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB" >> "$GITHUB_ENV"
       - name: Start integration infrastructure
-        run: docker compose -f infra/docker-compose.yml up -d postgres nats keycloak
+        run: docker compose -f infra/docker-compose.yml up -d postgres nats keycloak temporal
       - name: Wait for PostgreSQL
         shell: bash
         run: |
           until docker compose -f infra/docker-compose.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
             sleep 2
           done
+      - name: Wait for Temporal
+        shell: bash
+        run: |
+          for i in {1..90}; do
+            if (echo > /dev/tcp/localhost/7233) >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker compose -f infra/docker-compose.yml logs temporal
+          exit 1
+
       - name: Seed Keycloak development users
         run: ./scripts/dev-seed-keycloak.sh
       - name: Install and seed backend
@@ -150,6 +165,8 @@ jobs:
         run: |
           python -m app.read_models.consumer > /tmp/parcham-projector.log 2>&1 &
           python -m app.platform.outbox > /tmp/parcham-outbox.log 2>&1 &
+          python -m app.mission_runtime.temporal_worker > /tmp/parcham-temporal-worker.log 2>&1 &
+          python -m app.mission_runtime.scheduler > /tmp/parcham-scheduler.log 2>&1 &
 
       - name: Start backend
         working-directory: backend
@@ -193,6 +210,8 @@ jobs:
             /tmp/parcham-web.log
             /tmp/parcham-outbox.log
             /tmp/parcham-projector.log
+            /tmp/parcham-temporal-worker.log
+            /tmp/parcham-scheduler.log
           if-no-files-found: ignore
       - name: Stop integration infrastructure
         if: always()
