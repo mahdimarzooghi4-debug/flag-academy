@@ -59,6 +59,7 @@ export type MissionInstance = {
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
+  escalation_options: Array<{ code: string; label: string; actor_key: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
@@ -85,6 +86,14 @@ type Props = {
     communicationCode: string,
     utterance: string,
   ) => Promise<void>;
+  onEscalate: (
+    instanceId: string,
+    worldVersion: number,
+    actorKey: string,
+    actorVersion: number,
+    escalationCode: string,
+    rationale: string,
+  ) => Promise<void>;
   onDecide: (
     instanceId: string,
     worldVersion: number,
@@ -100,11 +109,14 @@ export function MissionWorkspace({
   onStart,
   onRequestInformation,
   onCommunicate,
+  onEscalate,
   onDecide,
   busy,
 }: Props) {
   const [reasoningByInstance, setReasoningByInstance] = useState<Record<string, string>>({});
   const [utteranceByActor, setUtteranceByActor] = useState<Record<string, string>>({});
+  const [escalationRationaleByInstance, setEscalationRationaleByInstance] =
+    useState<Record<string, string>>({});
 
   const instanceByAssignment = useMemo(() => {
     const map = new Map<string, MissionInstance>();
@@ -236,6 +248,66 @@ export function MissionWorkspace({
                               );
                             })}
                           </div>
+                        </div>
+                      ) : null}
+
+                      {instance.escalation_options.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>Escalation</strong>
+                          <label>
+                            دلیل Escalation
+                            <textarea
+                              aria-label="دلیل Escalation"
+                              value={escalationRationaleByInstance[instance.id] ?? ""}
+                              onChange={(event) =>
+                                setEscalationRationaleByInstance((current) => ({
+                                  ...current,
+                                  [instance.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="چرا این موضوع باید به سطح بالاتری Escalate شود؟"
+                            />
+                          </label>
+                          <div className="action-row">
+                            {instance.escalation_options.map((option) => {
+                              const targetActor = instance.actors.find(
+                                (actor) => actor.actor_key === option.actor_key,
+                              );
+                              const rationale =
+                                escalationRationaleByInstance[instance.id] ?? "";
+                              return (
+                                <button
+                                  key={option.code}
+                                  className="ghost dark"
+                                  disabled={
+                                    busy ||
+                                    !targetActor ||
+                                    !rationale.trim()
+                                  }
+                                  onClick={() => {
+                                    if (!targetActor) return;
+                                    void onEscalate(
+                                      instance.id,
+                                      instance.world_state_version,
+                                      targetActor.actor_key,
+                                      targetActor.state_version,
+                                      option.code,
+                                      rationale.trim(),
+                                    );
+                                  }}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {instance.audit_events
+                            .filter((event) => event.event_type === "escalation.accepted")
+                            .map((event) => (
+                              <p key={event.id} className="success-note">
+                                نتیجه Escalation: {String(event.payload.response ?? "")}
+                              </p>
+                            ))}
                         </div>
                       ) : null}
 
