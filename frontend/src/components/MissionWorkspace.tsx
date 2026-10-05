@@ -209,7 +209,7 @@ export function MissionWorkspace({
 
                   {instance.scheduled_effects.length > 0 ? (
                     <div className="runtime-block">
-                      <strong>رویدادهای زمان‌بندی‌شده جهان</strong>
+                      <strong>پیامدهای زمان‌دار و شرطی جهان</strong>
                       <div className="stack">
                         {instance.scheduled_effects.map((effect) => (
                           <div key={effect.id} className="assignment-head">
