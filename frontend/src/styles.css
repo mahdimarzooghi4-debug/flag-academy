@@ -210,3 +210,30 @@ input:focus, select:focus {
 }
 .runtime-timeline { margin: 10px 0 0; padding-right: 20px; }
 .runtime-timeline li { margin: 8px 0; line-height: 1.7; }
+
+.mission-assignment-box {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid #e8e3d8;
+}
+.mission-assignment-box label {
+  display: grid;
+  gap: 7px;
+  font-weight: 750;
+  font-size: .88rem;
+}
+.assignment-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #6f7787;
+}
+@media (max-width: 760px) {
+  .mission-assignment-box { grid-template-columns: 1fr; }
+}

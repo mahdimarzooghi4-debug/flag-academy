@@ -37,6 +37,18 @@ export interface paths {
   "/api/v1/studio/mission-versions/{version_id}/mark-validated": MissionTransitionPath;
   "/api/v1/studio/mission-versions/{version_id}/activate": MissionTransitionPath;
   "/api/v1/studio/mission-versions/{version_id}/retire": MissionTransitionPath;
+  "/api/v1/studio/mission-assignment-candidates": {
+    get: { responses: { 200: { content: { "application/json": MissionAssignmentCandidate[] } } } };
+  };
+  "/api/v1/studio/mission-assignments": {
+    get: { responses: { 200: { content: { "application/json": MissionAssignmentSummary[] } } } };
+  };
+  "/api/v1/mission-assignments": {
+    post: {
+      requestBody: { content: { "application/json": MissionAssignmentCreate } };
+      responses: { 201: { content: { "application/json": MissionAssignmentSummary } } };
+    };
+  };
   "/api/v1/missions/active": {
     get: { responses: { 200: { content: { "application/json": MissionCatalogItem[] } } } };
   };
@@ -46,7 +58,9 @@ export interface paths {
   "/api/v1/missions/{version_id}/instances": {
     post: {
       parameters: { path: { version_id: string } };
-      requestBody: { content: { "application/json": { idempotency_key: string } } };
+      requestBody: { content: { "application/json": {
+        assignment_id: string; idempotency_key: string;
+      } } };
       responses: { 201: { content: { "application/json": MissionInstanceResponse } } };
     };
   };
@@ -250,6 +264,8 @@ export interface MissionVersionResponse {
 }
 
 export interface MissionCatalogItem {
+  assignment_id: string;
+  assignment_status: string;
   version_id: string;
   template_id: string;
   code: string;
@@ -283,6 +299,7 @@ export interface MissionObservation {
 export interface MissionInstanceResponse {
   id: string;
   version: number;
+  assignment_id?: string | null;
   mission_version_id: string;
   template_id: string;
   mission_code: string;
@@ -321,4 +338,29 @@ export interface MissionActionCreate {
   resource_cost: Record<string, unknown>;
   mode: string;
   provenance: Record<string, unknown>;
+}
+
+export interface MissionAssignmentCandidate {
+  id: string;
+  display_name: string;
+}
+export interface MissionAssignmentCreate {
+  candidate_id: string;
+  mission_version_id: string;
+  assignment_reason: string;
+  idempotency_key: string;
+}
+export interface MissionAssignmentSummary {
+  id: string;
+  version: number;
+  candidate_id: string;
+  candidate_name: string;
+  mission_version_id: string;
+  mission_code: string;
+  mission_title: string;
+  status: string;
+  assignment_reason: string;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
 }

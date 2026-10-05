@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 
 export type MissionCatalogItem = {
+  assignment_id: string;
+  assignment_status: string;
   version_id: string;
   template_id: string;
   code: string;
@@ -37,6 +39,7 @@ export type MissionObservation = {
 export type MissionInstance = {
   id: string;
   version: number;
+  assignment_id?: string | null;
   mission_version_id: string;
   template_id: string;
   mission_code: string;
@@ -59,7 +62,7 @@ export type MissionInstance = {
 type Props = {
   missions: MissionCatalogItem[];
   instances: MissionInstance[];
-  onStart: (versionId: string) => Promise<void>;
+  onStart: (versionId: string, assignmentId: string) => Promise<void>;
   onRequestInformation: (
     instanceId: string,
     worldVersion: number,
@@ -84,12 +87,11 @@ export function MissionWorkspace({
 }: Props) {
   const [reasoningByInstance, setReasoningByInstance] = useState<Record<string, string>>({});
 
-  const instanceByVersion = useMemo(() => {
+  const instanceByAssignment = useMemo(() => {
     const map = new Map<string, MissionInstance>();
     for (const instance of instances) {
-      const current = map.get(instance.mission_version_id);
-      if (!current || current.created_at < instance.created_at) {
-        map.set(instance.mission_version_id, instance);
+      if (instance.assignment_id) {
+        map.set(instance.assignment_id, instance);
       }
     }
     return map;
@@ -111,18 +113,20 @@ export function MissionWorkspace({
 
       <div className="stack">
         {missions.map((mission) => {
-          const instance = instanceByVersion.get(mission.version_id);
+          const instance = instanceByAssignment.get(mission.assignment_id);
           const reasoning = instance ? reasoningByInstance[instance.id] ?? "" : "";
 
           return (
             <article
-              key={mission.version_id}
+              key={mission.assignment_id}
               className="assignment-card mission-runtime-card"
             >
               <div className="assignment-head">
                 <div>
                   <strong>{mission.title}</strong>
-                  <p>{mission.code} · {mission.difficulty}</p>
+                  <p>
+                    {mission.code} · {mission.difficulty} · Assignment {mission.assignment_status}
+                  </p>
                 </div>
                 <span className="state" data-testid="runtime-status">
                   {instance?.status ?? "READY TO START"}
@@ -134,7 +138,7 @@ export function MissionWorkspace({
                 <button
                   className="primary"
                   disabled={busy}
-                  onClick={() => void onStart(mission.version_id)}
+                  onClick={() => void onStart(mission.version_id, mission.assignment_id)}
                 >
                   شروع مأموریت
                 </button>

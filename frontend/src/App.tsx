@@ -17,6 +17,8 @@ import {
 import {
   AcademyStudio,
   type CapabilityOption,
+  type MissionAssignmentCandidate,
+  type MissionAssignmentSummary,
   type MissionCreateInput,
 } from "./components/AcademyStudio";
 
@@ -104,6 +106,26 @@ function AuthenticatedApp({
       const { data, error } = await api.GET("/api/v1/studio/mission-templates");
       if (error || !data) throw new Error("دریافت مأموریت‌ها ناموفق بود.");
       return data as MissionTemplateResponse[];
+    },
+  });
+
+  const assignmentCandidates = useQuery({
+    queryKey: ["mission-assignment-candidates"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/studio/mission-assignment-candidates");
+      if (error || !data) throw new Error("دریافت Candidateهای قابل Assignment ناموفق بود.");
+      return data as MissionAssignmentCandidate[];
+    },
+  });
+
+  const missionAssignments = useQuery({
+    queryKey: ["mission-assignments"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/studio/mission-assignments");
+      if (error || !data) throw new Error("دریافت Mission Assignmentها ناموفق بود.");
+      return data as MissionAssignmentSummary[];
     },
   });
 
@@ -207,16 +229,25 @@ function AuthenticatedApp({
   });
 
   const startMission = useMutation({
-    mutationFn: async (versionId: string) => {
+    mutationFn: async ({
+      versionId,
+      assignmentId,
+    }: {
+      versionId: string;
+      assignmentId: string;
+    }) => {
       const { data, error } = await api.POST("/api/v1/missions/{version_id}/instances", {
         params: { path: { version_id: versionId } },
-        body: { idempotency_key: crypto.randomUUID() },
+        body: {
+          assignment_id: assignmentId,
+          idempotency_key: crypto.randomUUID(),
+        },
       });
       if (error || !data) throw new Error("شروع مأموریت ناموفق بود.");
       return data as MissionInstance;
     },
     onSuccess: async () => {
-      await missionInstances.refetch();
+      await Promise.all([missionInstances.refetch(), activeMissions.refetch()]);
     },
   });
 
@@ -256,7 +287,31 @@ function AuthenticatedApp({
       return data as MissionInstance;
     },
     onSuccess: async () => {
-      await missionInstances.refetch();
+      await Promise.all([missionInstances.refetch(), activeMissions.refetch()]);
+    },
+  });
+
+  const assignMission = useMutation({
+    mutationFn: async ({
+      versionId,
+      candidateId,
+    }: {
+      versionId: string;
+      candidateId: string;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/mission-assignments", {
+        body: {
+          candidate_id: candidateId,
+          mission_version_id: versionId,
+          assignment_reason: "Assigned from Academy Studio",
+          idempotency_key: crypto.randomUUID(),
+        },
+      });
+      if (error || !data) throw new Error("اختصاص مأموریت ناموفق بود.");
+      return data as MissionAssignmentSummary;
+    },
+    onSuccess: async () => {
+      await missionAssignments.refetch();
     },
   });
 
@@ -407,6 +462,8 @@ function AuthenticatedApp({
     instructor.isLoading ||
     capabilities.isLoading ||
     missionTemplates.isLoading ||
+    assignmentCandidates.isLoading ||
+    missionAssignments.isLoading ||
     activeMissions.isLoading ||
     missionInstances.isLoading
   ) return <Loading />;
@@ -416,11 +473,14 @@ function AuthenticatedApp({
     instructor.error ||
     capabilities.error ||
     missionTemplates.error ||
+    assignmentCandidates.error ||
+    missionAssignments.error ||
     activeMissions.error ||
     missionInstances.error ||
     createMission.error ||
     validateMission.error ||
     transitionMission.error ||
+    assignMission.error ||
     startMission.error ||
     submitMissionAction.error ||
     updateLearningUnit.error ||
@@ -438,10 +498,16 @@ function AuthenticatedApp({
           خروج
         </button>
       </header>
-      {isAdmin && capabilities.data && missionTemplates.data ? (
+      {isAdmin &&
+      capabilities.data &&
+      missionTemplates.data &&
+      assignmentCandidates.data &&
+      missionAssignments.data ? (
         <AcademyStudio
           capabilities={capabilities.data}
           templates={missionTemplates.data}
+          assignmentCandidates={assignmentCandidates.data}
+          assignments={missionAssignments.data}
           onCreate={async (input) => {
             await createMission.mutateAsync(input);
           }}
@@ -449,10 +515,14 @@ function AuthenticatedApp({
           onTransition={async (versionId, expectedVersion, action) => {
             await transitionMission.mutateAsync({ versionId, expectedVersion, action });
           }}
+          onAssign={async (versionId, candidateId) => {
+            await assignMission.mutateAsync({ versionId, candidateId });
+          }}
           busy={
             createMission.isPending ||
             validateMission.isPending ||
-            transitionMission.isPending
+            transitionMission.isPending ||
+            assignMission.isPending
           }
         />
       ) : null}
@@ -491,8 +561,8 @@ function AuthenticatedApp({
             <MissionWorkspace
               missions={activeMissions.data}
               instances={missionInstances.data}
-              onStart={async (versionId) => {
-                await startMission.mutateAsync(versionId);
+              onStart={async (versionId, assignmentId) => {
+                await startMission.mutateAsync({ versionId, assignmentId });
               }}
               onRequestInformation={async (instanceId, worldVersion, label) => {
                 await submitMissionAction.mutateAsync({

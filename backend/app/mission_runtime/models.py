@@ -16,6 +16,42 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
+class MissionAssignment(Base):
+    __tablename__ = "mission_assignments"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id",
+            "idempotency_key",
+            name="uq_mission_assignment_org_idempotency",
+        ),
+        {"schema": "mission_runtime"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    organization_context_id: Mapped[UUID] = mapped_column(
+        ForeignKey("identity.organizations.id")
+    )
+    candidate_id: Mapped[UUID] = mapped_column(ForeignKey("identity.people.id"))
+    mission_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mission_design.mission_versions.id")
+    )
+    status: Mapped[str] = mapped_column(String(32))
+    assignment_reason: Mapped[str] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+    assigned_by: Mapped[UUID] = mapped_column(ForeignKey("identity.people.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class MissionInstance(Base):
     __tablename__ = "mission_instances"
     __table_args__ = (
@@ -33,6 +69,11 @@ class MissionInstance(Base):
     organization_context_id: Mapped[UUID]
     mission_version_id: Mapped[UUID] = mapped_column(
         ForeignKey("mission_design.mission_versions.id")
+    )
+    assignment_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("mission_runtime.mission_assignments.id"),
+        unique=True,
+        nullable=True,
     )
     candidate_id: Mapped[UUID]
     status: Mapped[str] = mapped_column(String(32))

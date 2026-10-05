@@ -37,6 +37,7 @@ from app.mission_design.models import MissionTemplate, MissionVersion
 from app.mission_runtime.models import (
     CandidateAction,
     DecisionRecord,
+    MissionAssignment,
     MissionInstance,
     Observation,
     RuntimeEvent,
@@ -91,6 +92,7 @@ async def seed() -> None:
             RuntimeEvent,
             CandidateAction,
             MissionInstance,
+            MissionAssignment,
             MissionVersion,
             MissionTemplate,
             DomainEvent,

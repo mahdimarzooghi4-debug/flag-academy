@@ -19,8 +19,10 @@ from app.mission_design.domain import (
 )
 from app.mission_runtime.domain import (
     MissionActionType,
+    MissionAssignmentStatus,
     MissionInstanceStatus,
     apply_world_effect,
+    assignment_transition_allowed,
     runtime_transition_allowed,
 )
 from app.platform.events import new_event
@@ -120,3 +122,18 @@ def test_mission_runtime_world_effect_is_deterministic_and_cannot_touch_profile(
         assert "reserved namespaces" in str(exc)
     else:
         raise AssertionError("Mission Runtime must reject direct Profile mutation.")
+
+
+def test_mission_assignment_lifecycle_is_explicit() -> None:
+    assert assignment_transition_allowed(
+        MissionAssignmentStatus.ASSIGNED.value,
+        MissionAssignmentStatus.STARTED.value,
+    )
+    assert assignment_transition_allowed(
+        MissionAssignmentStatus.STARTED.value,
+        MissionAssignmentStatus.COMPLETED.value,
+    )
+    assert not assignment_transition_allowed(
+        MissionAssignmentStatus.COMPLETED.value,
+        MissionAssignmentStatus.STARTED.value,
+    )

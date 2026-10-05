@@ -10,16 +10,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.errors import AppError
 from app.identity.auth import ActorContext, require_role
+from app.identity.models import OrganizationMembership, Person
+from app.journey.models import CandidateJourney
 from app.mission_design.models import MissionTemplate, MissionVersion
 from app.mission_runtime.domain import (
     MissionActionType,
+    MissionAssignmentStatus,
     MissionInstanceStatus,
     apply_world_effect,
+    assignment_transition_allowed,
     runtime_transition_allowed,
 )
 from app.mission_runtime.models import (
     CandidateAction,
     DecisionRecord,
+    MissionAssignment,
     MissionInstance,
     Observation,
     RuntimeEvent,
@@ -30,7 +35,35 @@ router = APIRouter(prefix="/api/v1", tags=["mission-runtime"])
 
 
 class MissionStartRequest(BaseModel):
+    assignment_id: UUID
     idempotency_key: str = Field(min_length=1, max_length=160)
+
+
+class MissionAssignmentCreateRequest(BaseModel):
+    candidate_id: UUID
+    mission_version_id: UUID
+    assignment_reason: str = Field(min_length=1, max_length=2000)
+    idempotency_key: str = Field(min_length=1, max_length=160)
+
+
+class MissionAssignmentCandidateResponse(BaseModel):
+    id: UUID
+    display_name: str
+
+
+class MissionAssignmentResponse(BaseModel):
+    id: UUID
+    version: int
+    candidate_id: UUID
+    candidate_name: str
+    mission_version_id: UUID
+    mission_code: str
+    mission_title: str
+    status: str
+    assignment_reason: str
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
 
 
 class MissionActionRequest(BaseModel):
@@ -47,6 +80,8 @@ class MissionActionRequest(BaseModel):
 
 
 class MissionCatalogItem(BaseModel):
+    assignment_id: UUID
+    assignment_status: str
     version_id: UUID
     template_id: UUID
     code: str
@@ -83,6 +118,7 @@ class ObservationResponse(BaseModel):
 class MissionInstanceResponse(BaseModel):
     id: UUID
     version: int
+    assignment_id: UUID | None
     mission_version_id: UUID
     template_id: UUID
     mission_code: str
@@ -152,6 +188,57 @@ async def _load_version_and_template(
             status_code=409,
         )
     return version, template
+
+
+async def _candidate_eligibility_checks(
+    db: AsyncSession,
+    *,
+    organization_context_id: UUID,
+    candidate_id: UUID,
+) -> dict[str, bool]:
+    membership = (
+        await db.execute(
+            select(OrganizationMembership.id).where(
+                OrganizationMembership.person_id == candidate_id,
+                OrganizationMembership.organization_id == organization_context_id,
+                OrganizationMembership.membership_role == "CANDIDATE",
+            )
+        )
+    ).scalar_one_or_none()
+    active_journey = (
+        await db.execute(
+            select(CandidateJourney.id).where(
+                CandidateJourney.person_id == candidate_id,
+                CandidateJourney.organization_context_id == organization_context_id,
+                CandidateJourney.state == "ACTIVE",
+            )
+        )
+    ).scalar_one_or_none()
+    return {
+        "candidate_membership": membership is not None,
+        "active_candidate_journey": active_journey is not None,
+    }
+
+
+async def _assert_candidate_eligible(
+    db: AsyncSession,
+    *,
+    organization_context_id: UUID,
+    candidate_id: UUID,
+) -> dict[str, bool]:
+    checks = await _candidate_eligibility_checks(
+        db,
+        organization_context_id=organization_context_id,
+        candidate_id=candidate_id,
+    )
+    if not all(checks.values()):
+        raise AppError(
+            "MISSION_ELIGIBILITY_FAILED",
+            "Candidate is not eligible to run this mission assignment.",
+            status_code=409,
+            details={"checks": checks},
+        )
+    return checks
 
 
 async def _load_candidate_instance(
@@ -309,6 +396,7 @@ async def _instance_response(
     return MissionInstanceResponse(
         id=instance.id,
         version=instance.version,
+        assignment_id=instance.assignment_id,
         mission_version_id=instance.mission_version_id,
         template_id=template.id,
         mission_code=template.code,
@@ -353,6 +441,204 @@ async def _instance_response(
     )
 
 
+@router.get(
+    "/studio/mission-assignment-candidates",
+    response_model=list[MissionAssignmentCandidateResponse],
+)
+async def list_mission_assignment_candidates(
+    actor: Annotated[ActorContext, Depends(require_role("ACADEMY_ADMIN"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> list[MissionAssignmentCandidateResponse]:
+    rows = (
+        await db.execute(
+            select(Person)
+            .join(
+                OrganizationMembership,
+                OrganizationMembership.person_id == Person.id,
+            )
+            .join(
+                CandidateJourney,
+                CandidateJourney.person_id == Person.id,
+            )
+            .where(
+                OrganizationMembership.organization_id
+                == actor.organization_context_id,
+                OrganizationMembership.membership_role == "CANDIDATE",
+                CandidateJourney.organization_context_id
+                == actor.organization_context_id,
+                CandidateJourney.state == "ACTIVE",
+            )
+            .order_by(Person.display_name)
+        )
+    ).scalars().all()
+    return [
+        MissionAssignmentCandidateResponse(id=item.id, display_name=item.display_name)
+        for item in rows
+    ]
+
+
+@router.get(
+    "/studio/mission-assignments",
+    response_model=list[MissionAssignmentResponse],
+)
+async def list_mission_assignments(
+    actor: Annotated[ActorContext, Depends(require_role("ACADEMY_ADMIN"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> list[MissionAssignmentResponse]:
+    rows = (
+        await db.execute(
+            select(MissionAssignment, Person, MissionVersion, MissionTemplate)
+            .join(Person, MissionAssignment.candidate_id == Person.id)
+            .join(
+                MissionVersion,
+                MissionAssignment.mission_version_id == MissionVersion.id,
+            )
+            .join(
+                MissionTemplate,
+                MissionVersion.template_id == MissionTemplate.id,
+            )
+            .where(
+                MissionAssignment.organization_context_id
+                == actor.organization_context_id,
+                MissionTemplate.organization_context_id
+                == actor.organization_context_id,
+            )
+            .order_by(MissionAssignment.created_at.desc())
+        )
+    ).all()
+    return [
+        MissionAssignmentResponse(
+            id=assignment.id,
+            version=assignment.version,
+            candidate_id=assignment.candidate_id,
+            candidate_name=person.display_name,
+            mission_version_id=assignment.mission_version_id,
+            mission_code=template.code,
+            mission_title=version.title,
+            status=assignment.status,
+            assignment_reason=assignment.assignment_reason,
+            created_at=assignment.created_at,
+            started_at=assignment.started_at,
+            completed_at=assignment.completed_at,
+        )
+        for assignment, person, version, template in rows
+    ]
+
+
+@router.post(
+    "/mission-assignments",
+    response_model=MissionAssignmentResponse,
+    status_code=201,
+)
+async def create_mission_assignment(
+    body: MissionAssignmentCreateRequest,
+    actor: Annotated[ActorContext, Depends(require_role("ACADEMY_ADMIN"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> MissionAssignmentResponse:
+    version, template = await _load_version_and_template(
+        db,
+        actor,
+        body.mission_version_id,
+        require_active=True,
+    )
+    existing = (
+        await db.execute(
+            select(MissionAssignment).where(
+                MissionAssignment.organization_context_id
+                == actor.organization_context_id,
+                MissionAssignment.idempotency_key == body.idempotency_key,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        if (
+            existing.candidate_id != body.candidate_id
+            or existing.mission_version_id != body.mission_version_id
+        ):
+            raise AppError(
+                "IDEMPOTENCY_KEY_REUSED",
+                "Idempotency key was already used for a different mission assignment.",
+                status_code=409,
+            )
+        person = await db.get(Person, existing.candidate_id)
+        if person is None:
+            raise AppError("PERSON_NOT_FOUND", "Candidate was not found.", status_code=404)
+        return MissionAssignmentResponse(
+            id=existing.id,
+            version=existing.version,
+            candidate_id=existing.candidate_id,
+            candidate_name=person.display_name,
+            mission_version_id=existing.mission_version_id,
+            mission_code=template.code,
+            mission_title=version.title,
+            status=existing.status,
+            assignment_reason=existing.assignment_reason,
+            created_at=existing.created_at,
+            started_at=existing.started_at,
+            completed_at=existing.completed_at,
+        )
+
+    person = await db.get(Person, body.candidate_id)
+    if person is None:
+        raise AppError("PERSON_NOT_FOUND", "Candidate was not found.", status_code=404)
+    await _assert_candidate_eligible(
+        db,
+        organization_context_id=actor.organization_context_id,
+        candidate_id=body.candidate_id,
+    )
+
+    now = datetime.now(UTC)
+    assignment = MissionAssignment(
+        id=uuid4(),
+        organization_context_id=actor.organization_context_id,
+        candidate_id=body.candidate_id,
+        mission_version_id=version.id,
+        status=MissionAssignmentStatus.ASSIGNED.value,
+        assignment_reason=body.assignment_reason,
+        idempotency_key=body.idempotency_key,
+        assigned_by=actor.person_id,
+        created_at=now,
+        started_at=None,
+        completed_at=None,
+        cancelled_at=None,
+    )
+    db.add(assignment)
+    await db.flush()
+    record_event(
+        db,
+        new_event(
+            event_type="mission.assigned.v1",
+            aggregate_type="MissionAssignment",
+            aggregate_id=assignment.id,
+            aggregate_version=assignment.version,
+            actor={"type": "PERSON", "id": str(actor.person_id)},
+            organization_context_id=actor.organization_context_id,
+            data_classification="INTERNAL",
+            payload={
+                "assignment_id": str(assignment.id),
+                "candidate_id": str(assignment.candidate_id),
+                "mission_version_id": str(assignment.mission_version_id),
+            },
+            trace_id=actor.trace_id,
+        ),
+    )
+    await db.commit()
+    return MissionAssignmentResponse(
+        id=assignment.id,
+        version=assignment.version,
+        candidate_id=assignment.candidate_id,
+        candidate_name=person.display_name,
+        mission_version_id=assignment.mission_version_id,
+        mission_code=template.code,
+        mission_title=version.title,
+        status=assignment.status,
+        assignment_reason=assignment.assignment_reason,
+        created_at=assignment.created_at,
+        started_at=assignment.started_at,
+        completed_at=assignment.completed_at,
+    )
+
+
 @router.get("/missions/active", response_model=list[MissionCatalogItem])
 async def list_active_missions(
     actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
@@ -360,18 +646,36 @@ async def list_active_missions(
 ) -> list[MissionCatalogItem]:
     rows = (
         await db.execute(
-            select(MissionVersion, MissionTemplate)
-            .join(MissionTemplate, MissionVersion.template_id == MissionTemplate.id)
+            select(MissionAssignment, MissionVersion, MissionTemplate)
+            .join(
+                MissionVersion,
+                MissionAssignment.mission_version_id == MissionVersion.id,
+            )
+            .join(
+                MissionTemplate,
+                MissionVersion.template_id == MissionTemplate.id,
+            )
             .where(
-                MissionVersion.status == "ACTIVE",
+                MissionAssignment.organization_context_id
+                == actor.organization_context_id,
+                MissionAssignment.candidate_id == actor.person_id,
+                MissionAssignment.status.in_(
+                    [
+                        MissionAssignmentStatus.ASSIGNED.value,
+                        MissionAssignmentStatus.STARTED.value,
+                        MissionAssignmentStatus.COMPLETED.value,
+                    ]
+                ),
                 MissionTemplate.organization_context_id
                 == actor.organization_context_id,
             )
-            .order_by(MissionTemplate.code, MissionVersion.version_number)
+            .order_by(MissionAssignment.created_at.desc())
         )
     ).all()
     return [
         MissionCatalogItem(
+            assignment_id=assignment.id,
+            assignment_status=assignment.status,
             version_id=version.id,
             template_id=template.id,
             code=template.code,
@@ -382,7 +686,7 @@ async def list_active_missions(
             information_options=_information_options(version),
             decision_options=_decision_options(version),
         )
-        for version, template in rows
+        for assignment, version, template in rows
     ]
 
 
@@ -433,19 +737,58 @@ async def start_mission_instance(
         db,
         actor,
         version_id,
-        require_active=True,
+        require_active=False,
     )
-    existing = (
+    assignment = (
+        await db.execute(
+            select(MissionAssignment)
+            .where(
+                MissionAssignment.id == body.assignment_id,
+                MissionAssignment.organization_context_id
+                == actor.organization_context_id,
+                MissionAssignment.candidate_id == actor.person_id,
+                MissionAssignment.mission_version_id == version.id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if assignment is None:
+        raise AppError(
+            "MISSION_ASSIGNMENT_REQUIRED",
+            "A valid mission assignment is required before the mission can start.",
+            status_code=403,
+        )
+
+    existing_by_assignment = (
         await db.execute(
             select(MissionInstance).where(
-                MissionInstance.mission_version_id == version.id,
-                MissionInstance.candidate_id == actor.person_id,
-                MissionInstance.start_idempotency_key == body.idempotency_key,
+                MissionInstance.assignment_id == assignment.id
             )
         )
     ).scalar_one_or_none()
-    if existing is not None:
-        return await _instance_response(db, existing)
+    if existing_by_assignment is not None:
+        return await _instance_response(db, existing_by_assignment)
+
+    if version.status != "ACTIVE":
+        raise AppError(
+            "MISSION_VERSION_NOT_ACTIVE",
+            "Only an active mission version can be started.",
+            status_code=409,
+        )
+
+    if assignment.status != MissionAssignmentStatus.ASSIGNED.value:
+        raise AppError(
+            "MISSION_ASSIGNMENT_NOT_STARTABLE",
+            "Mission assignment is not in ASSIGNED state.",
+            status_code=409,
+            details={"assignment_status": assignment.status},
+        )
+
+    checks = await _assert_candidate_eligible(
+        db,
+        organization_context_id=actor.organization_context_id,
+        candidate_id=actor.person_id,
+    )
 
     runtime = _runtime_config(version)
     initial_state = runtime.get("initial_state")
@@ -469,6 +812,7 @@ async def start_mission_instance(
         id=instance_id,
         organization_context_id=actor.organization_context_id,
         mission_version_id=version.id,
+        assignment_id=assignment.id,
         candidate_id=actor.person_id,
         status=MissionInstanceStatus.CREATED.value,
         world_state=initial_state,
@@ -482,10 +826,57 @@ async def start_mission_instance(
     db.add(instance)
     await db.flush()
 
-    previous_event_id: UUID | None = None
+    previous = instance.status
+    if not runtime_transition_allowed(
+        previous,
+        MissionInstanceStatus.ELIGIBILITY_CHECK.value,
+    ):
+        raise AppError(
+            "MISSION_RUNTIME_TRANSITION_INVALID",
+            "Mission runtime transition is invalid.",
+            status_code=500,
+        )
+    instance.status = MissionInstanceStatus.ELIGIBILITY_CHECK.value
+    instance.version += 1
+    eligibility_state_event = await _append_runtime_event(
+        db,
+        instance=instance,
+        event_type="mission.status_changed",
+        source="ENGINE",
+        trigger_type="BEHAVIOUR_TRIGGERED",
+        trigger_reference=str(actor.person_id),
+        payload={
+            "from_status": previous,
+            "to_status": instance.status,
+            "assignment_id": str(assignment.id),
+            "mission_version_id": str(version.id),
+        },
+        world_version_before=1,
+        world_version_after=1,
+        idempotency_key=f"{body.idempotency_key}:status:eligibility",
+        now=now,
+    )
+    eligibility_event = await _append_runtime_event(
+        db,
+        instance=instance,
+        event_type="mission.eligibility_passed",
+        source="ENGINE",
+        trigger_type="STATE_TRIGGERED",
+        trigger_reference=str(assignment.id),
+        payload={
+            "assignment_id": str(assignment.id),
+            "checks": checks,
+        },
+        world_version_before=1,
+        world_version_after=1,
+        idempotency_key=f"{body.idempotency_key}:eligibility",
+        now=now,
+        causal_parent_ids=[str(eligibility_state_event.id)],
+    )
+
+    previous_event_id = eligibility_event.id
     for index, target in enumerate(
         (
-            MissionInstanceStatus.ELIGIBILITY_CHECK,
             MissionInstanceStatus.READY,
             MissionInstanceStatus.RUNNING,
         ),
@@ -507,20 +898,34 @@ async def start_mission_instance(
             instance=instance,
             event_type="mission.status_changed",
             source="ENGINE",
-            trigger_type="BEHAVIOUR_TRIGGERED",
-            trigger_reference=str(actor.person_id),
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(assignment.id),
             payload={
                 "from_status": previous,
                 "to_status": target.value,
+                "assignment_id": str(assignment.id),
                 "mission_version_id": str(version.id),
             },
             world_version_before=instance.world_state_version,
             world_version_after=instance.world_state_version,
             idempotency_key=f"{body.idempotency_key}:status:{index}",
             now=now,
-            causal_parent_ids=[str(previous_event_id)] if previous_event_id else [],
+            causal_parent_ids=[str(previous_event_id)],
         )
         previous_event_id = event.id
+
+    if not assignment_transition_allowed(
+        assignment.status,
+        MissionAssignmentStatus.STARTED.value,
+    ):
+        raise AppError(
+            "MISSION_ASSIGNMENT_TRANSITION_INVALID",
+            "Mission assignment cannot transition to STARTED.",
+            status_code=500,
+        )
+    assignment.status = MissionAssignmentStatus.STARTED.value
+    assignment.version += 1
+    assignment.started_at = now
 
     start_event = await _append_runtime_event(
         db,
@@ -530,6 +935,7 @@ async def start_mission_instance(
         trigger_type="BEHAVIOUR_TRIGGERED",
         trigger_reference=str(actor.person_id),
         payload={
+            "assignment_id": str(assignment.id),
             "mission_version_id": str(version.id),
             "mission_code": template.code,
             "simulation_seed": instance.simulation_seed,
@@ -538,7 +944,7 @@ async def start_mission_instance(
         world_version_after=1,
         idempotency_key=f"{body.idempotency_key}:started",
         now=now,
-        causal_parent_ids=[str(previous_event_id)] if previous_event_id else [],
+        causal_parent_ids=[str(previous_event_id)],
     )
     await _append_observation(
         db,
@@ -546,16 +952,19 @@ async def start_mission_instance(
         source_event=start_event,
         observation_type="MISSION_STARTED",
         factual_statement=(
-            f"Mission {template.code} started for the candidate at world state version 1."
+            f"Assigned mission {template.code} started for the candidate at world state version 1."
         ),
-        payload={"mission_version_id": str(version.id)},
+        payload={
+            "assignment_id": str(assignment.id),
+            "mission_version_id": str(version.id),
+        },
         now=now,
     )
 
     record_event(
         db,
         new_event(
-            event_type="mission.runtime_started.v1",
+            event_type="mission.started.v1",
             aggregate_type="MissionInstance",
             aggregate_id=instance.id,
             aggregate_version=instance.version,
@@ -563,6 +972,7 @@ async def start_mission_instance(
             organization_context_id=actor.organization_context_id,
             data_classification="INTERNAL",
             payload={
+                "assignment_id": str(assignment.id),
                 "mission_instance_id": str(instance.id),
                 "mission_version_id": str(version.id),
                 "status": instance.status,
@@ -818,6 +1228,57 @@ async def submit_mission_action(
                 idempotency_key=f"{body.idempotency_key}:completed",
                 now=now,
                 causal_parent_ids=[str(event.id)],
+            )
+
+            if instance.assignment_id is not None:
+                assignment = (
+                    await db.execute(
+                        select(MissionAssignment)
+                        .where(MissionAssignment.id == instance.assignment_id)
+                        .with_for_update()
+                    )
+                ).scalar_one_or_none()
+                if assignment is None:
+                    raise AppError(
+                        "MISSION_ASSIGNMENT_NOT_FOUND",
+                        "Mission assignment was not found.",
+                        status_code=500,
+                    )
+                if not assignment_transition_allowed(
+                    assignment.status,
+                    MissionAssignmentStatus.COMPLETED.value,
+                ):
+                    raise AppError(
+                        "MISSION_ASSIGNMENT_TRANSITION_INVALID",
+                        "Mission assignment cannot transition to COMPLETED.",
+                        status_code=500,
+                    )
+                assignment.status = MissionAssignmentStatus.COMPLETED.value
+                assignment.version += 1
+                assignment.completed_at = now
+
+            record_event(
+                db,
+                new_event(
+                    event_type="mission.completed.v1",
+                    aggregate_type="MissionInstance",
+                    aggregate_id=instance.id,
+                    aggregate_version=instance.version,
+                    actor={"type": "PERSON", "id": str(actor.person_id)},
+                    organization_context_id=actor.organization_context_id,
+                    data_classification="INTERNAL",
+                    payload={
+                        "assignment_id": (
+                            str(instance.assignment_id)
+                            if instance.assignment_id is not None
+                            else None
+                        ),
+                        "mission_instance_id": str(instance.id),
+                        "mission_version_id": str(instance.mission_version_id),
+                        "world_state_version": instance.world_state_version,
+                    },
+                    trace_id=actor.trace_id,
+                ),
             )
 
     else:
