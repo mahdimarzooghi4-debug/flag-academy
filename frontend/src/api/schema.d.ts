@@ -7,6 +7,36 @@ export interface paths {
       person_id: string; organization_context_id: string; roles: string[];
     } } } } };
   };
+  "/api/v1/capabilities": {
+    get: { responses: { 200: { content: { "application/json": Array<{
+      id: string; code: string; version_id: string; version_number: number;
+      name: string; definition: string; status: string;
+    }> } } } };
+  };
+  "/api/v1/studio/mission-templates": {
+    get: { responses: { 200: { content: { "application/json": MissionTemplateResponse[] } } } };
+    post: {
+      requestBody: { content: { "application/json": MissionTemplateCreate } };
+      responses: { 201: { content: { "application/json": MissionTemplateResponse } } };
+    };
+  };
+  "/api/v1/studio/mission-templates/{template_id}/versions": {
+    post: {
+      parameters: { path: { template_id: string } };
+      requestBody: { content: { "application/json": MissionTemplateCreate & { base_version_id: string } } };
+      responses: { 201: { content: { "application/json": MissionVersionResponse } } };
+    };
+  };
+  "/api/v1/studio/mission-versions/{version_id}/validate-definition": {
+    post: {
+      parameters: { path: { version_id: string } };
+      responses: { 200: { content: { "application/json": MissionValidationResponse } } };
+    };
+  };
+  "/api/v1/studio/mission-versions/{version_id}/pilot": MissionTransitionPath;
+  "/api/v1/studio/mission-versions/{version_id}/mark-validated": MissionTransitionPath;
+  "/api/v1/studio/mission-versions/{version_id}/activate": MissionTransitionPath;
+  "/api/v1/studio/mission-versions/{version_id}/retire": MissionTransitionPath;
   "/api/v1/me/candidate-home": {
     get: { responses: { 200: { content: { "application/json": CandidateHome } } } };
   };
@@ -123,4 +153,72 @@ export interface SessionSummary {
   starts_at: string;
   ends_at: string;
   delivery_mode: string;
+}
+
+export interface MissionTransitionPath {
+  post: {
+    parameters: { path: { version_id: string } };
+    requestBody: { content: { "application/json": { expected_version: number } } };
+    responses: { 200: { content: { "application/json": MissionVersionResponse } } };
+  };
+}
+export interface MissionTemplateCreate {
+  code: string;
+  name: string;
+  title: string;
+  purpose: string;
+  objective: string;
+  primary_capability_version_id: string;
+  mission_mode: "LEARN" | "PRACTICE" | "ASSESSMENT" | "REAL_PROJECT";
+  difficulty: "D1" | "D2" | "D3" | "D4" | "D5";
+  world_context: Record<string, unknown>;
+  actors: Array<{ name: string; goal: string; authority: string }>;
+  information_items: Array<{
+    label: string;
+    access: "DEFAULT" | "DISCOVERABLE" | "RESTRICTED" | "UNAVAILABLE" | "NOISY";
+    content: string;
+  }>;
+  constraints: Array<{ label: string; description: string }>;
+  decision_points: Array<{ code: string; prompt: string }>;
+  consequence_rules: Array<{ trigger: string; effect: string }>;
+  evidence_opportunities: Array<{ behaviour: string; source: string }>;
+  replay_policy: Record<string, unknown>;
+  safety_policy: Record<string, unknown>;
+}
+export interface MissionValidationResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+export interface MissionTemplateResponse {
+  id: string;
+  code: string;
+  name: string;
+  versions: MissionVersionResponse[];
+}
+export interface MissionVersionResponse {
+  id: string;
+  template_id: string;
+  aggregate_version: number;
+  version_number: number;
+  status: string;
+  title: string;
+  purpose: string;
+  objective: string;
+  primary_capability_version_id: string;
+  mission_mode: string;
+  difficulty: string;
+  world_context: Record<string, unknown>;
+  actors: Array<Record<string, unknown>>;
+  information_items: Array<Record<string, unknown>>;
+  constraints: Array<Record<string, unknown>>;
+  decision_points: Array<Record<string, unknown>>;
+  consequence_rules: Array<Record<string, unknown>>;
+  evidence_opportunities: Array<Record<string, unknown>>;
+  replay_policy: Record<string, unknown>;
+  safety_policy: Record<string, unknown>;
+  created_at: string;
+  validated_at?: string | null;
+  activated_at?: string | null;
+  retired_at?: string | null;
 }

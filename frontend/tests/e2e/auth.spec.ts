@@ -143,3 +143,34 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
   );
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });
+
+
+test("academy admin authors and activates a versioned mission", async ({ page }) => {
+  test.setTimeout(90_000);
+  const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
+  if (!adminPassword) throw new Error("Academy Admin OIDC password is required");
+
+  await login(page, "academy-admin", adminPassword);
+  await expect(page.getByText("طراحی مأموریت")).toBeVisible();
+
+  await page.getByLabel("کد مأموریت").fill("OWNERSHIP_RECOVERY_E2E");
+  await page.getByLabel("نام Template").fill("Ownership Recovery E2E");
+  await page.getByRole("button", { name: "ساخت Draft" }).click();
+
+  const missionCard = page.locator(".assignment-card").filter({
+    hasText: "OWNERSHIP_RECOVERY_E2E",
+  });
+  await expect(missionCard.getByTestId("mission-status")).toHaveText("DRAFT");
+
+  await missionCard.getByRole("button", { name: "اعتبارسنجی تعریف" }).click();
+  await expect(page.getByText("تعریف مأموریت معتبر است.")).toBeVisible();
+
+  await missionCard.getByRole("button", { name: "ورود به Pilot" }).click();
+  await expect(missionCard.getByTestId("mission-status")).toHaveText("PILOT");
+
+  await missionCard.getByRole("button", { name: "تأیید Validated" }).click();
+  await expect(missionCard.getByTestId("mission-status")).toHaveText("VALIDATED");
+
+  await missionCard.getByRole("button", { name: "فعال‌سازی" }).click();
+  await expect(missionCard.getByTestId("mission-status")).toHaveText("ACTIVE");
+});

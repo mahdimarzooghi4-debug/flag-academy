@@ -16,3 +16,6 @@ export type CandidateHomeResponse =
   paths["/api/v1/me/candidate-home"]["get"]["responses"]["200"]["content"]["application/json"];
 export type InstructorHomeResponse =
   paths["/api/v1/me/instructor-home"]["get"]["responses"]["200"]["content"]["application/json"];
+
+export type MissionTemplateResponse =
+  paths["/api/v1/studio/mission-templates"]["get"]["responses"]["200"]["content"]["application/json"][number];

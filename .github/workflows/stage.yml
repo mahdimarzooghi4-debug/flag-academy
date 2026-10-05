@@ -145,8 +145,10 @@ jobs:
           practice_replays=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts where replay_of_attempt_id is not null;")
           practice_kinds=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(distinct practice_kind) from learning.learning_units where phase = 'PRACTICE' and practice_kind is not null;")
           case_attempts=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from learning.practice_attempts pa join learning.learning_units lu on lu.id = pa.learning_unit_id where lu.practice_kind = 'CASE_STUDY';")
+          active_missions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_design.mission_versions where status = 'ACTIVE';")
+          mission_versions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_design.mission_versions;")
 
-          test "$published" -ge 14
+          test "$published" -ge 18
           test "$inbox" -ge 11
           test "$candidate_home" -ge 1
           test "$instructor_home" -ge 1
@@ -160,6 +162,8 @@ jobs:
           test "$practice_replays" -ge 1
           test "$practice_kinds" -ge 2
           test "$case_attempts" -ge 1
+          test "$active_missions" -ge 1
+          test "$mission_versions" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -178,6 +182,8 @@ jobs:
             echo "practice_replay_attempts=$practice_replays"
             echo "practice_kind_count=$practice_kinds"
             echo "case_study_attempts=$case_attempts"
+            echo "active_mission_versions=$active_missions"
+            echo "mission_versions=$mission_versions"
             echo "browser_oidc_acceptance=PASS"
           } | tee stage-artifacts/acceptance.txt
 

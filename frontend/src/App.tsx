@@ -5,9 +5,15 @@ import {
   type CandidateHomeResponse,
   type InstructorHomeResponse,
   type MeResponse,
+  type MissionTemplateResponse,
 } from "./api/client";
 import { CandidateHome } from "./components/CandidateHome";
 import { InstructorHome } from "./components/InstructorHome";
+import {
+  AcademyStudio,
+  type CapabilityOption,
+  type MissionCreateInput,
+} from "./components/AcademyStudio";
 
 function Loading({ text = "در حال بارگذاری..." }: { text?: string }) {
   return <div className="center-state">{text}</div>;
@@ -74,6 +80,27 @@ function AuthenticatedApp({
 
   const isCandidate = me.data?.roles.includes("CANDIDATE") ?? false;
   const isInstructor = me.data?.roles.includes("INSTRUCTOR") ?? false;
+  const isAdmin = me.data?.roles.includes("ACADEMY_ADMIN") ?? false;
+
+  const capabilities = useQuery({
+    queryKey: ["capabilities"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/capabilities");
+      if (error || !data) throw new Error("دریافت Capabilityها ناموفق بود.");
+      return data as CapabilityOption[];
+    },
+  });
+
+  const missionTemplates = useQuery({
+    queryKey: ["mission-templates"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/studio/mission-templates");
+      if (error || !data) throw new Error("دریافت مأموریت‌ها ناموفق بود.");
+      return data as MissionTemplateResponse[];
+    },
+  });
 
   const candidate = useQuery({
     queryKey: ["candidate-home"],
@@ -87,11 +114,70 @@ function AuthenticatedApp({
 
   const instructor = useQuery({
     queryKey: ["instructor-home"],
-    enabled: isInstructor && !isCandidate,
+    enabled: isInstructor && !isCandidate && !isAdmin,
     queryFn: async () => {
       const { data, error } = await api.GET("/api/v1/me/instructor-home");
       if (error || !data) throw new Error("دریافت صفحه مدرس ناموفق بود.");
       return data as InstructorHomeResponse;
+    },
+  });
+
+  const createMission = useMutation({
+    mutationFn: async (input: MissionCreateInput) => {
+      const { error } = await api.POST("/api/v1/studio/mission-templates", {
+        body: input,
+      });
+      if (error) throw new Error("ساخت مأموریت ناموفق بود.");
+    },
+    onSuccess: async () => {
+      await missionTemplates.refetch();
+    },
+  });
+
+  const validateMission = useMutation({
+    mutationFn: async (versionId: string) => {
+      const { data, error } = await api.POST(
+        "/api/v1/studio/mission-versions/{version_id}/validate-definition",
+        { params: { path: { version_id: versionId } } },
+      );
+      if (error || !data) throw new Error("اعتبارسنجی مأموریت ناموفق بود.");
+      return data as { valid: boolean; errors: string[]; warnings: string[] };
+    },
+  });
+
+  const transitionMission = useMutation({
+    mutationFn: async ({
+      versionId,
+      expectedVersion,
+      action,
+    }: {
+      versionId: string;
+      expectedVersion: number;
+      action: "pilot" | "mark-validated" | "activate";
+    }) => {
+      const body = { expected_version: expectedVersion };
+      if (action === "pilot") {
+        const { error } = await api.POST("/api/v1/studio/mission-versions/{version_id}/pilot", {
+          params: { path: { version_id: versionId } },
+          body,
+        });
+        if (error) throw new Error("ورود مأموریت به Pilot ناموفق بود.");
+      } else if (action === "mark-validated") {
+        const { error } = await api.POST(
+          "/api/v1/studio/mission-versions/{version_id}/mark-validated",
+          { params: { path: { version_id: versionId } }, body },
+        );
+        if (error) throw new Error("تأیید مأموریت ناموفق بود.");
+      } else {
+        const { error } = await api.POST("/api/v1/studio/mission-versions/{version_id}/activate", {
+          params: { path: { version_id: versionId } },
+          body,
+        });
+        if (error) throw new Error("فعال‌سازی مأموریت ناموفق بود.");
+      }
+    },
+    onSuccess: async () => {
+      await missionTemplates.refetch();
     },
   });
 
@@ -236,11 +322,22 @@ function AuthenticatedApp({
     },
   });
 
-  if (me.isLoading || candidate.isLoading || instructor.isLoading) return <Loading />;
+  if (
+    me.isLoading ||
+    candidate.isLoading ||
+    instructor.isLoading ||
+    capabilities.isLoading ||
+    missionTemplates.isLoading
+  ) return <Loading />;
   const error =
     me.error ||
     candidate.error ||
     instructor.error ||
+    capabilities.error ||
+    missionTemplates.error ||
+    createMission.error ||
+    validateMission.error ||
+    transitionMission.error ||
     updateLearningUnit.error ||
     submitPracticeAttempt.error ||
     submitAssignment.error ||
@@ -256,7 +353,25 @@ function AuthenticatedApp({
           خروج
         </button>
       </header>
-      {isCandidate && candidate.data ? (
+      {isAdmin && capabilities.data && missionTemplates.data ? (
+        <AcademyStudio
+          capabilities={capabilities.data}
+          templates={missionTemplates.data}
+          onCreate={async (input) => {
+            await createMission.mutateAsync(input);
+          }}
+          onValidate={async (versionId) => validateMission.mutateAsync(versionId)}
+          onTransition={async (versionId, expectedVersion, action) => {
+            await transitionMission.mutateAsync({ versionId, expectedVersion, action });
+          }}
+          busy={
+            createMission.isPending ||
+            validateMission.isPending ||
+            transitionMission.isPending
+          }
+        />
+      ) : null}
+      {!isAdmin && isCandidate && candidate.data ? (
         <CandidateHome
           data={candidate.data}
           onUpdateLearningUnit={async (learningUnitId, action) => {
@@ -283,7 +398,7 @@ function AuthenticatedApp({
           }
         />
       ) : null}
-      {!isCandidate && isInstructor && instructor.data ? (
+      {!isAdmin && !isCandidate && isInstructor && instructor.data ? (
         <InstructorHome
           data={instructor.data}
           onRecordPracticeFeedback={async (practiceAttemptId, feedback) => {
@@ -302,7 +417,7 @@ function AuthenticatedApp({
           }
         />
       ) : null}
-      {!isCandidate && !isInstructor ? (
+      {!isAdmin && !isCandidate && !isInstructor ? (
         <div className="center-state">برای این حساب Workspace فعالی تعریف نشده است.</div>
       ) : null}
     </>
