@@ -37,6 +37,32 @@ export interface paths {
   "/api/v1/studio/mission-versions/{version_id}/mark-validated": MissionTransitionPath;
   "/api/v1/studio/mission-versions/{version_id}/activate": MissionTransitionPath;
   "/api/v1/studio/mission-versions/{version_id}/retire": MissionTransitionPath;
+  "/api/v1/missions/active": {
+    get: { responses: { 200: { content: { "application/json": MissionCatalogItem[] } } } };
+  };
+  "/api/v1/me/mission-instances": {
+    get: { responses: { 200: { content: { "application/json": MissionInstanceResponse[] } } } };
+  };
+  "/api/v1/missions/{version_id}/instances": {
+    post: {
+      parameters: { path: { version_id: string } };
+      requestBody: { content: { "application/json": { idempotency_key: string } } };
+      responses: { 201: { content: { "application/json": MissionInstanceResponse } } };
+    };
+  };
+  "/api/v1/mission-instances/{instance_id}": {
+    get: {
+      parameters: { path: { instance_id: string } };
+      responses: { 200: { content: { "application/json": MissionInstanceResponse } } };
+    };
+  };
+  "/api/v1/mission-instances/{instance_id}/actions": {
+    post: {
+      parameters: { path: { instance_id: string } };
+      requestBody: { content: { "application/json": MissionActionCreate } };
+      responses: { 200: { content: { "application/json": MissionInstanceResponse } } };
+    };
+  };
   "/api/v1/me/candidate-home": {
     get: { responses: { 200: { content: { "application/json": CandidateHome } } } };
   };
@@ -221,4 +247,78 @@ export interface MissionVersionResponse {
   validated_at?: string | null;
   activated_at?: string | null;
   retired_at?: string | null;
+}
+
+export interface MissionCatalogItem {
+  version_id: string;
+  template_id: string;
+  code: string;
+  title: string;
+  purpose: string;
+  difficulty: string;
+  decision_points: Array<Record<string, unknown>>;
+  information_options: Array<{ label?: string; access?: string }>;
+  decision_options: Array<{ code?: string; label?: string }>;
+}
+export interface MissionRuntimeEvent {
+  id: string;
+  sequence_number: number;
+  event_type: string;
+  source: string;
+  visibility: string;
+  payload: Record<string, unknown>;
+  world_version_before: number;
+  world_version_after: number;
+  occurred_at: string;
+}
+export interface MissionObservation {
+  id: string;
+  source_event_id: string;
+  sequence_number: number;
+  observation_type: string;
+  factual_statement: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+}
+export interface MissionInstanceResponse {
+  id: string;
+  version: number;
+  mission_version_id: string;
+  template_id: string;
+  mission_code: string;
+  title: string;
+  status: string;
+  world_state: Record<string, unknown>;
+  world_state_version: number;
+  simulation_seed: number;
+  decision_points: Array<Record<string, unknown>>;
+  information_options: Array<{ label?: string; access?: string }>;
+  decision_options: Array<{ code?: string; label?: string }>;
+  disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
+  audit_events: MissionRuntimeEvent[];
+  observations: MissionObservation[];
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+export interface MissionActionCreate {
+  action_type:
+    | "REQUEST_INFORMATION"
+    | "COMMUNICATE"
+    | "DECIDE"
+    | "ESCALATE"
+    | "DELEGATE"
+    | "CHANGE_SCOPE"
+    | "ALLOCATE_RESOURCE"
+    | "RUN_EXPERIMENT"
+    | "NO_ACTION";
+  target?: string | null;
+  payload: Record<string, unknown>;
+  reasoning: string;
+  confidence: number;
+  expected_world_version: number;
+  idempotency_key: string;
+  resource_cost: Record<string, unknown>;
+  mode: string;
+  provenance: Record<string, unknown>;
 }
