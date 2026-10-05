@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -121,6 +122,10 @@ class ScheduledEffect(Base):
             "mission_instance_id",
             "idempotency_key",
             name="uq_scheduled_effect_instance_idempotency",
+        ),
+        CheckConstraint(
+            "(due_at IS NOT NULL) <> (trigger_condition IS NOT NULL)",
+            name="ck_scheduled_effect_exactly_one_trigger",
         ),
         {"schema": "mission_runtime"},
     )
