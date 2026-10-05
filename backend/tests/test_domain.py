@@ -26,6 +26,7 @@ from app.mission_runtime.domain import (
     assignment_transition_allowed,
     candidate_event_payload,
     candidate_event_visible,
+    delegation_preserves_candidate_accountability,
     candidate_observation_payload,
     candidate_observation_visible,
     project_candidate_visible_state,
@@ -279,6 +280,26 @@ def test_escalation_observation_is_explicit_candidate_fact() -> None:
     )
     assert "judgment" not in visible
     assert visible["actor_state_version_after"] == 3
+
+
+def test_delegation_preserves_candidate_accountability() -> None:
+    before = {
+        "mission": {"accountability_owner": "CANDIDATE"},
+        "delivery": {"recovery_coordinator": "CANDIDATE"},
+    }
+    accepted = {
+        "mission": {"accountability_owner": "CANDIDATE", "delegation_status": "ACTIVE"},
+        "delivery": {"recovery_coordinator": "DELIVERY_LEAD"},
+    }
+    transferred = {
+        "mission": {"accountability_owner": "DELIVERY_LEAD"},
+        "delivery": {"recovery_coordinator": "DELIVERY_LEAD"},
+    }
+    missing = {"mission": {"delegation_status": "ACTIVE"}}
+
+    assert delegation_preserves_candidate_accountability(before, accepted)
+    assert not delegation_preserves_candidate_accountability(before, transferred)
+    assert not delegation_preserves_candidate_accountability(missing, missing)
 
 
 def test_delegation_visibility_is_factual_and_fail_closed() -> None:
