@@ -36,6 +36,16 @@ export type MissionObservation = {
   occurred_at: string;
 };
 
+export type MissionScheduledEffect = {
+  id: string;
+  effect_code: string;
+  status: string;
+  due_at: string;
+  message?: string | null;
+  applied_at?: string | null;
+  cancelled_at?: string | null;
+};
+
 export type MissionActorInstance = {
   id: string;
   actor_key: string;
@@ -54,6 +64,7 @@ export type MissionInstance = {
   mission_code: string;
   title: string;
   status: string;
+  runtime_phase: string;
   world_state: Record<string, unknown>;
   world_state_version: number;
   decision_points: Array<Record<string, unknown>>;
@@ -61,6 +72,7 @@ export type MissionInstance = {
   decision_options: Array<{ code?: string; label?: string }>;
   escalation_options: Array<{ code: string; label: string; actor_key: string }>;
   actors: MissionActorInstance[];
+  scheduled_effects: MissionScheduledEffect[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
   observations: MissionObservation[];
@@ -160,7 +172,7 @@ export function MissionWorkspace({
                   </p>
                 </div>
                 <span className="state" data-testid="runtime-status">
-                  {instance?.status ?? "READY TO START"}
+                  {instance ? `${instance.status} · ${instance.runtime_phase}` : "READY TO START"}
                 </span>
               </div>
               <p>{mission.purpose}</p>
@@ -179,6 +191,22 @@ export function MissionWorkspace({
                     <span>World v{instance.world_state_version}</span>
                     <span>Candidate-visible state</span>
                   </div>
+
+                  {instance.scheduled_effects.length > 0 ? (
+                    <div className="runtime-block">
+                      <strong>Delayed consequences</strong>
+                      <div className="stack">
+                        {instance.scheduled_effects.map((effect) => (
+                          <div key={effect.id} data-testid={`scheduled-effect-${effect.effect_code}`}>
+                            <p>
+                              <b>{effect.effect_code}</b> · {effect.status}
+                            </p>
+                            {effect.message ? <p>{effect.message}</p> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
 
                   {instance.status === "RUNNING" ? (
                     <>
@@ -372,7 +400,12 @@ export function MissionWorkspace({
                             <button
                               key={code}
                               className="primary"
-                              disabled={busy || !code || !reasoning.trim()}
+                              disabled={
+                                busy ||
+                                instance.runtime_phase === "WAITING_FOR_WORLD" ||
+                                !code ||
+                                !reasoning.trim()
+                              }
                               onClick={() =>
                                 void onDecide(
                                   instance.id,
