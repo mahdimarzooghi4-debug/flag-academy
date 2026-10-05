@@ -269,6 +269,7 @@ function AuthenticatedApp({
         | "ESCALATE"
         | "DELEGATE"
         | "CHANGE_SCOPE"
+        | "ALLOCATE_RESOURCE"
         | "NO_ACTION"
         | "DECIDE";
       target?: string;
@@ -687,6 +688,23 @@ function AuthenticatedApp({
                   actionType: "CHANGE_SCOPE",
                   payload: {
                     scope_change_code: scopeChangeCode,
+                    rationale,
+                  },
+                  reasoning: rationale,
+                });
+              }}
+              onAllocateResource={async (
+                instanceId,
+                worldVersion,
+                resourceAllocationCode,
+                rationale,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "ALLOCATE_RESOURCE",
+                  payload: {
+                    resource_allocation_code: resourceAllocationCode,
                     rationale,
                   },
                   reasoning: rationale,
