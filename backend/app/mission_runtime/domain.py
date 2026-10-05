@@ -112,3 +112,80 @@ def assignment_transition_allowed(current: str, target: str) -> bool:
     current_status = MissionAssignmentStatus(current)
     target_status = MissionAssignmentStatus(target)
     return target_status in ALLOWED_ASSIGNMENT_TRANSITIONS[current_status]
+
+
+CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
+    "mission.status_changed": frozenset(
+        {"from_status", "to_status", "mission_version_id", "assignment_id"}
+    ),
+    "mission.eligibility_passed": frozenset({"assignment_id", "checks"}),
+    "mission.started": frozenset(
+        {"assignment_id", "mission_version_id", "mission_code"}
+    ),
+    "information.disclosed": frozenset({"label", "content", "access"}),
+    "decision.committed": frozenset({"decision_code"}),
+    "mission.completed": frozenset({"from_status", "to_status"}),
+}
+
+CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
+    "MISSION_STARTED": frozenset({"assignment_id", "mission_version_id"}),
+    "INFORMATION_REQUESTED": frozenset({"label", "access"}),
+    "DECISION_COMMITTED": frozenset(
+        {"decision_code", "world_version_before", "world_version_after"}
+    ),
+}
+
+
+def project_candidate_visible_state(
+    world_state: dict[str, Any],
+    visible_paths: list[str],
+) -> dict[str, Any]:
+    projected: dict[str, Any] = {}
+    for raw_path in visible_paths:
+        parts = [part for part in raw_path.split(".") if part]
+        if not parts:
+            continue
+
+        source: Any = world_state
+        found = True
+        for part in parts:
+            if not isinstance(source, dict) or part not in source:
+                found = False
+                break
+            source = source[part]
+        if not found:
+            continue
+
+        target = projected
+        for part in parts[:-1]:
+            existing = target.get(part)
+            if not isinstance(existing, dict):
+                existing = {}
+                target[part] = existing
+            target = existing
+        target[parts[-1]] = deepcopy(source)
+
+    return projected
+
+
+def candidate_event_payload(
+    event_type: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    allowed = CANDIDATE_EVENT_PAYLOAD_ALLOWLIST.get(event_type, frozenset())
+    return {key: deepcopy(payload[key]) for key in allowed if key in payload}
+
+
+def candidate_observation_visible(observation_type: str) -> bool:
+    return observation_type in CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST
+
+
+def candidate_observation_payload(
+    observation_type: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    allowed = CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST.get(
+        observation_type,
+        frozenset(),
+    )
+    return {key: deepcopy(payload[key]) for key in allowed if key in payload}
