@@ -1,7 +1,8 @@
 # 47 — Sprint 5 Mission Runtime v1
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -113,3 +114,11 @@ Sprint فقط وقتی Done/Accepted می‌شود که:
 - Stage evidence در GitHub Actions artifact ثبت شود.
 
 > **Mission completion ≠ Proven Capability. Observation ≠ Accepted Evidence.**
+
+## Acceptance Record
+
+- Accepted implementation commit: `059a60c058128fe67a4fc6c55a87f2413e03ade4`
+- Main CI Run: `37263630090` — PASS
+- Ephemeral Stage Run: `37263630148` — PASS
+- Code Review: `docs/reviews/05-sprint-5-mission-runtime-code-review.md` — PASS
+- Stage evidence: `docs/48-sprint-5-stage-acceptance.md`
