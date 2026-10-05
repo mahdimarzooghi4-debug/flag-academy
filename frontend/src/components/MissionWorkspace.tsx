@@ -317,7 +317,7 @@ export function MissionWorkspace({
                                     )
                                   }
                                 >
-                                  {option.label} · {option.from_scope} → {option.to_scope}
+                                  {option.label}
                                 </button>
                               );
                             })}
@@ -427,7 +427,7 @@ export function MissionWorkspace({
                                     )
                                   }
                                 >
-                                  {option.label}
+                                  {option.label} · {option.from_scope} → {option.to_scope}
                                 </button>
                               );
                             })}
