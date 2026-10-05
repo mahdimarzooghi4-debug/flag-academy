@@ -543,7 +543,7 @@ async def _cancel_matching_scheduled_effects(
 
         reason_code = str(effect.cancel_condition["reason_code"])
         effect.status = ScheduledEffectStatus.CANCELLED.value
-        effect.cancelled_at = now
+        effect.cancelled_at = instance.simulation_time
         instance.version += 1
 
         cancelled_event = await _append_runtime_event(
@@ -557,7 +557,7 @@ async def _cancel_matching_scheduled_effects(
                 "effect_code": effect.effect_code,
                 "label": effect.label,
                 "due_at": effect.due_at.isoformat(),
-                "cancelled_at": now.isoformat(),
+                "cancelled_at": instance.simulation_time.isoformat(),
                 "reason_code": reason_code,
                 "cancel_condition_matched": effect.cancel_condition,
             },
@@ -586,7 +586,7 @@ async def _cancel_matching_scheduled_effects(
                 payload={
                     "effect_code": effect.effect_code,
                     "due_at": effect.due_at.isoformat(),
-                    "cancelled_at": now.isoformat(),
+                    "cancelled_at": instance.simulation_time.isoformat(),
                     "reason_code": reason_code,
                     "world_version": instance.world_state_version,
                 },
