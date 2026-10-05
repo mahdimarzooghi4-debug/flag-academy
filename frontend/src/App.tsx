@@ -157,6 +157,16 @@ function AuthenticatedApp({
       if (error || !data) throw new Error("دریافت اجرای مأموریت‌ها ناموفق بود.");
       return data as MissionInstance[];
     },
+    refetchInterval: (query) => {
+      const data = query.state.data as MissionInstance[] | undefined;
+      return data?.some((instance) =>
+        instance.scheduled_effects.some(
+          (effect) => effect.status === "PENDING" || effect.status === "SCHEDULED",
+        ),
+      )
+        ? 500
+        : false;
+    },
   });
 
   const instructor = useQuery({
