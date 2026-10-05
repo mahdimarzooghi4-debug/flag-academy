@@ -135,10 +135,14 @@ export function AcademyStudio({
               root_cause_code: "DOWNSTREAM_DEPENDENCY",
             },
             risk: { level: "HIGH" },
-            stakeholder: { executive_attention: "NONE" },
+            stakeholder: {
+              executive_attention: "NONE",
+              checkpoint_status: "NOT_DUE",
+            },
             mission: {
               decision_status: "OPEN",
               escalation_status: "NONE",
+              delayed_consequence_status: "NONE",
             },
           },
           candidate_visible_paths: [
@@ -148,8 +152,10 @@ export function AcademyStudio({
             "technical.rollback_started",
             "risk.level",
             "stakeholder.executive_attention",
+            "stakeholder.checkpoint_status",
             "mission.decision_status",
             "mission.escalation_status",
+            "mission.delayed_consequence_status",
           ],
           actor_runtime: {
             business_sponsor: {
@@ -193,6 +199,18 @@ export function AcademyStudio({
               },
               actor_effect: {
                 commitment: "EXECUTIVE_SPONSORSHIP",
+              },
+              scheduled_effect: {
+                effect_code: "EXECUTIVE_RECOVERY_CHECKPOINT",
+                delay_seconds: 2,
+                candidate_message:
+                  "Executive checkpoint فرا رسید؛ recovery status باید اکنون با داده جدید بازبینی شود.",
+                world_effect: {
+                  stakeholder: { checkpoint_status: "ARRIVED" },
+                  mission: { delayed_consequence_status: "CHECKPOINT_READY" },
+                },
+                cancellable: true,
+                cancel_condition: { mission_must_be_running: true },
               },
             },
           ],
@@ -238,6 +256,10 @@ export function AcademyStudio({
         {
           trigger: "Candidate commits to an action",
           effect: "World state changes according to the declared recovery decision.",
+        },
+        {
+          trigger: "Executive escalation accepted",
+          effect: "A delayed recovery checkpoint is scheduled through Temporal.",
         },
       ],
       evidence_opportunities: [
