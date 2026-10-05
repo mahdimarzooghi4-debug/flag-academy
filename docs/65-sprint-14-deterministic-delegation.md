@@ -1,7 +1,8 @@
 # 65 — Sprint 14: Deterministic Delegation
 
-**Status:** IN PROGRESS  
-**Date:** 2026-10-05
+**Status:** ACCEPTED  
+**Date:** 2026-10-05  
+**Acceptance Date:** 2026-10-05
 
 ## Goal
 
@@ -103,3 +104,19 @@ Expected deterministic result:
 - Profile/Gate updates
 - probabilistic delegation decisions
 - LLM-authored runtime effects
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `a716b7e002bc3a46ea1a017acafa666c81a6c007`
+- Sprint 14 product merge: `19accae98fea1f5ffcb94812a8af7831c130bba0`
+- Stage infrastructure recovery: PR #12, merged into accepted commit
+- Main CI Run: `37312765807` — PASS
+- MinIO Image Smoke Run: `37312765917` — PASS
+- Ephemeral Stage Run: `37312765996` — PASS
+- Code Review: `docs/reviews/14-sprint-14-deterministic-delegation-code-review.md` — PASS
+- Stage evidence: `docs/66-sprint-14-stage-acceptance.md`
+- Stage artifact: `stage-acceptance-evidence`, ID `11345534784`
+- Stage artifact digest: `sha256:b97a91eaa1de7374c925190605699b5a7a2d0907a4bc44d9473b44a3598b795e`
+
+> **Sprint 14 is accepted only as deterministic Mission Runtime capability. Evidence interpretation and Profile/Gate mutation remain out of scope.**
