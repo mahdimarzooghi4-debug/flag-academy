@@ -584,7 +584,11 @@ async def _instance_response(
                 effect_code=item.effect_code,
                 status=item.status,
                 due_at=item.due_at,
-                message=item.candidate_message,
+                message=(
+                    item.candidate_message
+                    if item.status == ScheduledEffectStatus.APPLIED.value
+                    else None
+                ),
                 applied_at=item.applied_at,
                 cancelled_at=item.cancelled_at,
             )
