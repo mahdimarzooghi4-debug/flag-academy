@@ -30,6 +30,8 @@ from app.mission_runtime.domain import (
     candidate_observation_visible,
     canonical_resource_balance_matches,
     delegation_preserves_candidate_accountability,
+    experiment_contract_valid,
+    experiment_result_valid,
     preserves_candidate_accountability,
     project_candidate_visible_state,
     resource_allocation_transition_valid,
@@ -542,6 +544,138 @@ def test_scope_change_visibility_is_factual_and_fail_closed() -> None:
     assert observation["from_scope"] == "FULL_ROLLOUT"
     assert observation["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
     assert "judgment" not in observation
+
+
+def test_experiment_contract_requires_preregistration_and_ethics() -> None:
+    contract = {
+        "hypothesis": "Canary reduces error rate.",
+        "population": "10% traffic",
+        "intervention": "rollback canary",
+        "control_comparison": "degraded path",
+        "primary_metrics": ["error_rate_percent"],
+        "secondary_metrics": ["customer_impact_percent"],
+        "guardrails": ["customer_impact_percent<=2"],
+        "baseline": {"error_rate_percent": 13},
+        "expected_effect": "lower error rate",
+        "decision_rule": "Candidate interprets measurements before later action.",
+        "duration_stopping_rule": "15 minutes or guardrail breach",
+        "known_risks": ["short_window_noise"],
+        "ethical_review": {
+            "status": "APPROVED",
+            "summary": "No sensitive personal data.",
+            "risk_categories": [],
+        },
+    }
+    assert experiment_contract_valid(contract)
+
+    missing_rule = dict(contract)
+    missing_rule.pop("decision_rule")
+    assert not experiment_contract_valid(missing_rule)
+
+    rejected_ethics = dict(contract)
+    rejected_ethics["ethical_review"] = {
+        "status": "REJECTED",
+        "summary": "Risk not approved.",
+        "risk_categories": ["TRUST"],
+    }
+    assert not experiment_contract_valid(rejected_ethics)
+
+
+def test_experiment_result_is_measurement_only() -> None:
+    result = {
+        "control_measurements": {"error_rate_percent": 13},
+        "treatment_measurements": {"error_rate_percent": 5},
+        "noise_context": ["short window"],
+        "observed_events": ["No guardrail breach observed."],
+    }
+    assert experiment_result_valid(result)
+
+    interpreted = dict(result)
+    interpreted["interpretation"] = "SUCCESS"
+    assert not experiment_result_valid(interpreted)
+
+    nested_verdict = dict(result)
+    nested_verdict["noise_context"] = [{"verdict": "GOOD"}]
+    assert not experiment_result_valid(nested_verdict)
+
+
+def test_experiment_visibility_is_factual_and_hides_world_effect() -> None:
+    assert candidate_event_visible("experiment.requested")
+    assert candidate_event_visible("experiment.completed")
+    completed = candidate_event_payload(
+        "experiment.completed",
+        {
+            "experiment_code": "RECOVERY_CANARY",
+            "method": "CONTROLLED_CANARY",
+            "response": "Measurements recorded.",
+            "contract": {"hypothesis": "bounded"},
+            "result": {
+                "control_measurements": {"error_rate_percent": 13},
+                "treatment_measurements": {"error_rate_percent": 5},
+                "noise_context": [],
+                "observed_events": [],
+            },
+            "world_effect_applied": {"mission": {"experiment_status": "COMPLETED"}},
+            "world_version_before": 2,
+            "world_version_after": 3,
+        },
+    )
+    assert completed["experiment_code"] == "RECOVERY_CANARY"
+    assert "result" in completed
+    assert "contract" not in completed
+    assert "world_effect_applied" not in completed
+
+    malformed_completed = candidate_event_payload(
+        "experiment.completed",
+        {
+            "experiment_code": "RECOVERY_CANARY",
+            "method": "CONTROLLED_CANARY",
+            "result": {
+                "control_measurements": {"error_rate_percent": 13},
+                "treatment_measurements": {"error_rate_percent": 5},
+                "noise_context": [],
+                "observed_events": [],
+                "verdict": "SUCCESS",
+            },
+        },
+    )
+    assert "result" not in malformed_completed
+
+    assert candidate_observation_visible("EXPERIMENT_RESULT_OBSERVED")
+    observed = candidate_observation_payload(
+        "EXPERIMENT_RESULT_OBSERVED",
+        {
+            "experiment_code": "RECOVERY_CANARY",
+            "method": "CONTROLLED_CANARY",
+            "result": {
+                "control_measurements": {"error_rate_percent": 13},
+                "treatment_measurements": {"error_rate_percent": 5},
+                "noise_context": [],
+                "observed_events": [],
+            },
+            "world_version_before": 2,
+            "world_version_after": 3,
+            "evidence_strength": "HIGH",
+        },
+    )
+    assert observed["world_version_after"] == 3
+    assert "evidence_strength" not in observed
+
+    malformed_observed = candidate_observation_payload(
+        "EXPERIMENT_RESULT_OBSERVED",
+        {
+            "experiment_code": "RECOVERY_CANARY",
+            "method": "CONTROLLED_CANARY",
+            "result": {
+                "control_measurements": {"error_rate_percent": 13},
+                "treatment_measurements": {"error_rate_percent": 5},
+                "noise_context": [],
+                "observed_events": [],
+                "interpretation": "POSITIVE",
+            },
+        },
+    )
+    assert "result" not in malformed_observed
 
 
 def test_scheduled_effect_payload_hides_internal_effect() -> None:

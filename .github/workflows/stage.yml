@@ -168,6 +168,13 @@ jobs:
           actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
           internal_actor_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded' and payload ? 'actor_effect_applied';")
           actor_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ACTOR_RESPONSE_OBSERVED';")
+          experiment_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'RUN_EXPERIMENT';")
+          experiment_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'experiment.requested';")
+          experiment_completed_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'experiment.completed';")
+          internal_experiment_contract=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'experiment.completed' and payload ? 'contract' and payload ? 'result' and payload ? 'world_effect_applied' and payload #>> '{result,control_measurements,error_rate_percent}' = '13' and payload #>> '{result,treatment_measurements,error_rate_percent}' = '5';")
+          experiment_interpretation_keys=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'experiment.completed' and ((payload->'result') ? 'interpretation' or (payload->'result') ? 'verdict' or (payload->'result') ? 'evidence_strength' or (payload->'result') ? 'capability_score' or (payload->'result') ? 'gate_decision');")
+          experiment_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'EXPERIMENT_RESULT_OBSERVED';")
+          experiment_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{mission,experiment_status}' = 'COMPLETED' and world_state #>> '{mission,accountability_owner}' = 'CANDIDATE';")
           resource_allocation_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'ALLOCATE_RESOURCE';")
           pinned_resource_cost_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'ALLOCATE_RESOURCE' and resource_cost->>'engineering_capacity_units' = '2';")
           resource_allocation_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'resource_allocation.requested';")
@@ -264,6 +271,13 @@ jobs:
           test "$actor_response_events" -ge 1
           test "$internal_actor_effects" -ge 1
           test "$actor_observations" -ge 1
+          test "$experiment_actions" -ge 1
+          test "$experiment_requested_events" -ge 1
+          test "$experiment_completed_events" -ge 1
+          test "$internal_experiment_contract" -ge 1
+          test "$experiment_interpretation_keys" -eq 0
+          test "$experiment_observations" -ge 1
+          test "$experiment_world_state" -ge 1
           test "$resource_allocation_actions" -ge 1
           test "$pinned_resource_cost_actions" -ge 1
           test "$resource_allocation_requested_events" -ge 1
@@ -363,6 +377,13 @@ jobs:
             echo "actor_response_events=$actor_response_events"
             echo "internal_actor_effect_events=$internal_actor_effects"
             echo "actor_response_observations=$actor_observations"
+            echo "experiment_actions=$experiment_actions"
+            echo "experiment_requested_events=$experiment_requested_events"
+            echo "experiment_completed_events=$experiment_completed_events"
+            echo "internal_experiment_contract_events=$internal_experiment_contract"
+            echo "experiment_interpretation_key_events=$experiment_interpretation_keys"
+            echo "experiment_observations=$experiment_observations"
+            echo "experiment_world_state_rows=$experiment_world_state"
             echo "resource_allocation_actions=$resource_allocation_actions"
             echo "pinned_resource_cost_actions=$pinned_resource_cost_actions"
             echo "resource_allocation_requested_events=$resource_allocation_requested_events"
@@ -431,6 +452,11 @@ jobs:
             echo "scope_change_accountability_transfer=FORBIDDEN"
             echo "scope_change_candidate_state_patch=FORBIDDEN"
             echo "scope_change_transition=PINNED_PATH+FROM_SCOPE+TO_SCOPE"
+            echo "experiment_contract=PRE_REGISTERED_PINNED"
+            echo "experiment_result=ENGINE_MEASUREMENT_ONLY"
+            echo "experiment_auto_interpretation=FORBIDDEN"
+            echo "experiment_evidence_mutation=FORBIDDEN_BY_DOMAIN"
+            echo "experiment_accountability_transfer=FORBIDDEN"
             echo "resource_allocation_world_mutation=ENGINE_RULE_ONLY"
             echo "resource_allocation_arithmetic=BALANCED_NONNEGATIVE"
             echo "resource_allocation_candidate_quantity=FORBIDDEN"

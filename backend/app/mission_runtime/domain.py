@@ -161,6 +161,128 @@ def resource_allocation_transition_valid(
     )
 
 
+EXPERIMENT_RESULT_FORBIDDEN_KEYS = frozenset(
+    {
+        "interpretation",
+        "verdict",
+        "evidence_strength",
+        "capability_score",
+        "gate_decision",
+        "recommendation",
+        "decision_recommendation",
+    }
+)
+
+
+def experiment_contract_valid(contract: Any) -> bool:
+    if not isinstance(contract, dict):
+        return False
+
+    required_text = (
+        "hypothesis",
+        "population",
+        "intervention",
+        "control_comparison",
+        "expected_effect",
+        "decision_rule",
+        "duration_stopping_rule",
+    )
+    for key in required_text:
+        value = contract.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return False
+
+    for key in ("primary_metrics", "secondary_metrics", "guardrails", "known_risks"):
+        value = contract.get(key)
+        if (
+            not isinstance(value, list)
+            or not value
+            or any(not isinstance(item, str) or not item.strip() for item in value)
+        ):
+            return False
+
+    baseline = contract.get("baseline")
+    if (
+        not isinstance(baseline, dict)
+        or not baseline
+        or any(
+            not isinstance(key, str)
+            or not key
+            or not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            for key, value in baseline.items()
+        )
+    ):
+        return False
+
+    ethical_review = contract.get("ethical_review")
+    if not isinstance(ethical_review, dict):
+        return False
+    if ethical_review.get("status") != "APPROVED":
+        return False
+    summary = ethical_review.get("summary")
+    risk_categories = ethical_review.get("risk_categories")
+    return (
+        isinstance(summary, str)
+        and bool(summary.strip())
+        and isinstance(risk_categories, list)
+        and all(
+            isinstance(item, str) and bool(item.strip())
+            for item in risk_categories
+        )
+    )
+
+
+def _contains_forbidden_experiment_result_key(value: Any) -> bool:
+    if isinstance(value, dict):
+        if EXPERIMENT_RESULT_FORBIDDEN_KEYS.intersection(value):
+            return True
+        return any(
+            _contains_forbidden_experiment_result_key(item)
+            for item in value.values()
+        )
+    if isinstance(value, list):
+        return any(_contains_forbidden_experiment_result_key(item) for item in value)
+    return False
+
+
+def experiment_result_valid(result: Any) -> bool:
+    if not isinstance(result, dict):
+        return False
+    required = {
+        "control_measurements",
+        "treatment_measurements",
+        "noise_context",
+        "observed_events",
+    }
+    if set(result) != required or _contains_forbidden_experiment_result_key(result):
+        return False
+
+    for key in ("control_measurements", "treatment_measurements"):
+        measurements = result.get(key)
+        if (
+            not isinstance(measurements, dict)
+            or not measurements
+            or any(
+                not isinstance(metric, str)
+                or not metric
+                or not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                for metric, value in measurements.items()
+            )
+        ):
+            return False
+
+    for key in ("noise_context", "observed_events"):
+        items = result.get(key)
+        if (
+            not isinstance(items, list)
+            or any(not isinstance(item, str) or not item.strip() for item in items)
+        ):
+            return False
+    return True
+
+
 def apply_actor_effect(
     actor_state: dict[str, Any],
     effect: dict[str, Any],
@@ -284,6 +406,20 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
         }
     ),
+    "experiment.requested": frozenset(
+        {"experiment_code", "method", "rationale"}
+    ),
+    "experiment.completed": frozenset(
+        {
+            "experiment_code",
+            "method",
+            "response",
+            "contract",
+            "result",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
     "scheduled_effect.created": frozenset(
         {"effect_code", "label", "due_at", "trigger_mode"}
     ),
@@ -384,6 +520,15 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
         }
     ),
+    "EXPERIMENT_RESULT_OBSERVED": frozenset(
+        {
+            "experiment_code",
+            "method",
+            "result",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
     "SCHEDULED_EFFECT_OBSERVED": frozenset(
         {
             "effect_code",
@@ -466,7 +611,13 @@ def candidate_event_payload(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     allowed = CANDIDATE_EVENT_PAYLOAD_ALLOWLIST.get(event_type, frozenset())
-    return {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    projected = {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    if event_type == "experiment.completed":
+        if "contract" in projected and not experiment_contract_valid(projected["contract"]):
+            projected.pop("contract")
+        if "result" in projected and not experiment_result_valid(projected["result"]):
+            projected.pop("result")
+    return projected
 
 
 def candidate_observation_visible(observation_type: str) -> bool:
@@ -481,4 +632,11 @@ def candidate_observation_payload(
         observation_type,
         frozenset(),
     )
-    return {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    projected = {key: deepcopy(payload[key]) for key in allowed if key in payload}
+    if (
+        observation_type == "EXPERIMENT_RESULT_OBSERVED"
+        and "result" in projected
+        and not experiment_result_valid(projected["result"])
+    ):
+        projected.pop("result")
+    return projected

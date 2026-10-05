@@ -27,6 +27,8 @@ from app.mission_runtime.domain import (
     candidate_observation_visible,
     canonical_resource_balance_matches,
     delegation_preserves_candidate_accountability,
+    experiment_contract_valid,
+    experiment_result_valid,
     preserves_candidate_accountability,
     project_candidate_visible_state,
     resource_allocation_transition_valid,
@@ -172,6 +174,7 @@ class MissionInstanceResponse(BaseModel):
     delegation_options: list[dict[str, str]]
     scope_change_options: list[dict[str, str]]
     resource_allocation_options: list[dict[str, Any]]
+    experiment_options: list[dict[str, Any]]
     no_action_options: list[dict[str, str]]
     actors: list[ActorInstanceResponse]
     disclosed_information: list[dict[str, Any]]
@@ -333,6 +336,39 @@ def _resource_allocation_options(version: MissionVersion) -> list[dict[str, Any]
                     "unit": unit,
                     "quantity": quantity,
                     "target": target,
+                }
+            )
+    return options
+
+
+def _experiment_options(version: MissionVersion) -> list[dict[str, Any]]:
+    value = _runtime_config(version).get("experiment_options", [])
+    if not isinstance(value, list):
+        return []
+
+    options: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        code = item.get("code")
+        label = item.get("label")
+        method = item.get("method")
+        contract = item.get("contract")
+        if (
+            isinstance(code, str)
+            and code
+            and isinstance(label, str)
+            and label
+            and isinstance(method, str)
+            and method
+            and experiment_contract_valid(contract)
+        ):
+            options.append(
+                {
+                    "code": code,
+                    "label": label,
+                    "method": method,
+                    "contract": contract,
                 }
             )
     return options
@@ -1310,6 +1346,7 @@ async def _instance_response(
         delegation_options=_delegation_options(version),
         scope_change_options=_scope_change_options(version),
         resource_allocation_options=_resource_allocation_options(version),
+        experiment_options=_experiment_options(version),
         no_action_options=_no_action_options(version),
         actors=[
             ActorInstanceResponse(
@@ -3429,6 +3466,192 @@ async def submit_mission_action(
             actor=actor,
             source_event=event,
             command_key=f"{body.idempotency_key}:after-resource-allocation",
+            now=now,
+        )
+
+    elif body.action_type == MissionActionType.RUN_EXPERIMENT:
+        experiment_code = body.payload.get("experiment_code")
+        rationale = body.payload.get("rationale")
+        if not isinstance(experiment_code, str) or not experiment_code:
+            raise AppError(
+                "EXPERIMENT_CODE_REQUIRED",
+                "experiment_code is required.",
+                status_code=422,
+            )
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise AppError(
+                "EXPERIMENT_RATIONALE_REQUIRED",
+                "Candidate experiment rationale is required.",
+                status_code=422,
+            )
+
+        raw_options = _runtime_config(version).get("experiment_options", [])
+        option = next(
+            (
+                item
+                for item in raw_options
+                if isinstance(item, dict)
+                and item.get("code") == experiment_code
+            ),
+            None,
+        ) if isinstance(raw_options, list) else None
+        if option is None:
+            raise AppError(
+                "EXPERIMENT_NOT_ALLOWED",
+                "Experiment is not defined by the pinned Mission Version.",
+                status_code=422,
+            )
+
+        label = option.get("label")
+        method = option.get("method")
+        contract = option.get("contract")
+        result = option.get("result")
+        response = option.get("response")
+        world_effect = option.get("world_effect")
+        if (
+            not isinstance(label, str)
+            or not label
+            or not isinstance(method, str)
+            or not method
+            or not experiment_contract_valid(contract)
+            or not experiment_result_valid(result)
+            or not isinstance(response, str)
+            or not response
+            or not isinstance(world_effect, dict)
+        ):
+            raise AppError(
+                "MISSION_EXPERIMENT_DEFINITION_INVALID",
+                "Experiment must define a frozen contract, descriptive Engine-owned result and deterministic world effect.",
+                status_code=422,
+            )
+
+        try:
+            next_world = apply_world_effect(instance.world_state, world_effect)
+        except ValueError as exc:
+            raise AppError(
+                "MISSION_EXPERIMENT_EFFECT_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+
+        if not preserves_candidate_accountability(
+            instance.world_state,
+            next_world,
+        ):
+            raise AppError(
+                "EXPERIMENT_ACCOUNTABILITY_TRANSFER_FORBIDDEN",
+                "Experiment cannot transfer Candidate accountability for the Mission.",
+                status_code=422,
+            )
+        if next_world == instance.world_state:
+            raise AppError(
+                "EXPERIMENT_NO_EFFECT",
+                "Experiment must change Canonical Simulation State.",
+                status_code=422,
+            )
+
+        instance.world_state = next_world
+        instance.world_state_version += 1
+        instance.version += 1
+
+        requested_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="experiment.requested",
+            source="CANDIDATE",
+            trigger_type="BEHAVIOUR_TRIGGERED",
+            trigger_reference=str(action.id),
+            payload={
+                "experiment_code": experiment_code,
+                "method": method,
+                "rationale": rationale.strip(),
+            },
+            world_version_before=before,
+            world_version_after=before,
+            idempotency_key=f"{body.idempotency_key}:requested",
+            now=now,
+        )
+        event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="experiment.completed",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(requested_event.id),
+            payload={
+                "experiment_code": experiment_code,
+                "method": method,
+                "response": response,
+                "contract": contract,
+                "result": result,
+                "world_effect_applied": world_effect,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+            },
+            world_version_before=before,
+            world_version_after=instance.world_state_version,
+            idempotency_key=f"{body.idempotency_key}:completed",
+            now=now,
+            causal_parent_ids=[str(requested_event.id)],
+        )
+        await _append_observation(
+            db,
+            instance=instance,
+            source_event=event,
+            observation_type="EXPERIMENT_RESULT_OBSERVED",
+            factual_statement=(
+                f"Candidate ran pinned experiment '{experiment_code}' using "
+                f"method '{method}'; descriptive measurements were produced "
+                f"and world state advanced from version {before} to "
+                f"{instance.world_state_version}."
+            ),
+            payload={
+                "experiment_code": experiment_code,
+                "method": method,
+                "result": result,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+            },
+            now=now,
+        )
+        record_event(
+            db,
+            new_event(
+                event_type="mission.experiment_processed.v1",
+                aggregate_type="MissionInstance",
+                aggregate_id=instance.id,
+                aggregate_version=instance.version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "experiment_code": experiment_code,
+                    "method": method,
+                    "contract": contract,
+                    "result": result,
+                    "world_effect": world_effect,
+                    "world_version_before": before,
+                    "world_version_after": instance.world_state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-experiment",
+            now=now,
+        )
+        await _apply_matching_state_triggered_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-experiment",
             now=now,
         )
 

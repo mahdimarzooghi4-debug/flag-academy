@@ -270,6 +270,7 @@ function AuthenticatedApp({
         | "DELEGATE"
         | "CHANGE_SCOPE"
         | "ALLOCATE_RESOURCE"
+        | "RUN_EXPERIMENT"
         | "NO_ACTION"
         | "DECIDE";
       target?: string;
@@ -705,6 +706,23 @@ function AuthenticatedApp({
                   actionType: "ALLOCATE_RESOURCE",
                   payload: {
                     resource_allocation_code: resourceAllocationCode,
+                    rationale,
+                  },
+                  reasoning: rationale,
+                });
+              }}
+              onRunExperiment={async (
+                instanceId,
+                worldVersion,
+                experimentCode,
+                rationale,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "RUN_EXPERIMENT",
+                  payload: {
+                    experiment_code: experimentCode,
                     rationale,
                   },
                   reasoning: rationale,

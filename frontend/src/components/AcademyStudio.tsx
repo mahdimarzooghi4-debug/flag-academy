@@ -146,6 +146,7 @@ export function AcademyStudio({
               delegation_status: "NOT_DELEGATED",
               scope_change_status: "NOT_CHANGED",
               resource_allocation_status: "NOT_ALLOCATED",
+              experiment_status: "NOT_RUN",
               accountability_owner: "CANDIDATE",
             },
             delivery: {
@@ -173,6 +174,7 @@ export function AcademyStudio({
             "mission.delegation_status",
             "mission.scope_change_status",
             "mission.resource_allocation_status",
+            "mission.experiment_status",
             "mission.accountability_owner",
             "delivery.recovery_coordinator",
             "delivery.scope",
@@ -252,6 +254,62 @@ export function AcademyStudio({
               world_effect: {
                 mission: { scope_change_status: "ACTIVE" },
                 delivery: { scope: "CRITICAL_CUSTOMERS_ONLY" },
+              },
+            },
+          ],
+          experiment_options: [
+            {
+              code: "RECOVERY_CANARY",
+              label: "اجرای canary بازیابی روی ۱۰٪ ترافیک",
+              method: "CONTROLLED_CANARY",
+              contract: {
+                hypothesis:
+                  "rollback canary should reduce incident error rate without breaching the customer-impact guardrail",
+                population: "10% of recovery traffic",
+                intervention: "controlled rollback canary",
+                control_comparison: "current degraded path",
+                primary_metrics: ["error_rate_percent"],
+                secondary_metrics: ["customer_impact_percent"],
+                guardrails: ["customer_impact_percent<=2"],
+                baseline: {
+                  error_rate_percent: 13,
+                  customer_impact_percent: 1,
+                },
+                expected_effect:
+                  "treatment error rate is lower than the 13% baseline while guardrail remains within limit",
+                decision_rule:
+                  "Candidate must interpret the measured control/treatment values before choosing a later Mission action",
+                duration_stopping_rule:
+                  "15 simulated minutes or immediate stop on guardrail breach",
+                known_risks: ["traffic_mix_noise", "short_window_noise"],
+                ethical_review: {
+                  status: "APPROVED",
+                  summary:
+                    "Operational canary uses no sensitive personal data and does not target a protected population.",
+                  risk_categories: [],
+                },
+              },
+              result: {
+                control_measurements: {
+                  error_rate_percent: 13,
+                  customer_impact_percent: 1,
+                },
+                treatment_measurements: {
+                  error_rate_percent: 5,
+                  customer_impact_percent: 1,
+                },
+                noise_context: [
+                  "Traffic mix is limited to a 10% recovery slice.",
+                  "Measurement window is intentionally short.",
+                ],
+                observed_events: [
+                  "No customer-impact guardrail breach was observed during the canary window.",
+                ],
+              },
+              response:
+                "Experiment اجرا شد؛ اندازه‌گیری‌های خام Control/Treatment ثبت شدند و تفسیر نتیجه با Candidate است.",
+              world_effect: {
+                mission: { experiment_status: "COMPLETED" },
               },
             },
           ],

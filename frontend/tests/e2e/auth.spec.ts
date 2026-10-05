@@ -242,6 +242,9 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     '"resource_allocation_status": "NOT_ALLOCATED"',
   );
   await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"experiment_status": "NOT_RUN"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
     '"available_units": 3',
   );
   await expect(runtimeCard.getByTestId("world-state")).toContainText(
@@ -289,6 +292,39 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("FULL_ROLLOUT");
   await expect(runtimeCard).toContainText("CRITICAL_CUSTOMERS_ONLY");
   await expect(runtimeCard).not.toContainText("scope_path");
+  await expect(runtimeCard).not.toContainText("world_effect_applied");
+
+  const experimentContract = runtimeCard.getByTestId(
+    "experiment-contract-RECOVERY_CANARY",
+  );
+  await expect(experimentContract).toContainText('"hypothesis"');
+  await expect(experimentContract).toContainText('"decision_rule"');
+  await expect(experimentContract).toContainText('"duration_stopping_rule"');
+  await expect(experimentContract).toContainText('"status": "APPROVED"');
+
+  await runtimeCard.getByLabel("دلیل اجرای آزمایش").fill(
+    "قبل از تعهد منابع بیشتر، با یک canary محدود عدم‌قطعیت درباره اثر rollback بر error rate را کم می‌کنم.",
+  );
+  await runtimeCard
+    .getByRole("button", { name: "اجرای canary بازیابی روی ۱۰٪ ترافیک" })
+    .click();
+
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"experiment_status": "COMPLETED"',
+  );
+  const experimentResult = runtimeCard.getByTestId(
+    "experiment-result-RECOVERY_CANARY",
+  );
+  await expect(experimentResult).toContainText('"error_rate_percent": 13');
+  await expect(experimentResult).toContainText('"error_rate_percent": 5');
+  await expect(experimentResult).toContainText('"customer_impact_percent": 1');
+  await expect(runtimeCard).toContainText("EXPERIMENT_RESULT_OBSERVED");
+  await expect(runtimeCard).toContainText(
+    "تفسیر نتیجه با Candidate است",
+  );
+  await expect(runtimeCard).not.toContainText('"verdict"');
+  await expect(runtimeCard).not.toContainText('"interpretation"');
+  await expect(runtimeCard).not.toContainText('"evidence_strength"');
   await expect(runtimeCard).not.toContainText("world_effect_applied");
 
   await runtimeCard.getByLabel("دلیل تخصیص منبع").fill(
@@ -423,7 +459,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 6 to 7");
+  await expect(runtimeCard).toContainText("world state advanced from version 7 to 8");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
 

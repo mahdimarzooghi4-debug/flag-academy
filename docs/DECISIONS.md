@@ -91,8 +91,8 @@
 | DEC-083 | 2026-10-04 | AI Business Pack Builder می‌تواند از منابع معتبر کسب‌وکار World Model و Simulation Pack اولیه بسازد، اما استفاده عملی نیازمند Human Validation است. | FINAL |
 | DEC-084 | 2026-10-04 | AI Responsibility Matcher، Mission Requirements را با Flag Profileها تطبیق می‌دهد و Recommended Candidates ارائه می‌کند. | FINAL |
 | DEC-085 | 2026-10-04 | در تصمیم‌های Consequential مانند ADMIT/REJECT، Gate Failure، Certification و Appointment، AI تنها تصمیم‌گیرنده نیست؛ الگو AI Recommendation → Human Review → Accountable Decision است. | FINAL |
-| DEC-086 | 2026-10-04 | اختصاصی‌بودن Parcham AI از Competency Ontology، Evidence Graph، Flag Profile، Knowledge Base، World Models، Mission Library، Simulation History، Decision Logs و Organizational Context ساخته می‌شود؛ Foundation Model الزاماً اختصاصی نیست. | FINAL |
-| DEC-087 | 2026-10-04 | معماری Parcham AI باید تا حد ممکن Vendor-neutral باشد تا از Vendor Lock-in جلوگیری شود. | FINAL |
+| DEC-086 | 2026-10-04 | اختصاصی‌بودن Parcham AI از Competency Ontology، Evidence Graph، Flag Profile، Knowledge Base، World Models، Mission Library، Simulation History، Decision Logs و Organizational Context ساخته می‌شود؛ Foundation Model الزاماً اختصاصی نیست. | SUPERSEDED → DEC-617 |
+| DEC-087 | 2026-10-04 | معماری Parcham AI باید تا حد ممکن Vendor-neutral باشد تا از Vendor Lock-in جلوگیری شود. | SUPERSEDED → DEC-617 |
 | DEC-088 | 2026-10-04 | حافظه Parcham AI باید Structured، Evidence-based و قابل Audit باشد و نباید بر برداشت مبهم درباره فرد تکیه کند. | FINAL |
 | DEC-089 | 2026-10-04 | مفهوم Leadership Digital Twin به‌عنوان مدل زنده و Evidence-based توانایی‌ها، الگوی تصمیم‌گیری، واکنش به فشار، یادگیری و Scope اثبات‌شده هر فرد پذیرفته شد. | FINAL |
 | DEC-090 | 2026-10-04 | تمام Evidenceها و Recommendationهای تولیدشده توسط AI باید دارای Audit Trail، Permission و Data Governance باشند. | FINAL |
@@ -442,7 +442,7 @@
 | DEC-434 | 2026-10-04 | Learning & Reflection یک Domain مستقل با چرخه Evidence → Reflection → Behaviour Commitment → Replay → Evidence است. | FINAL |
 | DEC-435 | 2026-10-04 | Curriculum Orchestrator یک Evidence Gap Resolver است و براساس Profile، Gate State، Replay Need و Learning Commitment، Next Best Experience را انتخاب می‌کند، نه صرفاً Next Course. | FINAL |
 | DEC-436 | 2026-10-04 | Parcham AI یک AI Orchestration & Governance Layer است و Roleهایی مانند Tutor، Mentor، Simulation Director، Actor Runtime، Evidence Analyst، Reflection Coach، Business Pack Builder و Responsibility Matcher را با Mode/Data/Tool/Output/Audit policy جدا اجرا می‌کند. | FINAL |
-| DEC-437 | 2026-10-04 | هیچ Domain مستقیماً Provider LLM را صدا نمی‌زند؛ تمام AI callها از Parcham AI Gateway با Model Routing، Policy Versioning، Structured Output، Safety، Data Classification، Cost/Latency، Provider Abstraction، Trace و Evaluation عبور می‌کنند. | FINAL |
+| DEC-437 | 2026-10-04 | هیچ Domain مستقیماً Provider LLM را صدا نمی‌زند؛ تمام AI callها از Parcham AI Gateway با Model Routing، Policy Versioning، Structured Output، Safety، Data Classification، Cost/Latency، Provider Abstraction، Trace و Evaluation عبور می‌کنند. | SUPERSEDED → DEC-617 |
 | DEC-438 | 2026-10-04 | Core Sources of Truth به‌صورت Domain-owned تعریف شدند؛ Curriculum Definition، Mission Definition، Simulation State، Raw Observation، Evidence Interpretation، Current Proven Profile، Gate Decision، Responsibility Requirement/Recommendation، Appointment Decision و Learning Commitment هرکدام Owner مشخص دارند. | FINAL |
 | DEC-439 | 2026-10-04 | Parcham OS از Event Backbone برای propagation بین Domainها استفاده می‌کند؛ interactionهای نیازمند حقیقت فوری sync و propagation بین Domainها در صورت امکان async و eventually consistent هستند. | FINAL |
 | DEC-440 | 2026-10-04 | Read Modelهای اختصاصی مانند Candidate Home، Assessor Evidence Case و Flag Board Case باید برای Experience ساخته شوند و UI نباید ad-hoc Domain Data را Join کند. | FINAL |
@@ -484,7 +484,7 @@
 | DEC-476 | 2026-10-04 | FlagBoardCase Aggregate با State DRAFT_CASE → EVIDENCE_FREEZE → INDEPENDENT_REVIEW → CONFLICT_RESOLUTION → BOARD_READY → BOARD_DECISION → DECISION_ACKNOWLEDGED تعریف شد و READY فقط APPOINTMENT_ELIGIBLE ایجاد می‌کند. | FINAL |
 | DEC-477 | 2026-10-04 | AppointmentDecision Aggregate مستقل از FlagBoardCase است؛ Readiness و Appointment جدا هستند و Override reason/decision maker باید ثبت شود. | FINAL |
 | DEC-478 | 2026-10-04 | NextExperiencePlanner یک Domain/Application Service است که Recommendation را بر اساس Profile، Gate State، Evidence Gaps، Replay Requirements، Learning Commitments، Mission History و Eligibility می‌سازد و Source of Truth Profile نیست. | FINAL |
-| DEC-479 | 2026-10-04 | AIInvocation Aggregate صرفاً برای Audit/Governance AI است و role، mode، provider/model، policy versions، data classification، tool permissions، output schema، latency، cost و result status را نگه می‌دارد. | FINAL |
+| DEC-479 | 2026-10-04 | AIInvocation Aggregate صرفاً برای Audit/Governance AI است و role، mode، provider/model، policy versions، data classification، tool permissions، output schema، latency، cost و result status را نگه می‌دارد. | SUPERSEDED → DEC-619 |
 | DEC-480 | 2026-10-04 | KnowledgeSource/KnowledgeSnapshot Versioned هستند و هر Retrieval باید به Source Version قابل ردیابی باشد؛ Knowledge هیچ‌وقت Simulation Truth را override نمی‌کند. | FINAL |
 | DEC-481 | 2026-10-04 | Transaction Boundaryها به‌ازای Aggregateهای صاحب Business Operation تعریف شدند و Cross-context consistency فقط از Domain Event + Outbox + Idempotent Consumer انجام می‌شود. | FINAL |
 | DEC-482 | 2026-10-04 | تمام Domain Eventها Envelope مشترک با event/aggregate identity/version، occurred_at، actor، correlation_id، causation_id، organization_context_id، data_classification، payload و trace_id دارند. | FINAL |
@@ -518,14 +518,14 @@
 | DEC-510 | 2026-10-04 | Authentication با Keycloak + OIDC Authorization Code + PKCE انجام می‌شود؛ Browser Client Secret ندارد و Fine-grained Authorization در Backend با RBAC + Contextual Policy انجام می‌شود. | FINAL |
 | DEC-511 | 2026-10-04 | Artifactهای حجیم در S3-compatible Object Storage ذخیره می‌شوند؛ MinIO برای Local/Stage و Signed URL برای دسترسی استفاده می‌شود و Database فقط Metadata را نگه می‌دارد. | FINAL |
 | DEC-512 | 2026-10-04 | Knowledge/Retrieval در v1 با PostgreSQL Full Text Search + pgvector انجام می‌شود و Retrieval Index Source of Truth نیست. | FINAL |
-| DEC-513 | 2026-10-04 | هیچ Module مستقیماً Provider LLM را صدا نمی‌زند؛ تمام AI callها از Parcham AI Gateway با Policy/Model Routing، Structured Output، Safety، Data Classification، Retry، Cost/Latency، Trace و Evaluation عبور می‌کنند. | FINAL |
+| DEC-513 | 2026-10-04 | هیچ Module مستقیماً Provider LLM را صدا نمی‌زند؛ تمام AI callها از Parcham AI Gateway با Policy/Model Routing، Structured Output، Safety، Data Classification، Retry، Cost/Latency، Trace و Evaluation عبور می‌کنند. | SUPERSEDED → DEC-617 |
 | DEC-514 | 2026-10-04 | AI Output وارد Workflow باید Typed و Pydantic-validated باشد؛ Output نامعتبر فقط Retry محدود دارد و سپس AI_OUTPUT_INVALID ثبت می‌شود؛ parsing heuristic پذیرفته نیست. | FINAL |
 | DEC-515 | 2026-10-04 | AI هیچ Repository Write Permission ندارد و فقط Proposal یا Commandهای allowlisted از Application API می‌تواند تولید/اجرا کند. | FINAL |
-| DEC-516 | 2026-10-04 | هر AI Request باید Data Classification PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED داشته باشد و Policy بر Provider eligibility، redaction و retention حاکم است. | FINAL |
+| DEC-516 | 2026-10-04 | هر AI Request باید Data Classification PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED داشته باشد و Policy بر Provider eligibility، redaction و retention حاکم است. | SUPERSEDED → DEC-620 |
 | DEC-517 | 2026-10-04 | AIInvocation باید Role، Mode، Model، Policy Version، Prompt Policy Version، Tool Permissions، Data Classification، Output Schema، Cost، Latency و Policy Violation را برای Audit ثبت کند. | FINAL |
 | DEC-518 | 2026-10-04 | UIهای اصلی از Read Model Projectionهای اختصاصی استفاده می‌کنند و Domain Truth نباید با ad-hoc join چند endpoint در Browser ساخته شود. | FINAL |
 | DEC-519 | 2026-10-04 | Background processing با Workerهای جدا برای Outbox، Event Consumption، Projection، Evidence preprocessing، AI invocation و scheduled activity انجام می‌شود؛ Codebase همچنان Modular Monolith می‌ماند. | FINAL |
-| DEC-520 | 2026-10-04 | OpenTelemetry استاندارد observability برای API، Worker، AI Gateway و Event Consumer است و سه View Technical، AI و Assessment باید وجود داشته باشد. | FINAL |
+| DEC-520 | 2026-10-04 | OpenTelemetry استاندارد observability برای API، Worker، AI Gateway و Event Consumer است و سه View Technical، AI و Assessment باید وجود داشته باشد. | SUPERSEDED → DEC-622 |
 | DEC-521 | 2026-10-04 | Logs structured JSON با sensitive-data masking هستند و اصل «Logs are for operations; Audit is for accountability» قطعی شد. | FINAL |
 | DEC-522 | 2026-10-04 | Test strategy شامل Domain Invariant Tests، Integration Tests، Simulation Determinism Tests، Assessment Integrity Tests، Playwright E2E و Offline Evaluation Set برای AI Roleهاست. | FINAL |
 | DEC-523 | 2026-10-04 | Missionهای VALIDATED باید Golden Mission Tests با Initial State، Seed، Candidate Actions و Expected Event Sequence داشته باشند. | FINAL |
@@ -568,7 +568,7 @@
 | DEC-560 | 2026-10-04 | ResponsibilityAssessment API براساس Profile Snapshot و Responsibility Definition Version، READY/READY_WITH_CONDITIONS/DIFFERENT_SCOPE/NOT_YET/BLOCKED_BY_GATE را همراه rationale تولید می‌کند. | FINAL |
 | DEC-561 | 2026-10-04 | Flag Board API شامل create/freeze/review/conflict resolution/decision است و Evidence Set همان Case بعد از Board Decision تغییر نمی‌کند؛ Appointment endpoint مستقل باقی می‌ماند. | FINAL |
 | DEC-562 | 2026-10-04 | Appointment API جدا از Flag Board است و Override خلاف Recommendation نیازمند override_reason است. | FINAL |
-| DEC-563 | 2026-10-04 | Audit API برای Governance users read-only است و AI Invocation Domain Decision از Browser یا provider credential مستقیم انجام نمی‌شود؛ AI فقط از Gateway/Application Service عبور می‌کند. | FINAL |
+| DEC-563 | 2026-10-04 | Audit API برای Governance users read-only است و AI Invocation Domain Decision از Browser یا provider credential مستقیم انجام نمی‌شود؛ AI فقط از Gateway/Application Service عبور می‌کند. | SUPERSEDED → DEC-623 |
 | DEC-564 | 2026-10-04 | PostgreSQL convention برابر snake_case + plural tables است؛ Aggregate tables version/timestamps دارند و JSONB فقط برای داده extensible و schema-validated استفاده می‌شود، نه business state حیاتی. | FINAL |
 | DEC-565 | 2026-10-04 | platform.domain_events، outbox_events و inbox_events Contractهای رسمی persistence هستند؛ Outbox فقط event commit‌شده را publish می‌کند و Inbox با consumer_name + event_id dedupe می‌کند. | FINAL |
 | DEC-566 | 2026-10-04 | Domain Event Schema Registry versioned در Repository نگه‌داری می‌شود؛ breaking change نیازمند event type/version جدید است و Event payload Aggregate Dump نیست. | FINAL |
@@ -621,6 +621,16 @@
 | DEC-613 | 2026-10-04 | Learning Unit Progress در Sprint 2 فقط با رفتار صریح Candidate تغییر می‌کند و State آن از NOT_STARTED به IN_PROGRESS و سپس COMPLETED می‌رسد؛ صرف مشاهده صفحه Completion محسوب نمی‌شود. | FINAL |
 | DEC-614 | 2026-10-04 | Learning State هر Capability از فعالیت‌های Learning همان Capability مشتق می‌شود: بدون فعالیت TO_LEARN، با پیشرفت جزئی IN_LEARNING، و فقط پس از تکمیل همه Learning Unitهای فعال و ثبت همه Assignmentهای فعال LEARNING_COMPLETED می‌شود. | FINAL |
 | DEC-615 | 2026-10-04 | LEARNING_COMPLETED، Submission و Instructor Feedback هیچ‌کدام مستقیماً Proof State را تغییر نمی‌دهند؛ Proof همچنان از Evidence Pipeline مستقل تولید می‌شود. | FINAL |
+
+| DEC-616 | 2026-10-05 | «Parcham AI / هوش مصنوعی پرچم» یک سامانه هوش مصنوعی اختصاصی و داخلی، ساخته‌شده برای خود پرچم و تحت مالکیت/کنترل معماری پرچم است؛ این اصطلاح به OpenAI API، Anthropic API یا هیچ API هوش مصنوعی شخص ثالث اشاره ندارد. هرگونه وابستگی معماری به ارائه‌دهنده AI بیرونی فقط با تصمیم صریح جداگانه مجاز است. | SUPERSEDED → DEC-617 |
+| DEC-617 | 2026-10-05 | Parcham AI یک دارایی هوش مصنوعی کاملاً اختصاصی و خوداتکای پرچم است: مدل/هوش، inference و چرخه training آن از هیچ AI API، Foundation Model API، Managed AI Service، Provider LLM یا زیرساخت هوش مصنوعی داخلی/خارجی به‌عنوان منبع هوش دریافت نمی‌شود. هوش پرچم در مالکیت و کنترل خود پرچم ساخته و اجرا می‌شود. | FINAL |
+| DEC-618 | 2026-10-05 | ارزش انباشتی Parcham AI باید از چرخه یادگیری خود پرچم ساخته شود: داده‌ها و تجربه‌های مجاز و حاکمیت‌شده پرچم → Dataset/Training Corpus اختصاصی → آموزش یا به‌روزرسانی مدل اختصاصی پرچم → Evaluation نسخه → Model Version جدید → استفاده در پرچم → تولید تجربه و داده بیشتر. با گذشت زمان Model، Dataset، Evaluation History و Learning Memory پرچم خودشان دارایی و مزیت رقابتی انباشتی می‌شوند. | FINAL |
+| DEC-619 | 2026-10-05 | Audit هوش پرچم به‌جای provider/model باید model_id/model_version، training_data_version، evaluation_version، policy versions، mode، data classification، tool permissions، output schema، latency، compute metadata و result status را ثبت کند تا lineage هر خروجی به نسخه واقعی Parcham AI قابل ردیابی باشد. | FINAL |
+| DEC-620 | 2026-10-05 | Data Classification و Governance برای Parcham AI همچنان الزامی است، اما مفهوم Provider eligibility حذف می‌شود؛ Policy تعیین می‌کند کدام داده با چه purpose و retention می‌تواند وارد inference، memory، dataset و training داخلی پرچم شود. | FINAL |
+| DEC-621 | 2026-10-05 | Self-learning در پرچم به معنی وابستگی به مدل زنده و خودتغییردهنده بدون کنترل نیست؛ Training/Evaluation/Model Version باید قابل Audit و Versioned باشد و نسخه Production فقط از مسیر ارزیابی و Promotion تعریف‌شده پرچم فعال شود. | FINAL |
+| DEC-622 | 2026-10-05 | Observability هوش پرچم مستقیماً Parcham AI Runtime، Training Jobs، Evaluation Runs و Model Promotion را با OpenTelemetry/Audit پوشش می‌دهد؛ مفهوم AI Gateway به‌عنوان واسط Provider حذف شده است. | FINAL |
+| DEC-623 | 2026-10-05 | Browser یا Domain هیچ Provider credential یا AI provider path ندارد؛ AI invocation فقط به Parcham-owned Runtime/Model Version داخل مرزهای Application/Policy پرچم متصل است. APIهای Parcham OS ممکن است برای عملیات محصول وجود داشته باشند، اما منبع هوش، inference یا training نیستند. | FINAL |
+| DEC-624 | 2026-10-05 | در تصمیم‌های قدیمی که واژه LLM باقی مانده، منظور از آن پس از DEC-617 فقط مدل زبانی/هوش اختصاصی متعلق به Parcham AI است و نباید به Provider LLM یا Foundation Model خارجی تفسیر شود. | FINAL |
 
 ---
 

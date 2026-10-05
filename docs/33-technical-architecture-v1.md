@@ -230,25 +230,28 @@ v1 از PostgreSQL Full Text Search + pgvector استفاده می‌کند.
 
 Retrieval Index Source of Truth نیست؛ هر نتیجه باید به Knowledge Source Version قابل ردیابی باشد.
 
-## 18. Parcham AI Gateway
+## 18. Parcham AI Runtime Boundary
 
-هیچ Module حق تماس مستقیم با Provider LLM ندارد.
+Parcham AI هیچ Model/Inference/Training capability را از AI API، Provider LLM، Foundation Model API یا Managed AI Service داخلی/خارجی دریافت نمی‌کند.
 
 Flow:
-**Domain/Application → AI Gateway → Policy → Model Router → Provider Adapter**
+**Domain/Application → Parcham AI Runtime → Policy → Parcham Model Version → Structured Output**
 
-Gateway مسئول:
-- Model Selection
+Parcham AI Runtime مسئول:
+- Parcham Model Version Selection
 - Structured Output Validation
-- Timeout / Retry
+- bounded Retry
 - Safety
 - PII/Data Filtering
-- Prompt Version
+- Prompt/Instruction Version
 - Policy Version
-- Cost
-- Latency
+- Training/Evaluation Lineage
+- Compute/Latency Metadata
 - Tracing
 - Evaluation Hook
+
+چرخه یادگیری مستقل پرچم:
+**Governed Parcham Data → Curated Dataset → Training → Offline Evaluation → Versioned Model Artifact → Promotion → Runtime**
 
 ## 19. Structured AI Outputs
 
@@ -264,7 +267,7 @@ Parsing heuristic برای نجات Output نامعتبر پذیرفته نیس�
 
 > **AI هیچ Repository Write Permission ندارد.**
 
-AI Gateway Proposal برمی‌گرداند؛ Application Service تصمیم می‌گیرد با آن چه کند.
+Parcham AI Runtime فقط Structured Proposal برمی‌گرداند؛ Application Service تصمیم می‌گیرد با آن چه کند.
 
 AI Agent فقط Commandهای allowlisted را از Application API اجرا می‌کند.
 
@@ -276,11 +279,11 @@ AI Agent فقط Commandهای allowlisted را از Application API اجرا م�
 - CONFIDENTIAL
 - RESTRICTED
 
-Policy تعیین می‌کند Provider خارجی مجاز است یا نه، چه Fieldهایی Redact شوند و Retention چگونه باشد.
+Policy تعیین می‌کند کدام داده با چه purpose و retention می‌تواند وارد inference، structured memory، curated dataset و training داخلی Parcham AI شود.
 
 ## 22. AI Audit
 
-هر AIInvocation باید Role، Mode، Model، Policy Version، Prompt Policy Version، Tool Permissions، Data Classification، Output Schema، Cost، Latency و Policy Violation را ثبت کند.
+هر AIInvocation باید Role، Mode، Parcham Model ID/Version، Training Data Version، Evaluation Version، Policy Version، Prompt Policy Version، Tool Permissions، Data Classification، Output Schema، Compute Metadata، Latency و Policy Violation را ثبت کند.
 
 ## 23. Read Models
 
@@ -302,7 +305,7 @@ v1 حداقل API Process، Worker Process و در صورت نیاز Temporal Wo
 
 ## 25. Observability
 
-OpenTelemetry برای API، Worker، AI Gateway و Event Consumer.
+OpenTelemetry برای API، Worker، Parcham AI Runtime، Training/Evaluation Jobs و Event Consumer.
 
 سه View:
 - Technical Observability
@@ -456,7 +459,7 @@ Bounded Contextهای دیگر فقط در صورت نیاز واقعی جدا �
 - SSE first
 - OIDC PKCE / Keycloak
 - S3-compatible Object Storage
-- AI Gateway-only access
+- Parcham AI Runtime-only access
 - Structured/validated AI output
 - PostgreSQL FTS + pgvector first
 - Optimistic Concurrency
@@ -479,4 +482,4 @@ Bounded Contextهای دیگر فقط در صورت نیاز واقعی جدا �
 
 ## تعریف نهایی
 
-> **Parcham OS v1 یک Modular Monolith مبتنی بر Python/FastAPI و PostgreSQL است که Contextها را در سطح Domain و Data ownership جدا نگه می‌دارد، تغییرات بین Contextها را با Transactional Outbox و NATS منتقل می‌کند، Workflowهای طولانی را با Temporal هماهنگ می‌کند، AI را پشت یک Gateway کنترل‌شده قرار می‌دهد و تمام زنجیره Candidate Action تا Human Decision را Versioned، observable و auditable نگه می‌دارد.**
+> **Parcham OS v1 یک Modular Monolith مبتنی بر Python/FastAPI و PostgreSQL است که Contextها را در سطح Domain و Data ownership جدا نگه می‌دارد، تغییرات بین Contextها را با Transactional Outbox و NATS منتقل می‌کند، Workflowهای طولانی را با Temporal هماهنگ می‌کند، Parcham AI اختصاصی را با Model/Training/Evaluation lineage کنترل‌شده اجرا می‌کند و تمام زنجیره Candidate Action تا Human Decision را Versioned، observable و auditable نگه می‌دارد.**

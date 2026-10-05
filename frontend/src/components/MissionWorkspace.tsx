@@ -86,6 +86,12 @@ export type MissionInstance = {
     quantity: number;
     target: string;
   }>;
+  experiment_options: Array<{
+    code: string;
+    label: string;
+    method: string;
+    contract: Record<string, unknown>;
+  }>;
   no_action_options: Array<{ code: string; label: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
@@ -141,6 +147,12 @@ type Props = {
     resourceAllocationCode: string,
     rationale: string,
   ) => Promise<void>;
+  onRunExperiment: (
+    instanceId: string,
+    worldVersion: number,
+    experimentCode: string,
+    rationale: string,
+  ) => Promise<void>;
   onAdvanceWorld: (
     instanceId: string,
     worldVersion: number,
@@ -170,6 +182,7 @@ export function MissionWorkspace({
   onDelegate,
   onChangeScope,
   onAllocateResource,
+  onRunExperiment,
   onAdvanceWorld,
   onNoAction,
   onDecide,
@@ -184,6 +197,8 @@ export function MissionWorkspace({
   const [scopeRationaleByInstance, setScopeRationaleByInstance] =
     useState<Record<string, string>>({});
   const [resourceRationaleByInstance, setResourceRationaleByInstance] =
+    useState<Record<string, string>>({});
+  const [experimentRationaleByInstance, setExperimentRationaleByInstance] =
     useState<Record<string, string>>({});
   const [noActionRationaleByInstance, setNoActionRationaleByInstance] =
     useState<Record<string, string>>({});
@@ -456,6 +471,74 @@ export function MissionWorkspace({
                                 نتیجه تغییر دامنه: {String(event.payload.response ?? "")}
                               </p>
                             ))}
+                        </div>
+                      ) : null}
+
+                      {instance.experiment_options.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>Experiment</strong>
+                          <p>
+                            قرارداد آزمایش پیش از Result در Mission Version ثابت شده است؛
+                            Result خام نمایش داده می‌شود و تفسیر با Candidate است.
+                          </p>
+                          <div className="stack">
+                            {instance.experiment_options.map((option) => {
+                              const rationale =
+                                experimentRationaleByInstance[instance.id] ?? "";
+                              const completed = instance.audit_events.filter(
+                                (event) =>
+                                  event.event_type === "experiment.completed" &&
+                                  event.payload.experiment_code === option.code,
+                              );
+                              return (
+                                <div key={option.code} className="actor-runtime-card">
+                                  <b>{option.label}</b>
+                                  <p>Method: {option.method}</p>
+                                  <pre data-testid={`experiment-contract-${option.code}`}>
+                                    {JSON.stringify(option.contract, null, 2)}
+                                  </pre>
+                                  <label>
+                                    دلیل اجرای آزمایش
+                                    <textarea
+                                      aria-label="دلیل اجرای آزمایش"
+                                      value={rationale}
+                                      onChange={(event) =>
+                                        setExperimentRationaleByInstance((current) => ({
+                                          ...current,
+                                          [instance.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="این آزمایش کدام عدم‌قطعیت را کاهش می‌دهد؟"
+                                    />
+                                  </label>
+                                  <button
+                                    className="ghost dark"
+                                    disabled={busy || !rationale.trim() || completed.length > 0}
+                                    onClick={() =>
+                                      void onRunExperiment(
+                                        instance.id,
+                                        instance.world_state_version,
+                                        option.code,
+                                        rationale.trim(),
+                                      )
+                                    }
+                                  >
+                                    {option.label}
+                                  </button>
+                                  {completed.map((event) => (
+                                    <div key={event.id}>
+                                      <p className="success-note">
+                                        {String(event.payload.response ?? "")}
+                                      </p>
+                                      <pre data-testid={`experiment-result-${option.code}`}>
+                                        {JSON.stringify(event.payload.result ?? {}, null, 2)}
+                                      </pre>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       ) : null}
 
