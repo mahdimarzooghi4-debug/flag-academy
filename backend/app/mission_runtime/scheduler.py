@@ -9,6 +9,7 @@ from nats.js.errors import NotFoundError
 from sqlalchemy import select
 from temporalio.client import Client
 
+from app import models as all_models  # noqa: F401
 from app.config import get_settings
 from app.db import SessionFactory
 from app.mission_runtime.domain import ScheduledEffectStatus
