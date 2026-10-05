@@ -16,8 +16,6 @@ class MissionInstanceStatus(StrEnum):
     INVALIDATED = "INVALIDATED"
 
 
-
-
 class MissionAssignmentStatus(StrEnum):
     ASSIGNED = "ASSIGNED"
     STARTED = "STARTED"
