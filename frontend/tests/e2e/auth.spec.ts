@@ -236,6 +236,26 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("مالکیت روشن شد.");
   await expect(runtimeCard).not.toContainText("private_escalation_threshold");
 
+  await runtimeCard.getByLabel("دلیل Escalation").fill(
+    "ریسک rollout از مرز تصمیم تیم عبور کرده و Executive attention برای recovery checkpoint لازم است.",
+  );
+  await runtimeCard
+    .getByRole("button", { name: "Escalate برنامه بازیابی به Business Sponsor" })
+    .click();
+
+  await expect(runtimeCard).toContainText("Actor v3");
+  await expect(actorState).toContainText('"commitment": "EXECUTIVE_SPONSORSHIP"');
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"executive_attention": "ENGAGED"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"escalation_status": "EXECUTIVE_REVIEW"',
+  );
+  await expect(runtimeCard).toContainText("Escalation پذیرفته شد.");
+  await expect(runtimeCard).toContainText("ESCALATION_OBSERVED");
+  await expect(runtimeCard).not.toContainText("world_effect_applied");
+  await expect(runtimeCard).not.toContainText("actor_effect_applied");
+
   await runtimeCard.getByRole("button", { name: "درخواست Dependency trace" }).click();
   await expect(runtimeCard).toContainText("intermittent timeout spikes");
 
@@ -251,7 +271,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 1 to 2");
+  await expect(runtimeCard).toContainText("world state advanced from version 2 to 3");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
