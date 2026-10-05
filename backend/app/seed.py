@@ -33,6 +33,7 @@ from app.learning.models import (
     PracticeFeedback,
     Submission,
 )
+from app.mission_design.models import MissionTemplate, MissionVersion
 from app.platform.events import new_event, record_event
 from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
@@ -41,6 +42,7 @@ from app.read_models.projector import rebuild_candidate_home, rebuild_instructor
 ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
 CANDIDATE_ID = UUID("00000000-0000-0000-0000-000000000101")
 INSTRUCTOR_ID = UUID("00000000-0000-0000-0000-000000000102")
+ADMIN_ID = UUID("00000000-0000-0000-0000-000000000103")
 COHORT_ID = UUID("00000000-0000-0000-0000-000000000201")
 CURRICULUM_ID = UUID("00000000-0000-0000-0000-000000000301")
 CLASS_ID = UUID("00000000-0000-0000-0000-000000000220")
@@ -77,6 +79,8 @@ async def seed() -> None:
         for model in (
             InboxEvent,
             OutboxEvent,
+            MissionVersion,
+            MissionTemplate,
             DomainEvent,
             CandidateHomeProjection,
             InstructorHomeProjection,
@@ -119,7 +123,14 @@ async def seed() -> None:
             created_at=now,
             updated_at=now,
         )
-        db.add_all([org, candidate, instructor])
+        admin = Person(
+            id=ADMIN_ID,
+            external_subject="33333333-3333-3333-3333-333333333333",
+            display_name="Academy Admin Demo",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add_all([org, candidate, instructor, admin])
         await db.flush()
         db.add_all([
             OrganizationMembership(
@@ -134,6 +145,13 @@ async def seed() -> None:
                 person_id=INSTRUCTOR_ID,
                 organization_id=ORG_ID,
                 membership_role="INSTRUCTOR",
+                created_at=now,
+            ),
+            OrganizationMembership(
+                id=UUID("00000000-0000-0000-0000-000000000113"),
+                person_id=ADMIN_ID,
+                organization_id=ORG_ID,
+                membership_role="ACADEMY_ADMIN",
                 created_at=now,
             ),
         ])

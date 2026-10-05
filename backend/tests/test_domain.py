@@ -11,6 +11,12 @@ from app.learning.domain import (
     PracticeReplayState,
     SubmissionStatus,
 )
+from app.mission_design.domain import (
+    MissionDifficulty,
+    MissionMode,
+    MissionVersionStatus,
+    transition_allowed,
+)
 from app.platform.events import new_event
 
 
@@ -59,3 +65,12 @@ def test_domain_event_envelope_is_versioned_and_traceable() -> None:
     assert payload["event_version"] == 1
     assert payload["trace_id"] == "trace-test"
     assert payload["event_type"] == "candidate.journey_created.v1"
+
+
+def test_mission_design_lifecycle_is_explicit() -> None:
+    assert MissionMode.PRACTICE.value == "PRACTICE"
+    assert MissionDifficulty.D3.value == "D3"
+    assert transition_allowed(MissionVersionStatus.DRAFT.value, MissionVersionStatus.PILOT.value)
+    assert transition_allowed(MissionVersionStatus.PILOT.value, MissionVersionStatus.VALIDATED.value)
+    assert transition_allowed(MissionVersionStatus.VALIDATED.value, MissionVersionStatus.ACTIVE.value)
+    assert not transition_allowed(MissionVersionStatus.DRAFT.value, MissionVersionStatus.ACTIVE.value)

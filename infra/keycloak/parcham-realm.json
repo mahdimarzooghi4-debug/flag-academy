@@ -77,6 +77,18 @@
       ],
       "email": "instructor@parcham.local",
       "emailVerified": true
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "username": "academy-admin",
+      "enabled": true,
+      "firstName": "Academy",
+      "lastName": "Admin",
+      "realmRoles": [
+        "ACADEMY_ADMIN"
+      ],
+      "email": "academy-admin@parcham.local",
+      "emailVerified": true
     }
   ]
 }

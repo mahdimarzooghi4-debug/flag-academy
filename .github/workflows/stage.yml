@@ -55,6 +55,7 @@ jobs:
           set_secret KC_BOOTSTRAP_ADMIN_PASSWORD
           set_secret PARCHAM_DEV_CANDIDATE_PASSWORD
           set_secret PARCHAM_DEV_INSTRUCTOR_PASSWORD
+          set_secret PARCHAM_DEV_ADMIN_PASSWORD
 
       - name: Build runtime database URL
         shell: bash

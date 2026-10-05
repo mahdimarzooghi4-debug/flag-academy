@@ -35,3 +35,14 @@ def test_learning_unit_contract_exposes_practice_kind() -> None:
     schemas = app.openapi()["components"]["schemas"]
     props = schemas["LearningUnitResponse"]["properties"]
     assert "practice_kind" in props
+
+
+def test_mission_design_contract_is_exposed() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/studio/mission-templates" in paths
+    assert "/api/v1/studio/mission-templates/{template_id}/versions" in paths
+    assert "/api/v1/studio/mission-versions/{version_id}/validate-definition" in paths
+    assert "/api/v1/studio/mission-versions/{version_id}/pilot" in paths
+    assert "/api/v1/studio/mission-versions/{version_id}/mark-validated" in paths
+    assert "/api/v1/studio/mission-versions/{version_id}/activate" in paths
+    assert "/api/v1/studio/mission-versions/{version_id}/retire" in paths
