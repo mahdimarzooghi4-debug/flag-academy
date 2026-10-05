@@ -23,6 +23,13 @@ class MissionAssignmentStatus(StrEnum):
     CANCELLED = "CANCELLED"
 
 
+class ScheduledEffectStatus(StrEnum):
+    PENDING = "PENDING"
+    SCHEDULED = "SCHEDULED"
+    APPLIED = "APPLIED"
+    CANCELLED = "CANCELLED"
+
+
 class MissionActionType(StrEnum):
     REQUEST_INFORMATION = "REQUEST_INFORMATION"
     COMMUNICATE = "COMMUNICATE"
@@ -167,6 +174,14 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "actor_state_version_after",
         }
     ),
+    "scheduled_effect.applied": frozenset(
+        {
+            "effect_code",
+            "message",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
     "decision.committed": frozenset({"decision_code"}),
     "mission.completed": frozenset({"from_status", "to_status"}),
 }
@@ -190,6 +205,13 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
             "actor_state_version_before",
             "actor_state_version_after",
+        }
+    ),
+    "SCHEDULED_EFFECT_OBSERVED": frozenset(
+        {
+            "effect_code",
+            "world_version_before",
+            "world_version_after",
         }
     ),
     "DECISION_COMMITTED": frozenset(
