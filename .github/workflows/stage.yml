@@ -168,9 +168,15 @@ jobs:
           actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
           internal_actor_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded' and payload ? 'actor_effect_applied';")
           actor_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ACTOR_RESPONSE_OBSERVED';")
+          escalation_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'ESCALATE';")
+          escalation_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'escalation.accepted';")
+          internal_escalation_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'escalation.accepted' and payload ? 'world_effect_applied' and payload ? 'actor_effect_applied';")
+          escalation_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ESCALATION_OBSERVED';")
+          escalated_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{stakeholder,executive_attention}' = 'ENGAGED' and world_state #>> '{mission,escalation_status}' = 'EXECUTIVE_REVIEW';")
+          escalated_actor_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.actor_instances where state_version >= 3 and state->>'commitment' = 'EXECUTIVE_SPONSORSHIP';")
 
-          test "$published" -ge 23
-          test "$inbox" -ge 23
+          test "$published" -ge 27
+          test "$inbox" -ge 27
           test "$candidate_home" -ge 1
           test "$instructor_home" -ge 1
           test "$completed_units" -ge 2
@@ -187,10 +193,10 @@ jobs:
           test "$mission_versions" -ge 1
           test "$mission_instances" -ge 1
           test "$completed_mission_instances" -ge 1
-          test "$mission_actions" -ge 3
+          test "$mission_actions" -ge 4
           test "$mission_decisions" -ge 1
-          test "$runtime_events" -ge 10
-          test "$runtime_observations" -ge 4
+          test "$runtime_events" -ge 12
+          test "$runtime_observations" -ge 5
           test "$mission_assignments" -ge 1
           test "$completed_mission_assignments" -ge 1
           test "$assignment_bound_instances" -ge 1
@@ -206,6 +212,12 @@ jobs:
           test "$actor_response_events" -ge 1
           test "$internal_actor_effects" -ge 1
           test "$actor_observations" -ge 1
+          test "$escalation_actions" -ge 1
+          test "$escalation_events" -ge 1
+          test "$internal_escalation_effects" -ge 1
+          test "$escalation_observations" -ge 1
+          test "$escalated_world_state" -ge 1
+          test "$escalated_actor_state" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -247,6 +259,14 @@ jobs:
             echo "actor_response_events=$actor_response_events"
             echo "internal_actor_effect_events=$internal_actor_effects"
             echo "actor_response_observations=$actor_observations"
+            echo "escalation_actions=$escalation_actions"
+            echo "escalation_accepted_events=$escalation_events"
+            echo "internal_escalation_effect_events=$internal_escalation_effects"
+            echo "escalation_observations=$escalation_observations"
+            echo "escalated_world_state_rows=$escalated_world_state"
+            echo "escalated_actor_state_rows=$escalated_actor_state"
+            echo "escalation_world_mutation=ENGINE_RULE_ONLY"
+            echo "escalation_actor_mutation=ENGINE_RULE_ONLY"
             echo "candidate_actor_state_projection=ALLOWLIST_ONLY"
             echo "actor_state_mutation=ENGINE_RULE_ONLY"
             echo "llm_actor_state_mutation=FORBIDDEN"
