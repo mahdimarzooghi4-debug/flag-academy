@@ -546,17 +546,18 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await login(page, "assessor", assessorPassword);
 
   await expect(page.getByText("فضای ارزیاب Evidence")).toBeVisible();
-  const evidenceCard = page.locator(".assignment-card").filter({
-    hasText: "EXPERIMENT_RESULT_OBSERVED",
-  }).first();
+  const evidenceCard = page
+    .locator('[data-testid^="evidence-case-"]')
+    .filter({ hasText: "EXPERIMENT_RESULT_OBSERVED" })
+    .first();
   await expect(evidenceCard).toBeVisible();
-  await expect(evidenceCard.locator(".state")).toHaveText("DRAFT");
+  await expect(evidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("DRAFT");
   await expect(evidenceCard).toContainText("SEALED");
   await expect(evidenceCard).toContainText('"error_rate_percent": 13');
   await expect(evidenceCard).toContainText('"error_rate_percent": 5');
 
   await evidenceCard.getByRole("button", { name: "ثبت Interpretation" }).click();
-  await expect(evidenceCard.locator(".state")).toHaveText("SUBMITTED");
+  await expect(evidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("SUBMITTED");
   await expect(evidenceCard.getByTestId("assessor-interpretation")).toContainText(
     "METRIC_REASONING",
   );
@@ -565,20 +566,21 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   );
 
   await evidenceCard.getByRole("button", { name: "شروع Review" }).click();
-  await expect(evidenceCard.locator(".state")).toHaveText("UNDER_REVIEW");
+  await expect(evidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("UNDER_REVIEW");
   await evidenceCard
     .getByRole("button", { name: "درخواست Context از Candidate" })
     .click();
-  await expect(evidenceCard.locator(".state")).toHaveText("NEEDS_CONTEXT");
+  await expect(evidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("NEEDS_CONTEXT");
 
   await logout(page);
   await login(page, "candidate", candidatePassword);
 
-  const candidateEvidenceCard = page.locator(".assignment-card").filter({
-    hasText: "EXPERIMENT_RESULT_OBSERVED",
-  }).first();
+  const candidateEvidenceCard = page
+    .locator('[data-testid^="candidate-evidence-case-"]')
+    .filter({ hasText: "EXPERIMENT_RESULT_OBSERVED" })
+    .first();
   await expect(candidateEvidenceCard).toBeVisible();
-  await expect(candidateEvidenceCard.locator(".state")).toHaveText("NEEDS_CONTEXT");
+  await expect(candidateEvidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("NEEDS_CONTEXT");
   await expect(candidateEvidenceCard.getByTestId("candidate-context-request")).toContainText(
     "Result چگونه روی تصمیم بعدی تو اثر گذاشت",
   );
@@ -601,24 +603,26 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await logout(page);
   await login(page, "assessor", assessorPassword);
 
-  const reviewedEvidenceCard = page.locator(".assignment-card").filter({
-    hasText: "EXPERIMENT_RESULT_OBSERVED",
-  }).first();
+  const reviewedEvidenceCard = page
+    .locator('[data-testid^="evidence-case-"]')
+    .filter({ hasText: "EXPERIMENT_RESULT_OBSERVED" })
+    .first();
   await expect(reviewedEvidenceCard).toContainText(
     "کاهش error rate به‌تنهایی Proof نیست",
   );
   await reviewedEvidenceCard.getByRole("button", { name: "بازگشت به Review" }).click();
-  await expect(reviewedEvidenceCard.locator(".state")).toHaveText("UNDER_REVIEW");
+  await expect(reviewedEvidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("UNDER_REVIEW");
   await reviewedEvidenceCard.getByRole("button", { name: "پذیرش Evidence" }).click();
-  await expect(reviewedEvidenceCard.locator(".state")).toHaveText("ACCEPTED");
+  await expect(reviewedEvidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("ACCEPTED");
 
   await logout(page);
   await login(page, "candidate", candidatePassword);
 
-  const acceptedEvidenceCard = page.locator(".assignment-card").filter({
-    hasText: "EXPERIMENT_RESULT_OBSERVED",
-  }).first();
-  await expect(acceptedEvidenceCard.locator(".state")).toHaveText("ACCEPTED");
+  const acceptedEvidenceCard = page
+    .locator('[data-testid^="candidate-evidence-case-"]')
+    .filter({ hasText: "EXPERIMENT_RESULT_OBSERVED" })
+    .first();
+  await expect(acceptedEvidenceCard.locator(":scope > .assignment-head > .state")).toHaveText("ACCEPTED");
   await expect(
     acceptedEvidenceCard.getByTestId("candidate-accepted-interpretation"),
   ).toContainText("METRIC_REASONING");
