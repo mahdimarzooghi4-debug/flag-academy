@@ -1,7 +1,8 @@
 # 49 — Sprint 6 Mission Assignment & Eligibility
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -153,3 +154,12 @@ Live OIDC + PostgreSQL باید اثبات کند:
 - Stage evidence recorded in GitHub
 
 > **Assignment authorizes an opportunity to run a Mission; it does not create Evidence or Proven Capability.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `cdec6ae61bf9582e0c95feeb2b62e2c21a127748`
+- Main CI Run: `37265988439` — PASS
+- Ephemeral Stage Run: `37265988410` — PASS
+- Code Review: `docs/reviews/06-sprint-6-mission-assignment-eligibility-code-review.md` — PASS
+- Stage evidence: `docs/50-sprint-6-stage-acceptance.md`
