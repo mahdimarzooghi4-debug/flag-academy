@@ -21,7 +21,7 @@ export type EvidenceInterpretation = {
   confidence: string;
   context_difficulty: string;
   prompt_contamination: string;
-  ai_contribution: string;
+  ai_contribution: "NONE";
   mode: string;
   rationale: string;
   created_by: string;
@@ -149,7 +149,7 @@ function AssessorEvidenceCard({
   const [confidence, setConfidence] = useState<"LOW" | "MEDIUM" | "HIGH">("HIGH");
   const [contextDifficulty, setContextDifficulty] = useState("D3");
   const [promptContamination, setPromptContamination] = useState("NONE");
-  const [aiContribution, setAiContribution] = useState("NONE");
+  const aiContribution = "NONE" as const;
   const [mode, setMode] = useState("ASSESSMENT");
   const [rationale, setRationale] = useState(
     "The observed measurement is factual; this interpretation remains human-reviewed evidence only.",
@@ -256,11 +256,7 @@ function AssessorEvidenceCard({
           </label>
           <label>
             AI contribution
-            <input
-              aria-label="AI contribution Evidence"
-              value={aiContribution}
-              onChange={(event) => setAiContribution(event.target.value)}
-            />
+            <input aria-label="AI contribution Evidence" value={aiContribution} readOnly />
           </label>
           <label>
             Mode
