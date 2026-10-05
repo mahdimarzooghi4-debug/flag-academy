@@ -173,6 +173,20 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "actor_state_version_after",
         }
     ),
+    "delegation.requested": frozenset(
+        {"actor_key", "delegation_code", "rationale"}
+    ),
+    "delegation.accepted": frozenset(
+        {
+            "actor_key",
+            "delegation_code",
+            "response",
+            "world_version_before",
+            "world_version_after",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
     "scheduled_effect.created": frozenset(
         {"effect_code", "label", "due_at", "trigger_mode"}
     ),
@@ -233,6 +247,16 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         {
             "actor_key",
             "escalation_code",
+            "world_version_before",
+            "world_version_after",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
+    "DELEGATION_OBSERVED": frozenset(
+        {
+            "actor_key",
+            "delegation_code",
             "world_version_before",
             "world_version_after",
             "actor_state_version_before",
