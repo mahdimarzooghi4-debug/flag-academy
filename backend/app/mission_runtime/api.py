@@ -1264,6 +1264,190 @@ async def submit_mission_action(
             now=now,
         )
 
+    elif body.action_type == MissionActionType.COMMUNICATE:
+        actor_key = body.target
+        if not isinstance(actor_key, str) or not actor_key:
+            raise AppError(
+                "ACTOR_TARGET_REQUIRED",
+                "COMMUNICATE requires an Actor target.",
+                status_code=422,
+            )
+        if body.expected_actor_version is None:
+            raise AppError(
+                "ACTOR_STATE_VERSION_REQUIRED",
+                "COMMUNICATE requires expected_actor_version.",
+                status_code=422,
+            )
+
+        actor_instance = (
+            await db.execute(
+                select(ActorInstance)
+                .where(
+                    ActorInstance.mission_instance_id == instance.id,
+                    ActorInstance.actor_key == actor_key,
+                )
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if actor_instance is None:
+            raise AppError(
+                "MISSION_ACTOR_NOT_FOUND",
+                "Mission actor was not found.",
+                status_code=404,
+            )
+        if actor_instance.state_version != body.expected_actor_version:
+            raise AppError(
+                "ACTOR_STATE_VERSION_CONFLICT",
+                "Actor state changed. Refresh and retry.",
+                status_code=409,
+                details={
+                    "expected_version": body.expected_actor_version,
+                    "current_version": actor_instance.state_version,
+                },
+            )
+
+        communication_code = body.payload.get("communication_code")
+        utterance = body.payload.get("utterance")
+        if not isinstance(communication_code, str) or not communication_code:
+            raise AppError(
+                "COMMUNICATION_CODE_REQUIRED",
+                "communication_code is required.",
+                status_code=422,
+            )
+        if not isinstance(utterance, str) or not utterance.strip():
+            raise AppError(
+                "COMMUNICATION_UTTERANCE_REQUIRED",
+                "Candidate utterance is required.",
+                status_code=422,
+            )
+
+        actor_config = _actor_runtime_config(version, actor_key)
+        if actor_config is None:
+            raise AppError(
+                "MISSION_ACTOR_RUNTIME_DEFINITION_INVALID",
+                "Actor runtime configuration is missing.",
+                status_code=422,
+            )
+        raw_options = actor_config.get("communication_options", [])
+        option = next(
+            (
+                item
+                for item in raw_options
+                if isinstance(item, dict)
+                and item.get("code") == communication_code
+            ),
+            None,
+        ) if isinstance(raw_options, list) else None
+        if option is None:
+            raise AppError(
+                "COMMUNICATION_NOT_ALLOWED",
+                "Communication strategy is not defined for this actor.",
+                status_code=422,
+            )
+
+        reply = option.get("reply")
+        actor_effect = option.get("effect")
+        if not isinstance(reply, str) or not reply or not isinstance(actor_effect, dict):
+            raise AppError(
+                "MISSION_ACTOR_RUNTIME_DEFINITION_INVALID",
+                "Communication rule must define reply and effect.",
+                status_code=422,
+            )
+
+        actor_before = actor_instance.state_version
+        try:
+            actor_instance.state = apply_actor_effect(
+                actor_instance.state,
+                actor_effect,
+            )
+        except ValueError as exc:
+            raise AppError(
+                "MISSION_ACTOR_EFFECT_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+        actor_instance.state_version += 1
+        actor_instance.updated_at = now
+        instance.version += 1
+
+        communication_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="communication.sent",
+            source="CANDIDATE",
+            trigger_type="BEHAVIOUR_TRIGGERED",
+            trigger_reference=str(action.id),
+            payload={
+                "actor_key": actor_key,
+                "communication_code": communication_code,
+                "utterance": utterance.strip(),
+            },
+            world_version_before=before,
+            world_version_after=before,
+            idempotency_key=f"{body.idempotency_key}:communication",
+            now=now,
+        )
+        event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="actor.responded",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(communication_event.id),
+            payload={
+                "actor_key": actor_key,
+                "communication_code": communication_code,
+                "reply": reply,
+                "actor_effect_applied": actor_effect,
+                "actor_state_version_before": actor_before,
+                "actor_state_version_after": actor_instance.state_version,
+            },
+            world_version_before=before,
+            world_version_after=before,
+            idempotency_key=f"{body.idempotency_key}:actor-response",
+            now=now,
+            causal_parent_ids=[str(communication_event.id)],
+        )
+        await _append_observation(
+            db,
+            instance=instance,
+            source_event=event,
+            observation_type="ACTOR_RESPONSE_OBSERVED",
+            factual_statement=(
+                f"Candidate communicated with actor '{actor_key}' using "
+                f"'{communication_code}'; actor state advanced from version "
+                f"{actor_before} to {actor_instance.state_version}."
+            ),
+            payload={
+                "actor_key": actor_key,
+                "communication_code": communication_code,
+                "actor_state_version_before": actor_before,
+                "actor_state_version_after": actor_instance.state_version,
+            },
+            now=now,
+        )
+        record_event(
+            db,
+            new_event(
+                event_type="mission.actor_state_changed.v1",
+                aggregate_type="ActorInstance",
+                aggregate_id=actor_instance.id,
+                aggregate_version=actor_instance.state_version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "actor_instance_id": str(actor_instance.id),
+                    "actor_key": actor_key,
+                    "communication_code": communication_code,
+                    "actor_state_version_before": actor_before,
+                    "actor_state_version_after": actor_instance.state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
     elif body.action_type == MissionActionType.DECIDE:
         decision_code = body.payload.get("decision_code")
         if not isinstance(decision_code, str) or not decision_code:
