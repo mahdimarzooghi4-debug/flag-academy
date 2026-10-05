@@ -236,6 +236,9 @@ export function AcademyStudio({
               label: "محدودکردن recovery به مشتریان حیاتی",
               response:
                 "دامنه recovery به مشتریان حیاتی محدود شد؛ accountability نتیجه همچنان با Candidate می‌ماند.",
+              scope_path: "delivery.scope",
+              from_scope: "FULL_ROLLOUT",
+              to_scope: "CRITICAL_CUSTOMERS_ONLY",
               world_effect: {
                 mission: { scope_change_status: "ACTIVE" },
                 delivery: { scope: "CRITICAL_CUSTOMERS_ONLY" },
