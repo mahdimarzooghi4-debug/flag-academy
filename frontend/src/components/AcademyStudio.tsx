@@ -143,6 +143,11 @@ export function AcademyStudio({
             mission: {
               decision_status: "OPEN",
               escalation_status: "NONE",
+              delegation_status: "NOT_DELEGATED",
+              accountability_owner: "CANDIDATE",
+            },
+            delivery: {
+              recovery_coordinator: "CANDIDATE",
             },
           },
           candidate_visible_paths: [
@@ -156,6 +161,9 @@ export function AcademyStudio({
             "stakeholder.executive_checkpoint",
             "mission.decision_status",
             "mission.escalation_status",
+            "mission.delegation_status",
+            "mission.accountability_owner",
+            "delivery.recovery_coordinator",
           ],
           actor_runtime: {
             business_sponsor: {
@@ -185,7 +193,39 @@ export function AcademyStudio({
                 },
               ],
             },
+            delivery_lead: {
+              definition_name: "Delivery Lead",
+              initial_state: {
+                capacity_status: "AVAILABLE",
+                commitment: "UNASSIGNED",
+                delegated_responsibility: "NONE",
+                private_delivery_risk: "MEDIUM",
+              },
+              candidate_visible_paths: [
+                "capacity_status",
+                "commitment",
+                "delegated_responsibility",
+              ],
+              communication_options: [],
+            },
           },
+          delegation_options: [
+            {
+              code: "DELEGATE_RECOVERY_COORDINATION",
+              label: "واگذاری هماهنگی بازیابی به Delivery Lead",
+              actor_key: "delivery_lead",
+              response:
+                "هماهنگی rollback و جمع‌آوری وضعیت را می‌پذیرم؛ accountability نتیجه همچنان با شما می‌ماند.",
+              world_effect: {
+                mission: { delegation_status: "ACTIVE" },
+                delivery: { recovery_coordinator: "DELIVERY_LEAD" },
+              },
+              actor_effect: {
+                commitment: "OWNS_RECOVERY_COORDINATION",
+                delegated_responsibility: "RECOVERY_COORDINATION",
+              },
+            },
+          ],
           escalation_options: [
             {
               code: "EXECUTIVE_RECOVERY_ESCALATION",
@@ -286,6 +326,11 @@ export function AcademyStudio({
           name: "Business Sponsor",
           goal: actorGoal.trim(),
           authority: "Can pause rollout and request an executive update.",
+        },
+        {
+          name: "Delivery Lead",
+          goal: "هماهنگی اجرای recovery و گزارش وضعیت عملیاتی",
+          authority: "Can coordinate rollback execution and operational follow-up.",
         },
       ],
       information_items: [

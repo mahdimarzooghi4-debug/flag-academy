@@ -103,6 +103,20 @@ def apply_world_effect(
     return next_state
 
 
+def delegation_preserves_candidate_accountability(
+    before_state: dict[str, Any],
+    after_state: dict[str, Any],
+) -> bool:
+    before_mission = before_state.get("mission")
+    after_mission = after_state.get("mission")
+    if not isinstance(before_mission, dict) or not isinstance(after_mission, dict):
+        return False
+    return (
+        before_mission.get("accountability_owner") == "CANDIDATE"
+        and after_mission.get("accountability_owner") == "CANDIDATE"
+    )
+
+
 def apply_actor_effect(
     actor_state: dict[str, Any],
     effect: dict[str, Any],
@@ -173,6 +187,20 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "actor_state_version_after",
         }
     ),
+    "delegation.requested": frozenset(
+        {"actor_key", "delegation_code", "rationale"}
+    ),
+    "delegation.accepted": frozenset(
+        {
+            "actor_key",
+            "delegation_code",
+            "response",
+            "world_version_before",
+            "world_version_after",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
     "scheduled_effect.created": frozenset(
         {"effect_code", "label", "due_at", "trigger_mode"}
     ),
@@ -233,6 +261,16 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         {
             "actor_key",
             "escalation_code",
+            "world_version_before",
+            "world_version_after",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
+    "DELEGATION_OBSERVED": frozenset(
+        {
+            "actor_key",
+            "delegation_code",
             "world_version_before",
             "world_version_after",
             "actor_state_version_before",

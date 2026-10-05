@@ -28,6 +28,7 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    delegation_preserves_candidate_accountability,
     project_candidate_visible_state,
     runtime_transition_allowed,
 )
@@ -279,6 +280,80 @@ def test_escalation_observation_is_explicit_candidate_fact() -> None:
     )
     assert "judgment" not in visible
     assert visible["actor_state_version_after"] == 3
+
+
+def test_delegation_preserves_candidate_accountability() -> None:
+    before = {
+        "mission": {"accountability_owner": "CANDIDATE"},
+        "delivery": {"recovery_coordinator": "CANDIDATE"},
+    }
+    accepted = {
+        "mission": {"accountability_owner": "CANDIDATE", "delegation_status": "ACTIVE"},
+        "delivery": {"recovery_coordinator": "DELIVERY_LEAD"},
+    }
+    transferred = {
+        "mission": {"accountability_owner": "DELIVERY_LEAD"},
+        "delivery": {"recovery_coordinator": "DELIVERY_LEAD"},
+    }
+    missing = {"mission": {"delegation_status": "ACTIVE"}}
+
+    assert delegation_preserves_candidate_accountability(before, accepted)
+    assert not delegation_preserves_candidate_accountability(before, transferred)
+    assert not delegation_preserves_candidate_accountability(missing, missing)
+
+
+def test_delegation_visibility_is_factual_and_fail_closed() -> None:
+    assert candidate_event_visible("delegation.requested")
+    assert candidate_event_visible("delegation.accepted")
+    requested = candidate_event_payload(
+        "delegation.requested",
+        {
+            "actor_key": "delivery_lead",
+            "delegation_code": "DELEGATE_RECOVERY_COORDINATION",
+            "rationale": "Delegate coordination while retaining accountability.",
+            "hidden_rule": "DO_NOT_EXPOSE",
+        },
+    )
+    assert requested["delegation_code"] == "DELEGATE_RECOVERY_COORDINATION"
+    assert "hidden_rule" not in requested
+
+    accepted = candidate_event_payload(
+        "delegation.accepted",
+        {
+            "actor_key": "delivery_lead",
+            "delegation_code": "DELEGATE_RECOVERY_COORDINATION",
+            "response": "Accepted.",
+            "world_version_before": 1,
+            "world_version_after": 2,
+            "actor_state_version_before": 1,
+            "actor_state_version_after": 2,
+            "world_effect_applied": {
+                "delivery": {"recovery_coordinator": "DELIVERY_LEAD"},
+            },
+            "actor_effect_applied": {
+                "delegated_responsibility": "RECOVERY_COORDINATION",
+            },
+        },
+    )
+    assert accepted["world_version_after"] == 2
+    assert "world_effect_applied" not in accepted
+    assert "actor_effect_applied" not in accepted
+
+    assert candidate_observation_visible("DELEGATION_OBSERVED")
+    observation = candidate_observation_payload(
+        "DELEGATION_OBSERVED",
+        {
+            "actor_key": "delivery_lead",
+            "delegation_code": "DELEGATE_RECOVERY_COORDINATION",
+            "world_version_before": 1,
+            "world_version_after": 2,
+            "actor_state_version_before": 1,
+            "actor_state_version_after": 2,
+            "judgment": "good delegation",
+        },
+    )
+    assert observation["actor_key"] == "delivery_lead"
+    assert "judgment" not in observation
 
 
 def test_scheduled_effect_payload_hides_internal_effect() -> None:

@@ -25,6 +25,7 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    delegation_preserves_candidate_accountability,
     project_candidate_visible_state,
     runtime_transition_allowed,
 )
@@ -165,6 +166,7 @@ class MissionInstanceResponse(BaseModel):
     information_options: list[dict[str, Any]]
     decision_options: list[dict[str, Any]]
     escalation_options: list[dict[str, str]]
+    delegation_options: list[dict[str, str]]
     no_action_options: list[dict[str, str]]
     actors: list[ActorInstanceResponse]
     disclosed_information: list[dict[str, Any]]
@@ -195,6 +197,36 @@ def _decision_options(version: MissionVersion) -> list[dict[str, Any]]:
 
 def _escalation_options(version: MissionVersion) -> list[dict[str, str]]:
     value = _runtime_config(version).get("escalation_options", [])
+    if not isinstance(value, list):
+        return []
+
+    options: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        code = item.get("code")
+        label = item.get("label")
+        actor_key = item.get("actor_key")
+        if (
+            isinstance(code, str)
+            and code
+            and isinstance(label, str)
+            and label
+            and isinstance(actor_key, str)
+            and actor_key
+        ):
+            options.append(
+                {
+                    "code": code,
+                    "label": label,
+                    "actor_key": actor_key,
+                }
+            )
+    return options
+
+
+def _delegation_options(version: MissionVersion) -> list[dict[str, str]]:
+    value = _runtime_config(version).get("delegation_options", [])
     if not isinstance(value, list):
         return []
 
@@ -1192,6 +1224,7 @@ async def _instance_response(
         information_options=_information_options(version),
         decision_options=_decision_options(version),
         escalation_options=_escalation_options(version),
+        delegation_options=_delegation_options(version),
         no_action_options=_no_action_options(version),
         actors=[
             ActorInstanceResponse(
@@ -1609,6 +1642,20 @@ async def start_mission_instance(
         raise AppError(
             "MISSION_RUNTIME_DEFINITION_INVALID",
             "Mission runtime decision_effects are required.",
+            status_code=422,
+        )
+    delegation_options = runtime.get("delegation_options", [])
+    if (
+        isinstance(delegation_options, list)
+        and delegation_options
+        and not delegation_preserves_candidate_accountability(
+            initial_state,
+            initial_state,
+        )
+    ):
+        raise AppError(
+            "MISSION_DELEGATION_DEFINITION_INVALID",
+            "Missions with delegation must declare mission.accountability_owner=CANDIDATE.",
             status_code=422,
         )
 
@@ -2581,6 +2628,226 @@ async def submit_mission_action(
             actor=actor,
             source_event=event,
             command_key=f"{body.idempotency_key}:after-escalation",
+            now=now,
+        )
+
+    elif body.action_type == MissionActionType.DELEGATE:
+        actor_key = body.target
+        if not isinstance(actor_key, str) or not actor_key:
+            raise AppError(
+                "ACTOR_TARGET_REQUIRED",
+                "DELEGATE requires an Actor target.",
+                status_code=422,
+            )
+        if body.expected_actor_version is None:
+            raise AppError(
+                "ACTOR_STATE_VERSION_REQUIRED",
+                "DELEGATE requires expected_actor_version.",
+                status_code=422,
+            )
+
+        actor_instance = (
+            await db.execute(
+                select(ActorInstance)
+                .where(
+                    ActorInstance.mission_instance_id == instance.id,
+                    ActorInstance.actor_key == actor_key,
+                )
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if actor_instance is None:
+            raise AppError(
+                "MISSION_ACTOR_NOT_FOUND",
+                "Mission actor was not found.",
+                status_code=404,
+            )
+        if actor_instance.state_version != body.expected_actor_version:
+            raise AppError(
+                "ACTOR_STATE_VERSION_CONFLICT",
+                "Actor state changed. Refresh and retry.",
+                status_code=409,
+                details={
+                    "expected_version": body.expected_actor_version,
+                    "current_version": actor_instance.state_version,
+                },
+            )
+
+        delegation_code = body.payload.get("delegation_code")
+        rationale = body.payload.get("rationale")
+        if not isinstance(delegation_code, str) or not delegation_code:
+            raise AppError(
+                "DELEGATION_CODE_REQUIRED",
+                "delegation_code is required.",
+                status_code=422,
+            )
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise AppError(
+                "DELEGATION_RATIONALE_REQUIRED",
+                "Candidate delegation rationale is required.",
+                status_code=422,
+            )
+
+        raw_options = _runtime_config(version).get("delegation_options", [])
+        option = next(
+            (
+                item
+                for item in raw_options
+                if isinstance(item, dict)
+                and item.get("code") == delegation_code
+                and item.get("actor_key") == actor_key
+            ),
+            None,
+        ) if isinstance(raw_options, list) else None
+        if option is None:
+            raise AppError(
+                "DELEGATION_NOT_ALLOWED",
+                "Delegation is not defined for this actor.",
+                status_code=422,
+            )
+
+        response = option.get("response")
+        world_effect = option.get("world_effect")
+        actor_effect = option.get("actor_effect")
+        if (
+            not isinstance(response, str)
+            or not response
+            or not isinstance(world_effect, dict)
+            or not isinstance(actor_effect, dict)
+        ):
+            raise AppError(
+                "MISSION_DELEGATION_DEFINITION_INVALID",
+                "Delegation rule must define response, world_effect and actor_effect.",
+                status_code=422,
+            )
+
+        actor_before = actor_instance.state_version
+        try:
+            next_world = apply_world_effect(instance.world_state, world_effect)
+            next_actor = apply_actor_effect(actor_instance.state, actor_effect)
+        except ValueError as exc:
+            raise AppError(
+                "MISSION_DELEGATION_EFFECT_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+        if not delegation_preserves_candidate_accountability(
+            instance.world_state,
+            next_world,
+        ):
+            raise AppError(
+                "DELEGATION_ACCOUNTABILITY_TRANSFER_FORBIDDEN",
+                "Delegation cannot transfer Candidate accountability for the Mission.",
+                status_code=422,
+            )
+
+        instance.world_state = next_world
+        instance.world_state_version += 1
+        instance.version += 1
+        actor_instance.state = next_actor
+        actor_instance.state_version += 1
+        actor_instance.updated_at = now
+
+        requested_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="delegation.requested",
+            source="CANDIDATE",
+            trigger_type="BEHAVIOUR_TRIGGERED",
+            trigger_reference=str(action.id),
+            payload={
+                "actor_key": actor_key,
+                "delegation_code": delegation_code,
+                "rationale": rationale.strip(),
+            },
+            world_version_before=before,
+            world_version_after=before,
+            idempotency_key=f"{body.idempotency_key}:requested",
+            now=now,
+        )
+        event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="delegation.accepted",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(requested_event.id),
+            payload={
+                "actor_key": actor_key,
+                "delegation_code": delegation_code,
+                "response": response,
+                "world_effect_applied": world_effect,
+                "actor_effect_applied": actor_effect,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+                "actor_state_version_before": actor_before,
+                "actor_state_version_after": actor_instance.state_version,
+            },
+            world_version_before=before,
+            world_version_after=instance.world_state_version,
+            idempotency_key=f"{body.idempotency_key}:accepted",
+            now=now,
+            causal_parent_ids=[str(requested_event.id)],
+        )
+        await _append_observation(
+            db,
+            instance=instance,
+            source_event=event,
+            observation_type="DELEGATION_OBSERVED",
+            factual_statement=(
+                f"Candidate delegated '{delegation_code}' to actor '{actor_key}'; "
+                f"world state advanced from version {before} to "
+                f"{instance.world_state_version} and actor state advanced from "
+                f"version {actor_before} to {actor_instance.state_version}."
+            ),
+            payload={
+                "actor_key": actor_key,
+                "delegation_code": delegation_code,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+                "actor_state_version_before": actor_before,
+                "actor_state_version_after": actor_instance.state_version,
+            },
+            now=now,
+        )
+        record_event(
+            db,
+            new_event(
+                event_type="mission.delegation_processed.v1",
+                aggregate_type="MissionInstance",
+                aggregate_id=instance.id,
+                aggregate_version=instance.version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "actor_instance_id": str(actor_instance.id),
+                    "actor_key": actor_key,
+                    "delegation_code": delegation_code,
+                    "world_version_before": before,
+                    "world_version_after": instance.world_state_version,
+                    "actor_state_version_before": actor_before,
+                    "actor_state_version_after": actor_instance.state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-delegation",
+            now=now,
+        )
+        await _apply_matching_state_triggered_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-delegation",
             now=now,
         )
 
