@@ -103,6 +103,20 @@ def apply_world_effect(
     return next_state
 
 
+def delegation_preserves_candidate_accountability(
+    before_state: dict[str, Any],
+    after_state: dict[str, Any],
+) -> bool:
+    before_mission = before_state.get("mission")
+    after_mission = after_state.get("mission")
+    if not isinstance(before_mission, dict) or not isinstance(after_mission, dict):
+        return False
+    return (
+        before_mission.get("accountability_owner") == "CANDIDATE"
+        and after_mission.get("accountability_owner") == "CANDIDATE"
+    )
+
+
 def apply_actor_effect(
     actor_state: dict[str, Any],
     effect: dict[str, Any],
