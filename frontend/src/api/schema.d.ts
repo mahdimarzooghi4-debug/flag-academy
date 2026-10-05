@@ -296,6 +296,15 @@ export interface MissionObservation {
   payload: Record<string, unknown>;
   occurred_at: string;
 }
+export interface MissionScheduledEffect {
+  id: string;
+  effect_code: string;
+  status: string;
+  due_at: string;
+  message?: string | null;
+  applied_at?: string | null;
+  cancelled_at?: string | null;
+}
 export interface MissionInstanceResponse {
   id: string;
   version: number;
@@ -305,6 +314,7 @@ export interface MissionInstanceResponse {
   mission_code: string;
   title: string;
   status: string;
+  runtime_phase: string;
   world_state: Record<string, unknown>;
   world_state_version: number;
   decision_points: Array<Record<string, unknown>>;
@@ -312,6 +322,7 @@ export interface MissionInstanceResponse {
   decision_options: Array<{ code?: string; label?: string }>;
   escalation_options: Array<{ code: string; label: string; actor_key: string }>;
   actors: MissionActorInstance[];
+  scheduled_effects: MissionScheduledEffect[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
   observations: MissionObservation[];
