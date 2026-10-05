@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     oidc_audience: str = "parcham-api"
     oidc_jwks_url: str = "http://localhost:8080/realms/parcham/protocol/openid-connect/certs"
     nats_url: str = "nats://localhost:4222"
+    temporal_address: str = "localhost:7233"
+    temporal_namespace: str = "default"
+    temporal_task_queue: str = "parcham-mission-runtime-v1"
     cors_origins: str = "http://localhost:5173"
     otel_exporter_otlp_endpoint: str | None = None
     model_config = SettingsConfigDict(env_prefix="PARCHAM_", env_file=".env", extra="ignore")

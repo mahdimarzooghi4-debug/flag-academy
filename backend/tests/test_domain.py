@@ -21,6 +21,7 @@ from app.mission_runtime.domain import (
     MissionActionType,
     MissionAssignmentStatus,
     MissionInstanceStatus,
+    ScheduledEffectStatus,
     apply_actor_effect,
     apply_world_effect,
     assignment_transition_allowed,
@@ -274,3 +275,27 @@ def test_escalation_observation_is_explicit_candidate_fact() -> None:
     )
     assert "judgment" not in visible
     assert visible["actor_state_version_after"] == 3
+
+
+def test_scheduled_effect_lifecycle_and_visibility_are_explicit() -> None:
+    assert ScheduledEffectStatus.PENDING.value == "PENDING"
+    assert ScheduledEffectStatus.SCHEDULED.value == "SCHEDULED"
+    assert ScheduledEffectStatus.APPLIED.value == "APPLIED"
+    assert ScheduledEffectStatus.CANCELLED.value == "CANCELLED"
+
+    payload = {
+        "effect_code": "EXECUTIVE_RECOVERY_CHECKPOINT",
+        "message": "Checkpoint arrived.",
+        "effect_applied": {
+            "mission": {"delayed_consequence_status": "CHECKPOINT_READY"}
+        },
+        "world_version_before": 2,
+        "world_version_after": 3,
+    }
+    assert candidate_event_visible("scheduled_effect.applied")
+    visible = candidate_event_payload("scheduled_effect.applied", payload)
+    assert visible["effect_code"] == "EXECUTIVE_RECOVERY_CHECKPOINT"
+    assert visible["world_version_after"] == 3
+    assert "effect_applied" not in visible
+
+    assert candidate_observation_visible("SCHEDULED_EFFECT_OBSERVED")

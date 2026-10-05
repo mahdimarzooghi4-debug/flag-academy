@@ -206,7 +206,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   });
   await expect(runtimeCard).toBeVisible();
   await runtimeCard.getByRole("button", { name: "شروع مأموریت" }).click();
-  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("RUNNING");
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("RUNNING · ACTIVE");
   await expect(runtimeCard).toContainText("Candidate-visible World State");
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"error_rate_percent": 13');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
@@ -256,6 +256,28 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).not.toContainText("world_effect_applied");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
 
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText(
+    "RUNNING · WAITING_FOR_WORLD",
+  );
+  const delayedEffect = runtimeCard.getByTestId(
+    "scheduled-effect-EXECUTIVE_RECOVERY_CHECKPOINT",
+  );
+  await expect(delayedEffect).toBeVisible();
+  await expect(delayedEffect).toContainText("APPLIED", { timeout: 15_000 });
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText(
+    "RUNNING · ACTIVE",
+    { timeout: 15_000 },
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"checkpoint_status": "ARRIVED"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"delayed_consequence_status": "CHECKPOINT_READY"',
+  );
+  await expect(runtimeCard).toContainText("Executive checkpoint فرا رسید");
+  await expect(runtimeCard).toContainText("SCHEDULED_EFFECT_OBSERVED");
+  await expect(runtimeCard).not.toContainText("effect_applied");
+
   await runtimeCard.getByRole("button", { name: "درخواست Dependency trace" }).click();
   await expect(runtimeCard).toContainText("intermittent timeout spikes");
 
@@ -266,12 +288,14 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     .getByRole("button", { name: "Rollback کنترل‌شده و برنامه بازیابی" })
     .click();
 
-  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("COMPLETED");
+  await expect(runtimeCard.getByTestId("runtime-status")).toHaveText(
+    "COMPLETED · COMPLETED",
+  );
   await expect(runtimeCard).toContainText("Assignment COMPLETED");
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 2 to 3");
+  await expect(runtimeCard).toContainText("world state advanced from version 3 to 4");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
