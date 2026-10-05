@@ -2965,11 +2965,6 @@ async def submit_mission_action(
                 "SCOPE_CHANGE_PRECONDITION_NOT_MET",
                 "The canonical Mission scope no longer matches this scope-change option.",
                 status_code=409,
-                details={
-                    "scope_change_code": scope_change_code,
-                    "expected_scope": from_scope,
-                    "current_scope": current_scope,
-                },
             )
 
         try:
