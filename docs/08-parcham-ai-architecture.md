@@ -207,11 +207,19 @@ AI Evidence Analyst باید:
 
 ---
 
-## 12. اختصاصی‌بودن Parcham AI
+## 12. اختصاصی‌بودن و خوداتکایی Parcham AI
 
-اختصاصی‌بودن پرچم الزاماً به معنای Train کردن Foundation Model از صفر نیست.
+Parcham AI خودِ دارایی هوش مصنوعی پرچم است، نه یک لایه روی Foundation Model یا AI API دیگر.
 
-مزیت اختصاصی پرچم از این دارایی‌ها ساخته می‌شود:
+اصل قطعی:
+> **پرچم هوش اجاره نمی‌کند؛ هوش خودش را می‌سازد، آموزش می‌دهد، نسخه‌بندی می‌کند و با تجربه انباشته ارزشمندتر می‌کند.**
+
+Parcham AI برای Model/Inference/Training به OpenAI، Anthropic، Foundation Model API، Managed AI Service، Provider LLM یا AI API داخلی/خارجی متکی نیست.
+
+مزیت اختصاصی پرچم از مجموعه این دارایی‌های در حال انباشت ساخته می‌شود:
+- Parcham Model Weights & Model Versions
+- Parcham Training Corpus / Curated Datasets
+- Evaluation Sets & Evaluation History
 - Parcham Competency Ontology
 - Evidence Graph
 - Flag Profile Model
@@ -222,21 +230,31 @@ AI Evidence Analyst باید:
 - Decision Logs
 - Assessment Policies
 - Organizational Context
+- Learning Memory
 
-اصل:
-> Foundation Model می‌تواند Commodity باشد؛ هوش اختصاصی پرچم در Context، Memory، Ontology، Evidence و World Model آن است.
+این دارایی‌ها باید تحت مالکیت، کنترل، Versioning و Governance خود پرچم بمانند.
 
-این معماری باید تا حد ممکن Vendor-neutral بماند تا از Vendor Lock-in جلوگیری شود.
+### چرخه ارزش انباشتی
+
+**Parcham Experience → Governed Data → Curated Dataset → Parcham Training → Evaluation → Model Version → Product Use → New Experience**
+
+ارزش Parcham AI با گذشت زمان از انباشت داده، تجربه، مدل، Evaluation و Learning Memory خود پرچم افزایش می‌یابد.
+
+Self-learning به معنی تغییر خام و بی‌ردیابی مدل Production نیست؛ Training، Evaluation، Versioning و Promotion باید قابل Audit باشند.
 
 ---
 
 ## 13. معماری مفهومی
 
-### Foundation Models
-لایه مدل‌های عمومی یا تخصصی قابل تعویض.
+### Parcham Model Layer
+- Parcham-owned model/runtime
+- Versioned model artifacts
+- Parcham-owned training pipeline
+- Parcham-owned evaluation pipeline
+- Model registry and lineage
 
 ### Parcham Intelligence Layer
-- Knowledge & RAG
+- Knowledge & Retrieval
 - Competency Engine
 - Evidence Engine
 - Structured Memory
@@ -314,6 +332,6 @@ Parcham AI نباید بر «حافظه مبهم» درباره فرد تکیه 
 5. Explainable recommendations
 6. Least-privilege access to organizational data
 7. Business Pack human validation
-8. Vendor-neutral architecture
+8. Parcham-owned model, training and evaluation lifecycle
 9. Full Audit Trail for AI-generated evidence and recommendations
 10. AI must support growth and judgment, not replace responsibility
