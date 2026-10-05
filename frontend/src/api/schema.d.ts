@@ -307,7 +307,6 @@ export interface MissionInstanceResponse {
   status: string;
   world_state: Record<string, unknown>;
   world_state_version: number;
-  simulation_seed: number;
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
