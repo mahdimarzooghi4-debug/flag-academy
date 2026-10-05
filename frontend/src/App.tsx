@@ -287,7 +287,7 @@ function AuthenticatedApp({
       return data as MissionInstance;
     },
     onSuccess: async () => {
-      await missionInstances.refetch();
+      await Promise.all([missionInstances.refetch(), activeMissions.refetch()]);
     },
   });
 
