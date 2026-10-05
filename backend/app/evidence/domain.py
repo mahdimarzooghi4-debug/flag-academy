@@ -65,6 +65,8 @@ def interpretation_contract_valid(value: Any) -> bool:
         return False
     if value.get("confidence") not in QUALITATIVE_LEVELS:
         return False
+    if value.get("ai_contribution") != "NONE":
+        return False
     links = value.get("links")
     if not isinstance(links, list) or not links:
         return False
