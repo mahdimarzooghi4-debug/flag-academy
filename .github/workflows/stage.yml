@@ -410,6 +410,8 @@ jobs:
             echo "scope_change_accountability_transfer=FORBIDDEN"
             echo "scope_change_candidate_state_patch=FORBIDDEN"
             echo "scope_change_transition=PINNED_PATH+FROM_SCOPE+TO_SCOPE"
+            echo "scope_change_mission_target_scope_mutation=FORBIDDEN"
+            echo "scope_change_evidence_scope_mutation=FORBIDDEN"
             echo "delegation_world_mutation=ENGINE_RULE_ONLY"
             echo "delegation_actor_mutation=ENGINE_RULE_ONLY"
             echo "delegation_accountability_transfer=FORBIDDEN"
