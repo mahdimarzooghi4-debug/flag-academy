@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -111,6 +112,47 @@ class ActorInstance(Base):
     state_version: Mapped[int] = mapped_column(BigInteger, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ScheduledEffect(Base):
+    __tablename__ = "scheduled_effects"
+    __table_args__ = (
+        UniqueConstraint(
+            "mission_instance_id",
+            "effect_code",
+            "origin_event_id",
+            name="uq_scheduled_effect_origin_code",
+        ),
+        {"schema": "mission_runtime"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    mission_instance_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mission_runtime.mission_instances.id")
+    )
+    origin_event_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mission_runtime.runtime_events.id")
+    )
+    effect_code: Mapped[str] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(32))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    world_effect: Mapped[dict] = mapped_column(JSONB)
+    candidate_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancellable: Mapped[bool] = mapped_column(Boolean, default=True)
+    cancel_condition: Mapped[dict] = mapped_column(JSONB)
+    workflow_id: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    scheduled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    applied_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class CandidateAction(Base):
