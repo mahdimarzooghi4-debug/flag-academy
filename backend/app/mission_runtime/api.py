@@ -475,6 +475,146 @@ async def _append_observation(
     return observation
 
 
+def _world_state_path_value(
+    world_state: dict[str, Any],
+    path: str,
+) -> Any:
+    current: Any = world_state
+    for part in [segment for segment in path.split(".") if segment]:
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
+def _scheduled_cancel_condition_valid(
+    condition: dict[str, Any],
+) -> bool:
+    return (
+        condition.get("type") == "WORLD_STATE_EQUALS"
+        and isinstance(condition.get("path"), str)
+        and bool(condition.get("path"))
+        and "equals" in condition
+        and isinstance(condition.get("reason_code"), str)
+        and bool(condition.get("reason_code"))
+    )
+
+
+def _scheduled_cancel_condition_matches(
+    world_state: dict[str, Any],
+    condition: dict[str, Any],
+) -> bool:
+    if not _scheduled_cancel_condition_valid(condition):
+        return False
+    return _world_state_path_value(
+        world_state,
+        str(condition["path"]),
+    ) == condition["equals"]
+
+
+async def _cancel_matching_scheduled_effects(
+    db: AsyncSession,
+    *,
+    instance: MissionInstance,
+    actor: ActorContext,
+    source_event: RuntimeEvent,
+    command_key: str,
+    now: datetime,
+) -> None:
+    pending = (
+        await db.execute(
+            select(ScheduledEffect)
+            .where(
+                ScheduledEffect.mission_instance_id == instance.id,
+                ScheduledEffect.status == ScheduledEffectStatus.PENDING.value,
+                ScheduledEffect.cancellable.is_(True),
+            )
+            .order_by(ScheduledEffect.due_at, ScheduledEffect.id)
+            .with_for_update()
+        )
+    ).scalars().all()
+
+    for effect in pending:
+        if not _scheduled_cancel_condition_matches(
+            instance.world_state,
+            effect.cancel_condition,
+        ):
+            continue
+
+        reason_code = str(effect.cancel_condition["reason_code"])
+        effect.status = ScheduledEffectStatus.CANCELLED.value
+        effect.cancelled_at = now
+        instance.version += 1
+
+        cancelled_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="scheduled_effect.cancelled",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(source_event.id),
+            payload={
+                "effect_code": effect.effect_code,
+                "label": effect.label,
+                "due_at": effect.due_at.isoformat(),
+                "cancelled_at": now.isoformat(),
+                "reason_code": reason_code,
+                "cancel_condition_matched": effect.cancel_condition,
+            },
+            world_version_before=instance.world_state_version,
+            world_version_after=instance.world_state_version,
+            idempotency_key=f"{command_key}:cancelled:{effect.id}",
+            now=now,
+            effective_at=instance.simulation_time,
+            causal_parent_ids=[
+                str(effect.origin_event_id),
+                str(source_event.id),
+            ],
+            visibility=effect.visibility,
+        )
+
+        if effect.visibility == "CANDIDATE":
+            await _append_observation(
+                db,
+                instance=instance,
+                source_event=cancelled_event,
+                observation_type="SCHEDULED_EFFECT_CANCELLED_OBSERVED",
+                factual_statement=(
+                    f"Scheduled effect '{effect.effect_code}' was cancelled after "
+                    f"world-state condition '{reason_code}' became true."
+                ),
+                payload={
+                    "effect_code": effect.effect_code,
+                    "due_at": effect.due_at.isoformat(),
+                    "cancelled_at": now.isoformat(),
+                    "reason_code": reason_code,
+                    "world_version": instance.world_state_version,
+                },
+                now=now,
+            )
+
+        record_event(
+            db,
+            new_event(
+                event_type="mission.scheduled_effect_cancelled.v1",
+                aggregate_type="MissionInstance",
+                aggregate_id=instance.id,
+                aggregate_version=instance.version,
+                actor={"type": "SYSTEM", "id": "MISSION_ENGINE"},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "scheduled_effect_id": str(effect.id),
+                    "effect_code": effect.effect_code,
+                    "reason_code": reason_code,
+                    "world_state_version": instance.world_state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
+
 async def _complete_assignment_after_terminal(
     db: AsyncSession,
     *,
@@ -568,6 +708,8 @@ async def _advance_simulation_through(
     for effect in due_effects:
         if instance.status != MissionInstanceStatus.RUNNING.value:
             break
+        if effect.status != ScheduledEffectStatus.PENDING.value:
+            continue
 
         world_before = instance.world_state_version
         try:
@@ -654,6 +796,15 @@ async def _advance_simulation_through(
                 },
                 trace_id=actor.trace_id,
             ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=effect_event,
+            command_key=f"{command_key}:after-applied:{effect.id}",
+            now=now,
         )
 
         if effect.terminal_status is not None:
@@ -2095,10 +2246,18 @@ async def submit_mission_action(
                 or visibility not in {"CANDIDATE", "INTERNAL"}
                 or not isinstance(cancellable, bool)
                 or not isinstance(cancel_condition, dict)
+                or (
+                    cancellable
+                    and not _scheduled_cancel_condition_valid(cancel_condition)
+                )
+                or (
+                    not cancellable
+                    and bool(cancel_condition)
+                )
             ):
                 raise AppError(
                     "MISSION_SCHEDULED_EFFECT_DEFINITION_INVALID",
-                    "Scheduled effect requires code, label, positive delay, effect and valid visibility.",
+                    "Scheduled effect requires a valid deterministic definition and cancellation policy.",
                     status_code=422,
                 )
             try:
@@ -2174,6 +2333,15 @@ async def submit_mission_action(
                 },
                 trace_id=actor.trace_id,
             ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-escalation",
+            now=now,
         )
 
     elif body.action_type == MissionActionType.NO_ACTION:
@@ -2361,6 +2529,15 @@ async def submit_mission_action(
                 "world_version_before": before,
                 "world_version_after": instance.world_state_version,
             },
+            now=now,
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-decision",
             now=now,
         )
 
