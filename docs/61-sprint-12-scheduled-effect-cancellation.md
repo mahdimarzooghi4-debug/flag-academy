@@ -1,7 +1,8 @@
 # 61 — Sprint 12 ScheduledEffect Cancellation
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -185,3 +186,12 @@ PostgreSQL + Live OIDC باید اثبات کند:
 - acceptance evidence in GitHub
 
 > **Pending means still possible; cancelled means explicitly made impossible by a recorded state transition.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `3a18df5143b2808c8a828ba6dff701646d6c8b9d`
+- Main CI Run: `37297220718` — PASS
+- Ephemeral Stage Run: `37297220786` — PASS
+- Code Review: `docs/reviews/12-sprint-12-scheduled-effect-cancellation-code-review.md` — PASS
+- Stage evidence: `docs/62-sprint-12-stage-acceptance.md`
