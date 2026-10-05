@@ -23,7 +23,7 @@ services:
       - "8222:8222"
 
   temporal:
-    image: temporalio/auto-setup:1.27.2
+    image: temporalio/auto-setup:1.32.0
     depends_on:
       postgres:
         condition: service_healthy
