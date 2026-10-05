@@ -634,7 +634,10 @@ def candidate_observation_payload(
         frozenset(),
     )
     projected = {key: deepcopy(payload[key]) for key in allowed if key in payload}
-    if observation_type == "EXPERIMENT_RESULT_OBSERVED":
-        if "result" in projected and not experiment_result_valid(projected["result"]):
-            projected.pop("result")
+    if (
+        observation_type == "EXPERIMENT_RESULT_OBSERVED"
+        and "result" in projected
+        and not experiment_result_valid(projected["result"])
+    ):
+        projected.pop("result")
     return projected
