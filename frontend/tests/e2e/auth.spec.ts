@@ -232,6 +232,12 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText(
     '"recovery_coordinator": "CANDIDATE"',
   );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"scope": "FULL_ROLLOUT"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"scope_change_status": "NOT_CHANGED"',
+  );
 
   await runtimeCard
     .getByLabel("پیام به Business Sponsor")
@@ -248,6 +254,33 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).toContainText("Actor v2");
   await expect(runtimeCard).toContainText("مالکیت روشن شد.");
   await expect(runtimeCard).not.toContainText("private_escalation_threshold");
+
+  await runtimeCard.getByLabel("دلیل تغییر دامنه").fill(
+    "برای کاهش blast radius دامنه recovery را به مشتریان حیاتی محدود می‌کنم و accountability نتیجه را حفظ می‌کنم.",
+  );
+  await runtimeCard
+    .getByRole("button", {
+      name: "محدودکردن recovery به مشتریان حیاتی · FULL_ROLLOUT → CRITICAL_CUSTOMERS_ONLY",
+    })
+    .click();
+
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"scope": "CRITICAL_CUSTOMERS_ONLY"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"scope_change_status": "ACTIVE"',
+  );
+  await expect(runtimeCard.getByTestId("world-state")).toContainText(
+    '"accountability_owner": "CANDIDATE"',
+  );
+  await expect(runtimeCard).toContainText(
+    "دامنه recovery به مشتریان حیاتی محدود شد",
+  );
+  await expect(runtimeCard).toContainText("SCOPE_CHANGE_OBSERVED");
+  await expect(runtimeCard).toContainText("FULL_ROLLOUT");
+  await expect(runtimeCard).toContainText("CRITICAL_CUSTOMERS_ONLY");
+  await expect(runtimeCard).not.toContainText("scope_path");
+  await expect(runtimeCard).not.toContainText("world_effect_applied");
 
   await runtimeCard.getByLabel("دلیل واگذاری").fill(
     "هماهنگی rollback و جمع‌آوری وضعیت را به Delivery Lead می‌سپارم؛ accountability نتیجه و تصمیم نهایی همچنان با من می‌ماند.",
@@ -351,7 +384,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
-  await expect(runtimeCard).toContainText("world state advanced from version 4 to 5");
+  await expect(runtimeCard).toContainText("world state advanced from version 5 to 6");
   await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
   await expect(runtimeCard).not.toContainText("actor_effect_applied");
 

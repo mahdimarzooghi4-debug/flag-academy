@@ -103,7 +103,7 @@ def apply_world_effect(
     return next_state
 
 
-def delegation_preserves_candidate_accountability(
+def preserves_candidate_accountability(
     before_state: dict[str, Any],
     after_state: dict[str, Any],
 ) -> bool:
@@ -115,6 +115,13 @@ def delegation_preserves_candidate_accountability(
         before_mission.get("accountability_owner") == "CANDIDATE"
         and after_mission.get("accountability_owner") == "CANDIDATE"
     )
+
+
+def delegation_preserves_candidate_accountability(
+    before_state: dict[str, Any],
+    after_state: dict[str, Any],
+) -> bool:
+    return preserves_candidate_accountability(before_state, after_state)
 
 
 def apply_actor_effect(
@@ -201,6 +208,19 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "actor_state_version_after",
         }
     ),
+    "scope_change.requested": frozenset(
+        {"scope_change_code", "from_scope", "to_scope", "rationale"}
+    ),
+    "scope_change.accepted": frozenset(
+        {
+            "scope_change_code",
+            "response",
+            "from_scope",
+            "to_scope",
+            "world_version_before",
+            "world_version_after",
+        }
+    ),
     "scheduled_effect.created": frozenset(
         {"effect_code", "label", "due_at", "trigger_mode"}
     ),
@@ -275,6 +295,15 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "world_version_after",
             "actor_state_version_before",
             "actor_state_version_after",
+        }
+    ),
+    "SCOPE_CHANGE_OBSERVED": frozenset(
+        {
+            "scope_change_code",
+            "from_scope",
+            "to_scope",
+            "world_version_before",
+            "world_version_after",
         }
     ),
     "SCHEDULED_EFFECT_OBSERVED": frozenset(

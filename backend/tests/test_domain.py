@@ -29,6 +29,7 @@ from app.mission_runtime.domain import (
     candidate_observation_payload,
     candidate_observation_visible,
     delegation_preserves_candidate_accountability,
+    preserves_candidate_accountability,
     project_candidate_visible_state,
     runtime_transition_allowed,
 )
@@ -353,6 +354,84 @@ def test_delegation_visibility_is_factual_and_fail_closed() -> None:
         },
     )
     assert observation["actor_key"] == "delivery_lead"
+    assert "judgment" not in observation
+
+
+def test_scope_change_preserves_candidate_accountability() -> None:
+    before = {
+        "mission": {"accountability_owner": "CANDIDATE"},
+        "delivery": {"scope": "FULL_ROLLOUT"},
+    }
+    accepted = {
+        "mission": {
+            "accountability_owner": "CANDIDATE",
+            "scope_change_status": "ACTIVE",
+        },
+        "delivery": {"scope": "CRITICAL_CUSTOMERS_ONLY"},
+    }
+    transferred = {
+        "mission": {"accountability_owner": "OPERATIONS"},
+        "delivery": {"scope": "CRITICAL_CUSTOMERS_ONLY"},
+    }
+
+    assert preserves_candidate_accountability(before, accepted)
+    assert not preserves_candidate_accountability(before, transferred)
+
+
+def test_scope_change_visibility_is_factual_and_fail_closed() -> None:
+    assert candidate_event_visible("scope_change.requested")
+    assert candidate_event_visible("scope_change.accepted")
+    requested = candidate_event_payload(
+        "scope_change.requested",
+        {
+            "scope_change_code": "CRITICAL_CUSTOMERS_ONLY",
+            "from_scope": "FULL_ROLLOUT",
+            "to_scope": "CRITICAL_CUSTOMERS_ONLY",
+            "rationale": "Reduce blast radius while keeping accountability.",
+            "hidden_rule": "DO_NOT_EXPOSE",
+        },
+    )
+    assert requested["scope_change_code"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert requested["from_scope"] == "FULL_ROLLOUT"
+    assert requested["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert "hidden_rule" not in requested
+
+    accepted = candidate_event_payload(
+        "scope_change.accepted",
+        {
+            "scope_change_code": "CRITICAL_CUSTOMERS_ONLY",
+            "response": "Scope changed.",
+            "scope_path": "delivery.scope",
+            "from_scope": "FULL_ROLLOUT",
+            "to_scope": "CRITICAL_CUSTOMERS_ONLY",
+            "world_version_before": 2,
+            "world_version_after": 3,
+            "world_effect_applied": {
+                "delivery": {"scope": "CRITICAL_CUSTOMERS_ONLY"},
+            },
+        },
+    )
+    assert accepted["world_version_after"] == 3
+    assert accepted["from_scope"] == "FULL_ROLLOUT"
+    assert accepted["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert "scope_path" not in accepted
+    assert "world_effect_applied" not in accepted
+
+    assert candidate_observation_visible("SCOPE_CHANGE_OBSERVED")
+    observation = candidate_observation_payload(
+        "SCOPE_CHANGE_OBSERVED",
+        {
+            "scope_change_code": "CRITICAL_CUSTOMERS_ONLY",
+            "from_scope": "FULL_ROLLOUT",
+            "to_scope": "CRITICAL_CUSTOMERS_ONLY",
+            "world_version_before": 2,
+            "world_version_after": 3,
+            "judgment": "good scope decision",
+        },
+    )
+    assert observation["scope_change_code"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert observation["from_scope"] == "FULL_ROLLOUT"
+    assert observation["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
     assert "judgment" not in observation
 
 

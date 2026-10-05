@@ -72,6 +72,12 @@ export type MissionInstance = {
   decision_options: Array<{ code?: string; label?: string }>;
   escalation_options: Array<{ code: string; label: string; actor_key: string }>;
   delegation_options: Array<{ code: string; label: string; actor_key: string }>;
+  scope_change_options: Array<{
+    code: string;
+    label: string;
+    from_scope: string;
+    to_scope: string;
+  }>;
   no_action_options: Array<{ code: string; label: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
@@ -115,6 +121,12 @@ type Props = {
     delegationCode: string,
     rationale: string,
   ) => Promise<void>;
+  onChangeScope: (
+    instanceId: string,
+    worldVersion: number,
+    scopeChangeCode: string,
+    rationale: string,
+  ) => Promise<void>;
   onAdvanceWorld: (
     instanceId: string,
     worldVersion: number,
@@ -142,6 +154,7 @@ export function MissionWorkspace({
   onCommunicate,
   onEscalate,
   onDelegate,
+  onChangeScope,
   onAdvanceWorld,
   onNoAction,
   onDecide,
@@ -152,6 +165,8 @@ export function MissionWorkspace({
   const [escalationRationaleByInstance, setEscalationRationaleByInstance] =
     useState<Record<string, string>>({});
   const [delegationRationaleByInstance, setDelegationRationaleByInstance] =
+    useState<Record<string, string>>({});
+  const [scopeRationaleByInstance, setScopeRationaleByInstance] =
     useState<Record<string, string>>({});
   const [noActionRationaleByInstance, setNoActionRationaleByInstance] =
     useState<Record<string, string>>({});
@@ -375,6 +390,55 @@ export function MissionWorkspace({
                               );
                             })}
                           </div>
+                        </div>
+                      ) : null}
+
+                      {instance.scope_change_options.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>تغییر دامنه</strong>
+                          <label>
+                            دلیل تغییر دامنه
+                            <textarea
+                              aria-label="دلیل تغییر دامنه"
+                              value={scopeRationaleByInstance[instance.id] ?? ""}
+                              onChange={(event) =>
+                                setScopeRationaleByInstance((current) => ({
+                                  ...current,
+                                  [instance.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="چرا دامنه اجرا باید تغییر کند و accountability کجا می‌ماند؟"
+                            />
+                          </label>
+                          <div className="action-row">
+                            {instance.scope_change_options.map((option) => {
+                              const rationale = scopeRationaleByInstance[instance.id] ?? "";
+                              return (
+                                <button
+                                  key={option.code}
+                                  className="ghost dark"
+                                  disabled={busy || !rationale.trim()}
+                                  onClick={() =>
+                                    void onChangeScope(
+                                      instance.id,
+                                      instance.world_state_version,
+                                      option.code,
+                                      rationale.trim(),
+                                    )
+                                  }
+                                >
+                                  {option.label} · {option.from_scope} → {option.to_scope}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {instance.audit_events
+                            .filter((event) => event.event_type === "scope_change.accepted")
+                            .map((event) => (
+                              <p key={event.id} className="success-note">
+                                نتیجه تغییر دامنه: {String(event.payload.response ?? "")}
+                              </p>
+                            ))}
                         </div>
                       ) : null}
 

@@ -26,6 +26,7 @@ from app.mission_runtime.domain import (
     candidate_observation_payload,
     candidate_observation_visible,
     delegation_preserves_candidate_accountability,
+    preserves_candidate_accountability,
     project_candidate_visible_state,
     runtime_transition_allowed,
 )
@@ -167,6 +168,7 @@ class MissionInstanceResponse(BaseModel):
     decision_options: list[dict[str, Any]]
     escalation_options: list[dict[str, str]]
     delegation_options: list[dict[str, str]]
+    scope_change_options: list[dict[str, str]]
     no_action_options: list[dict[str, str]]
     actors: list[ActorInstanceResponse]
     disclosed_information: list[dict[str, Any]]
@@ -250,6 +252,41 @@ def _delegation_options(version: MissionVersion) -> list[dict[str, str]]:
                     "code": code,
                     "label": label,
                     "actor_key": actor_key,
+                }
+            )
+    return options
+
+
+def _scope_change_options(version: MissionVersion) -> list[dict[str, str]]:
+    value = _runtime_config(version).get("scope_change_options", [])
+    if not isinstance(value, list):
+        return []
+
+    options: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        code = item.get("code")
+        label = item.get("label")
+        from_scope = item.get("from_scope")
+        to_scope = item.get("to_scope")
+        if (
+            isinstance(code, str)
+            and code
+            and isinstance(label, str)
+            and label
+            and isinstance(from_scope, str)
+            and from_scope
+            and isinstance(to_scope, str)
+            and to_scope
+            and from_scope != to_scope
+        ):
+            options.append(
+                {
+                    "code": code,
+                    "label": label,
+                    "from_scope": from_scope,
+                    "to_scope": to_scope,
                 }
             )
     return options
@@ -1225,6 +1262,7 @@ async def _instance_response(
         decision_options=_decision_options(version),
         escalation_options=_escalation_options(version),
         delegation_options=_delegation_options(version),
+        scope_change_options=_scope_change_options(version),
         no_action_options=_no_action_options(version),
         actors=[
             ActorInstanceResponse(
@@ -1656,6 +1694,20 @@ async def start_mission_instance(
         raise AppError(
             "MISSION_DELEGATION_DEFINITION_INVALID",
             "Missions with delegation must declare mission.accountability_owner=CANDIDATE.",
+            status_code=422,
+        )
+    scope_change_options = runtime.get("scope_change_options", [])
+    if (
+        isinstance(scope_change_options, list)
+        and scope_change_options
+        and not preserves_candidate_accountability(
+            initial_state,
+            initial_state,
+        )
+    ):
+        raise AppError(
+            "MISSION_SCOPE_CHANGE_DEFINITION_INVALID",
+            "Missions with scope changes must declare mission.accountability_owner=CANDIDATE.",
             status_code=422,
         )
 
@@ -2848,6 +2900,203 @@ async def submit_mission_action(
             actor=actor,
             source_event=event,
             command_key=f"{body.idempotency_key}:after-delegation",
+            now=now,
+        )
+
+    elif body.action_type == MissionActionType.CHANGE_SCOPE:
+        scope_change_code = body.payload.get("scope_change_code")
+        rationale = body.payload.get("rationale")
+        if not isinstance(scope_change_code, str) or not scope_change_code:
+            raise AppError(
+                "SCOPE_CHANGE_CODE_REQUIRED",
+                "scope_change_code is required.",
+                status_code=422,
+            )
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise AppError(
+                "SCOPE_CHANGE_RATIONALE_REQUIRED",
+                "Candidate scope-change rationale is required.",
+                status_code=422,
+            )
+
+        raw_options = _runtime_config(version).get("scope_change_options", [])
+        option = next(
+            (
+                item
+                for item in raw_options
+                if isinstance(item, dict)
+                and item.get("code") == scope_change_code
+            ),
+            None,
+        ) if isinstance(raw_options, list) else None
+        if option is None:
+            raise AppError(
+                "SCOPE_CHANGE_NOT_ALLOWED",
+                "Scope change is not defined by the mission world model.",
+                status_code=422,
+            )
+
+        response = option.get("response")
+        world_effect = option.get("world_effect")
+        scope_path = option.get("scope_path")
+        from_scope = option.get("from_scope")
+        to_scope = option.get("to_scope")
+        if (
+            not isinstance(response, str)
+            or not response
+            or not isinstance(world_effect, dict)
+            or not isinstance(scope_path, str)
+            or not scope_path
+            or not isinstance(from_scope, str)
+            or not from_scope
+            or not isinstance(to_scope, str)
+            or not to_scope
+            or from_scope == to_scope
+        ):
+            raise AppError(
+                "MISSION_SCOPE_CHANGE_DEFINITION_INVALID",
+                "Scope-change rule must define response, scope_path, distinct from_scope/to_scope and world_effect.",
+                status_code=422,
+            )
+
+        current_scope = _world_state_path_value(instance.world_state, scope_path)
+        if current_scope != from_scope:
+            raise AppError(
+                "SCOPE_CHANGE_PRECONDITION_NOT_MET",
+                "The canonical Mission scope no longer matches this scope-change option.",
+                status_code=409,
+            )
+
+        try:
+            next_world = apply_world_effect(instance.world_state, world_effect)
+        except ValueError as exc:
+            raise AppError(
+                "MISSION_SCOPE_CHANGE_EFFECT_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+        if _world_state_path_value(next_world, scope_path) != to_scope:
+            raise AppError(
+                "MISSION_SCOPE_CHANGE_DEFINITION_INVALID",
+                "Scope-change world_effect must produce the declared to_scope at scope_path.",
+                status_code=422,
+            )
+        if not preserves_candidate_accountability(
+            instance.world_state,
+            next_world,
+        ):
+            raise AppError(
+                "SCOPE_CHANGE_ACCOUNTABILITY_TRANSFER_FORBIDDEN",
+                "Scope change cannot transfer Candidate accountability for the Mission.",
+                status_code=422,
+            )
+        if next_world == instance.world_state:
+            raise AppError(
+                "SCOPE_CHANGE_NO_EFFECT",
+                "Scope-change option must change canonical World State.",
+                status_code=422,
+            )
+        instance.world_state = next_world
+        instance.world_state_version += 1
+        instance.version += 1
+
+        requested_event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="scope_change.requested",
+            source="CANDIDATE",
+            trigger_type="BEHAVIOUR_TRIGGERED",
+            trigger_reference=str(action.id),
+            payload={
+                "scope_change_code": scope_change_code,
+                "from_scope": from_scope,
+                "to_scope": to_scope,
+                "rationale": rationale.strip(),
+            },
+            world_version_before=before,
+            world_version_after=before,
+            idempotency_key=f"{body.idempotency_key}:requested",
+            now=now,
+        )
+        event = await _append_runtime_event(
+            db,
+            instance=instance,
+            event_type="scope_change.accepted",
+            source="ENGINE",
+            trigger_type="STATE_TRIGGERED",
+            trigger_reference=str(requested_event.id),
+            payload={
+                "scope_change_code": scope_change_code,
+                "response": response,
+                "scope_path": scope_path,
+                "from_scope": from_scope,
+                "to_scope": to_scope,
+                "world_effect_applied": world_effect,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+            },
+            world_version_before=before,
+            world_version_after=instance.world_state_version,
+            idempotency_key=f"{body.idempotency_key}:accepted",
+            now=now,
+            causal_parent_ids=[str(requested_event.id)],
+        )
+        await _append_observation(
+            db,
+            instance=instance,
+            source_event=event,
+            observation_type="SCOPE_CHANGE_OBSERVED",
+            factual_statement=(
+                f"Candidate changed Mission scope using '{scope_change_code}'; "
+                f"world state advanced from version {before} to "
+                f"{instance.world_state_version}."
+            ),
+            payload={
+                "scope_change_code": scope_change_code,
+                "from_scope": from_scope,
+                "to_scope": to_scope,
+                "world_version_before": before,
+                "world_version_after": instance.world_state_version,
+            },
+            now=now,
+        )
+        record_event(
+            db,
+            new_event(
+                event_type="mission.scope_change_processed.v1",
+                aggregate_type="MissionInstance",
+                aggregate_id=instance.id,
+                aggregate_version=instance.version,
+                actor={"type": "PERSON", "id": str(actor.person_id)},
+                organization_context_id=actor.organization_context_id,
+                data_classification="INTERNAL",
+                payload={
+                    "mission_instance_id": str(instance.id),
+                    "scope_change_code": scope_change_code,
+                    "scope_path": scope_path,
+                    "from_scope": from_scope,
+                    "to_scope": to_scope,
+                    "world_version_before": before,
+                    "world_version_after": instance.world_state_version,
+                },
+                trace_id=actor.trace_id,
+            ),
+        )
+
+        await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-scope-change",
+            now=now,
+        )
+        await _apply_matching_state_triggered_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-scope-change",
             now=now,
         )
 

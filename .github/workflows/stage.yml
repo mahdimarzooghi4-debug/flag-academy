@@ -168,6 +168,13 @@ jobs:
           actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
           internal_actor_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded' and payload ? 'actor_effect_applied';")
           actor_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ACTOR_RESPONSE_OBSERVED';")
+          scope_change_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'CHANGE_SCOPE';")
+          scope_change_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scope_change.requested';")
+          scope_change_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scope_change.accepted';")
+          internal_scope_change_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scope_change.accepted' and payload ? 'world_effect_applied';")
+          internal_scope_change_contract=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scope_change.accepted' and payload->>'scope_path' = 'delivery.scope' and payload->>'from_scope' = 'FULL_ROLLOUT' and payload->>'to_scope' = 'CRITICAL_CUSTOMERS_ONLY';")
+          scope_change_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCOPE_CHANGE_OBSERVED';")
+          scoped_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{mission,scope_change_status}' = 'ACTIVE' and world_state #>> '{mission,accountability_owner}' = 'CANDIDATE' and world_state #>> '{delivery,scope}' = 'CRITICAL_CUSTOMERS_ONLY';")
           delegation_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'DELEGATE';")
           delegation_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'delegation.requested';")
           delegation_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'delegation.accepted';")
@@ -250,6 +257,13 @@ jobs:
           test "$actor_response_events" -ge 1
           test "$internal_actor_effects" -ge 1
           test "$actor_observations" -ge 1
+          test "$scope_change_actions" -ge 1
+          test "$scope_change_requested_events" -ge 1
+          test "$scope_change_accepted_events" -ge 1
+          test "$internal_scope_change_effects" -ge 1
+          test "$internal_scope_change_contract" -ge 1
+          test "$scope_change_observations" -ge 1
+          test "$scoped_world_state" -ge 1
           test "$delegation_actions" -ge 1
           test "$delegation_requested_events" -ge 1
           test "$delegation_accepted_events" -ge 1
@@ -335,6 +349,13 @@ jobs:
             echo "actor_response_events=$actor_response_events"
             echo "internal_actor_effect_events=$internal_actor_effects"
             echo "actor_response_observations=$actor_observations"
+            echo "scope_change_actions=$scope_change_actions"
+            echo "scope_change_requested_events=$scope_change_requested_events"
+            echo "scope_change_accepted_events=$scope_change_accepted_events"
+            echo "internal_scope_change_effect_events=$internal_scope_change_effects"
+            echo "internal_scope_change_contract_events=$internal_scope_change_contract"
+            echo "scope_change_observations=$scope_change_observations"
+            echo "scoped_world_state_rows=$scoped_world_state"
             echo "delegation_actions=$delegation_actions"
             echo "delegation_requested_events=$delegation_requested_events"
             echo "delegation_accepted_events=$delegation_accepted_events"
@@ -385,6 +406,10 @@ jobs:
             echo "timeout_transition=SCHEDULED_EFFECT_ONLY"
             echo "scheduled_effect_mutation=ENGINE_RULE_ONLY"
             echo "simulation_clock_advance=NEXT_DUE_EVENT_ONLY"
+            echo "scope_change_world_mutation=ENGINE_RULE_ONLY"
+            echo "scope_change_accountability_transfer=FORBIDDEN"
+            echo "scope_change_candidate_state_patch=FORBIDDEN"
+            echo "scope_change_transition=PINNED_PATH+FROM_SCOPE+TO_SCOPE"
             echo "delegation_world_mutation=ENGINE_RULE_ONLY"
             echo "delegation_actor_mutation=ENGINE_RULE_ONLY"
             echo "delegation_accountability_transfer=FORBIDDEN"
