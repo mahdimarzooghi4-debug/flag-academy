@@ -42,6 +42,7 @@ from app.mission_runtime.models import (
     MissionInstance,
     Observation,
     RuntimeEvent,
+    ScheduledEffect,
 )
 from app.platform.events import new_event, record_event
 from app.platform.models import DomainEvent, InboxEvent, OutboxEvent
@@ -89,6 +90,7 @@ async def seed() -> None:
             InboxEvent,
             OutboxEvent,
             Observation,
+            ScheduledEffect,
             DecisionRecord,
             RuntimeEvent,
             CandidateAction,
