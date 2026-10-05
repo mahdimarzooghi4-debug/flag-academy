@@ -39,6 +39,8 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
         "observation_type",
         "observed_fact",
         "observed_payload",
+        "candidate_visible",
+        "candidate_visible_payload",
         "occurred_at",
         "source_independence_group",
         "provenance",
@@ -70,6 +72,12 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
         observation_type=str(payload["observation_type"]),
         observed_fact=str(payload["observed_fact"]),
         observed_payload=dict(payload["observed_payload"]),
+        candidate_visible=payload["candidate_visible"] is True,
+        candidate_visible_payload=(
+            dict(payload["candidate_visible_payload"])
+            if isinstance(payload["candidate_visible_payload"], dict)
+            else {}
+        ),
         occurred_at=datetime.fromisoformat(str(payload["occurred_at"])),
         source_independence_group=str(payload["source_independence_group"]),
         provenance=dict(payload["provenance"]),
