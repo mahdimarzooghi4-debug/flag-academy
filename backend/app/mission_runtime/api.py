@@ -516,7 +516,7 @@ def _scheduled_effect_trigger_mode(effect: ScheduledEffect) -> str:
 
 
 def _scheduled_effect_due_at_text(effect: ScheduledEffect) -> str | None:
-    return due_at.isoformat() if effect.due_at is not None else None
+    return effect.due_at.isoformat() if effect.due_at is not None else None
 
 
 def _scheduled_cancel_condition_valid(
