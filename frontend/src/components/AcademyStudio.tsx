@@ -144,10 +144,12 @@ export function AcademyStudio({
               decision_status: "OPEN",
               escalation_status: "NONE",
               delegation_status: "NOT_DELEGATED",
+              scope_change_status: "NOT_CHANGED",
               accountability_owner: "CANDIDATE",
             },
             delivery: {
               recovery_coordinator: "CANDIDATE",
+              scope: "FULL_ROLLOUT",
             },
           },
           candidate_visible_paths: [
@@ -162,8 +164,10 @@ export function AcademyStudio({
             "mission.decision_status",
             "mission.escalation_status",
             "mission.delegation_status",
+            "mission.scope_change_status",
             "mission.accountability_owner",
             "delivery.recovery_coordinator",
+            "delivery.scope",
           ],
           actor_runtime: {
             business_sponsor: {
@@ -223,6 +227,18 @@ export function AcademyStudio({
               actor_effect: {
                 commitment: "OWNS_RECOVERY_COORDINATION",
                 delegated_responsibility: "RECOVERY_COORDINATION",
+              },
+            },
+          ],
+          scope_change_options: [
+            {
+              code: "CRITICAL_CUSTOMERS_ONLY",
+              label: "محدودکردن recovery به مشتریان حیاتی",
+              response:
+                "دامنه recovery به مشتریان حیاتی محدود شد؛ accountability نتیجه همچنان با Candidate می‌ماند.",
+              world_effect: {
+                mission: { scope_change_status: "ACTIVE" },
+                delivery: { scope: "CRITICAL_CUSTOMERS_ONLY" },
               },
             },
           ],
