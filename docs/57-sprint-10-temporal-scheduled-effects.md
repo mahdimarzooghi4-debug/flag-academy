@@ -27,11 +27,14 @@ Sprint 10 این چهار Gap را در یک Slice می‌بندد.
 
 ## Temporal Infrastructure
 
-Runtime:
-- Temporal Server `1.32.0`
+Ephemeral CI/Stage runtime:
+- maintained `temporalio/temporal:1.9.1` CLI Development Server
+- embedded Temporal Service suitable for development/CI
 - Python SDK `1.30+`
 - Namespace: `default`
 - Task Queue: `parcham-mission-runtime-v1`
+
+Production Temporal deployment is intentionally not defined by this Sprint; FINAL architecture remains Temporal, while production infrastructure must use a maintained production deployment such as `temporalio/server` with managed persistence or Temporal Cloud.
 
 Processes:
 - `app.mission_runtime.scheduler`
