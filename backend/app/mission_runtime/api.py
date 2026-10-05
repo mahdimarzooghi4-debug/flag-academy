@@ -516,7 +516,7 @@ def _scheduled_effect_trigger_mode(effect: ScheduledEffect) -> str:
 
 
 def _scheduled_effect_due_at_text(effect: ScheduledEffect) -> str | None:
-    return _scheduled_effect_due_at_text(effect) if effect.due_at is not None else None
+    return due_at.isoformat() if effect.due_at is not None else None
 
 
 def _scheduled_cancel_condition_valid(
@@ -588,7 +588,7 @@ async def _cancel_matching_scheduled_effects(
             payload={
                 "effect_code": effect.effect_code,
                 "label": effect.label,
-                "due_at": _scheduled_effect_due_at_text(effect),
+                "due_at": due_at.isoformat(),
                 "cancelled_at": instance.simulation_time.isoformat(),
                 "reason_code": reason_code,
                 "cancel_condition_matched": effect.cancel_condition,
@@ -617,7 +617,7 @@ async def _cancel_matching_scheduled_effects(
                 ),
                 payload={
                     "effect_code": effect.effect_code,
-                    "due_at": _scheduled_effect_due_at_text(effect),
+                    "due_at": due_at.isoformat(),
                     "cancelled_at": instance.simulation_time.isoformat(),
                     "reason_code": reason_code,
                     "world_version": instance.world_state_version,
@@ -884,6 +884,9 @@ async def _advance_simulation_through(
             break
         if effect.status != ScheduledEffectStatus.PENDING.value:
             continue
+        due_at = effect.due_at
+        if due_at is None:
+            continue
 
         world_before = instance.world_state_version
         try:
@@ -901,7 +904,7 @@ async def _advance_simulation_through(
         instance.world_state_version += 1
         instance.version += 1
         effect.status = ScheduledEffectStatus.APPLIED.value
-        effect.applied_at = effect.due_at
+        effect.applied_at = due_at
 
         effect_event = await _append_runtime_event(
             db,
@@ -913,7 +916,8 @@ async def _advance_simulation_through(
             payload={
                 "effect_code": effect.effect_code,
                 "label": effect.label,
-                "due_at": _scheduled_effect_due_at_text(effect),
+                "due_at": due_at.isoformat(),
+                "trigger_mode": "DUE_AT",
                 "effect_applied": effect.effect_payload,
                 "world_version_before": world_before,
                 "world_version_after": instance.world_state_version,
@@ -922,7 +926,7 @@ async def _advance_simulation_through(
             world_version_after=instance.world_state_version,
             idempotency_key=f"{command_key}:applied:{effect.id}",
             now=now,
-            effective_at=effect.due_at,
+            effective_at=due_at,
             causal_parent_ids=[
                 str(effect.origin_event_id),
                 str(time_event.id),
@@ -938,12 +942,13 @@ async def _advance_simulation_through(
                 observation_type="SCHEDULED_EFFECT_OBSERVED",
                 factual_statement=(
                     f"Scheduled effect '{effect.effect_code}' became due at "
-                    f"{_scheduled_effect_due_at_text(effect)}; world state advanced from version "
+                    f"{due_at.isoformat()}; world state advanced from version "
                     f"{world_before} to {instance.world_state_version}."
                 ),
                 payload={
                     "effect_code": effect.effect_code,
-                    "due_at": _scheduled_effect_due_at_text(effect),
+                    "due_at": due_at.isoformat(),
+                    "trigger_mode": "DUE_AT",
                     "world_version_before": world_before,
                     "world_version_after": instance.world_state_version,
                 },
@@ -964,7 +969,8 @@ async def _advance_simulation_through(
                     "mission_instance_id": str(instance.id),
                     "scheduled_effect_id": str(effect.id),
                     "effect_code": effect.effect_code,
-                    "due_at": _scheduled_effect_due_at_text(effect),
+                    "due_at": due_at.isoformat(),
+                    "trigger_mode": "DUE_AT",
                     "world_version_before": world_before,
                     "world_version_after": instance.world_state_version,
                 },
@@ -1013,13 +1019,13 @@ async def _advance_simulation_through(
                     "from_status": previous_status,
                     "to_status": instance.status,
                     "effect_code": effect.effect_code,
-                    "expired_at": _scheduled_effect_due_at_text(effect),
+                    "expired_at": due_at.isoformat(),
                 },
                 world_version_before=instance.world_state_version,
                 world_version_after=instance.world_state_version,
                 idempotency_key=f"{command_key}:terminal:{effect.id}",
                 now=now,
-                effective_at=effect.due_at,
+                effective_at=due_at,
                 causal_parent_ids=[str(effect_event.id)],
                 visibility=effect.visibility,
             )
@@ -1030,12 +1036,12 @@ async def _advance_simulation_through(
                     source_event=expired_event,
                     observation_type="MISSION_TIME_EXPIRED",
                     factual_statement=(
-                        f"Mission time expired at {_scheduled_effect_due_at_text(effect)} after "
+                        f"Mission time expired at {due_at.isoformat()} after "
                         f"scheduled effect '{effect.effect_code}'."
                     ),
                     payload={
                         "effect_code": effect.effect_code,
-                        "expired_at": _scheduled_effect_due_at_text(effect),
+                        "expired_at": due_at.isoformat(),
                         "world_version_before": world_before,
                         "world_version_after": instance.world_state_version,
                     },
@@ -1060,7 +1066,7 @@ async def _advance_simulation_through(
                         "mission_instance_id": str(instance.id),
                         "scheduled_effect_id": str(effect.id),
                         "effect_code": effect.effect_code,
-                        "expired_at": _scheduled_effect_due_at_text(effect),
+                        "expired_at": due_at.isoformat(),
                         "world_state_version": instance.world_state_version,
                     },
                     trace_id=actor.trace_id,
@@ -1119,7 +1125,10 @@ async def _instance_response(
                 ScheduledEffect.mission_instance_id == instance.id,
                 ScheduledEffect.visibility == "CANDIDATE",
             )
-            .order_by(ScheduledEffect.due_at, ScheduledEffect.effect_code)
+            .order_by(
+                ScheduledEffect.created_at,
+                ScheduledEffect.effect_code,
+            )
         )
     ).scalars().all()
 
@@ -1165,6 +1174,7 @@ async def _instance_response(
                 effect_code=item.effect_code,
                 label=item.label,
                 due_at=item.due_at,
+                trigger_mode=_scheduled_effect_trigger_mode(item),
                 status=item.status,
             )
             for item in scheduled_effects
@@ -1876,6 +1886,7 @@ async def advance_to_next_world_event(
             .where(
                 ScheduledEffect.mission_instance_id == instance.id,
                 ScheduledEffect.status == ScheduledEffectStatus.PENDING.value,
+                ScheduledEffect.due_at.is_not(None),
             )
             .order_by(ScheduledEffect.due_at, ScheduledEffect.id)
             .limit(1)
@@ -2557,6 +2568,7 @@ async def submit_mission_action(
                 select(ScheduledEffect.id).where(
                     ScheduledEffect.mission_instance_id == instance.id,
                     ScheduledEffect.status == ScheduledEffectStatus.PENDING.value,
+                    ScheduledEffect.due_at.is_not(None),
                     ScheduledEffect.due_at <= target_time,
                 ).limit(1)
             )
