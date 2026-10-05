@@ -872,6 +872,7 @@ async def _advance_simulation_through(
             .where(
                 ScheduledEffect.mission_instance_id == instance.id,
                 ScheduledEffect.status == ScheduledEffectStatus.PENDING.value,
+                ScheduledEffect.due_at.is_not(None),
                 ScheduledEffect.due_at <= target_time,
             )
             .order_by(ScheduledEffect.due_at, ScheduledEffect.id)
@@ -1900,8 +1901,16 @@ async def advance_to_next_world_event(
             status_code=409,
         )
 
+    next_due_at = next_effect.due_at
+    if next_due_at is None:
+        raise AppError(
+            "SCHEDULED_EFFECT_TRIGGER_INVALID",
+            "Next timed effect is missing due_at.",
+            status_code=500,
+        )
+
     now = datetime.now(UTC)
-    target_time = max(instance.simulation_time, next_effect.due_at)
+    target_time = max(instance.simulation_time, next_due_at)
     await _advance_simulation_through(
         db,
         instance=instance,
