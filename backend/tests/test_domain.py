@@ -621,7 +621,25 @@ def test_experiment_visibility_is_factual_and_hides_world_effect() -> None:
         },
     )
     assert completed["experiment_code"] == "RECOVERY_CANARY"
+    assert "result" in completed
+    assert "contract" not in completed
     assert "world_effect_applied" not in completed
+
+    malformed_completed = candidate_event_payload(
+        "experiment.completed",
+        {
+            "experiment_code": "RECOVERY_CANARY",
+            "method": "CONTROLLED_CANARY",
+            "result": {
+                "control_measurements": {"error_rate_percent": 13},
+                "treatment_measurements": {"error_rate_percent": 5},
+                "noise_context": [],
+                "observed_events": [],
+                "verdict": "SUCCESS",
+            },
+        },
+    )
+    assert "result" not in malformed_completed
 
     assert candidate_observation_visible("EXPERIMENT_RESULT_OBSERVED")
     observed = candidate_observation_payload(
@@ -642,6 +660,22 @@ def test_experiment_visibility_is_factual_and_hides_world_effect() -> None:
     )
     assert observed["world_version_after"] == 3
     assert "evidence_strength" not in observed
+
+    malformed_observed = candidate_observation_payload(
+        "EXPERIMENT_RESULT_OBSERVED",
+        {
+            "experiment_code": "RECOVERY_CANARY",
+            "method": "CONTROLLED_CANARY",
+            "result": {
+                "control_measurements": {"error_rate_percent": 13},
+                "treatment_measurements": {"error_rate_percent": 5},
+                "noise_context": [],
+                "observed_events": [],
+                "interpretation": "POSITIVE",
+            },
+        },
+    )
+    assert "result" not in malformed_observed
 
 
 def test_scheduled_effect_payload_hides_internal_effect() -> None:
