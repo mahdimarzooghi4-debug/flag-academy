@@ -134,7 +134,8 @@ class ScheduledEffectResponse(BaseModel):
     id: UUID
     effect_code: str
     label: str
-    due_at: datetime
+    due_at: datetime | None
+    trigger_mode: str
     status: str
 
 
@@ -485,6 +486,37 @@ def _world_state_path_value(
             return None
         current = current[part]
     return current
+
+
+def _scheduled_trigger_condition_valid(
+    condition: dict[str, Any],
+) -> bool:
+    return (
+        condition.get("type") == "WORLD_STATE_EQUALS"
+        and isinstance(condition.get("path"), str)
+        and bool(condition.get("path"))
+        and "equals" in condition
+    )
+
+
+def _scheduled_trigger_condition_matches(
+    world_state: dict[str, Any],
+    condition: dict[str, Any],
+) -> bool:
+    if not _scheduled_trigger_condition_valid(condition):
+        return False
+    return _world_state_path_value(
+        world_state,
+        str(condition["path"]),
+    ) == condition["equals"]
+
+
+def _scheduled_effect_trigger_mode(effect: ScheduledEffect) -> str:
+    return "DUE_AT" if effect.due_at is not None else "STATE_TRIGGERED"
+
+
+def _scheduled_effect_due_at_text(effect: ScheduledEffect) -> str | None:
+    return effect.due_at.isoformat() if effect.due_at is not None else None
 
 
 def _scheduled_cancel_condition_valid(
