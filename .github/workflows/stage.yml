@@ -180,7 +180,14 @@ jobs:
       - name: Verify event and read-model acceptance
         shell: bash
         run: |
-          sleep 3
+          for i in {1..30}; do
+            runtime_observation_count=$(docker compose -f infra/docker-compose.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from mission_runtime.observations;")
+            evidence_case_count=$(docker compose -f infra/docker-compose.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from evidence.evidence_cases;")
+            if [ "$evidence_case_count" -ge "$runtime_observation_count" ]; then
+              break
+            fi
+            sleep 1
+          done
           published=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.outbox_events where published_at is not null;")
           inbox=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events;")
           candidate_home=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from readmodel.candidate_home;")
