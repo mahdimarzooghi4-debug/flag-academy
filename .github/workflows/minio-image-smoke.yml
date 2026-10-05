@@ -1,0 +1,27 @@
+name: MinIO Image Smoke
+
+on:
+  pull_request:
+    paths:
+      - "infra/minio/**"
+      - ".github/workflows/minio-image-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/minio/**"
+      - ".github/workflows/minio-image-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build pinned MinIO image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build MinIO image
+        run: docker build --pull --tag parcham/minio-dev:smoke infra/minio
+
+      - name: Verify MinIO binary
+        run: docker run --rm parcham/minio-dev:smoke --version
