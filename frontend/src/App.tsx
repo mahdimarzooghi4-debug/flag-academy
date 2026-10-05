@@ -256,12 +256,16 @@ function AuthenticatedApp({
       instanceId,
       worldVersion,
       actionType,
+      target,
+      actorVersion,
       payload,
       reasoning,
     }: {
       instanceId: string;
       worldVersion: number;
-      actionType: "REQUEST_INFORMATION" | "DECIDE";
+      actionType: "REQUEST_INFORMATION" | "COMMUNICATE" | "DECIDE";
+      target?: string;
+      actorVersion?: number;
       payload: Record<string, unknown>;
       reasoning: string;
     }) => {
@@ -271,11 +275,12 @@ function AuthenticatedApp({
           params: { path: { instance_id: instanceId } },
           body: {
             action_type: actionType,
-            target: null,
+            target: target ?? null,
             payload,
             reasoning,
             confidence: 80,
             expected_world_version: worldVersion,
+            expected_actor_version: actorVersion ?? null,
             idempotency_key: crypto.randomUUID(),
             resource_cost: {},
             mode: "CANDIDATE",
@@ -571,6 +576,27 @@ function AuthenticatedApp({
                   actionType: "REQUEST_INFORMATION",
                   payload: { label },
                   reasoning: `Request canonical information: ${label}`,
+                });
+              }}
+              onCommunicate={async (
+                instanceId,
+                worldVersion,
+                actorKey,
+                actorVersion,
+                communicationCode,
+                utterance,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "COMMUNICATE",
+                  target: actorKey,
+                  actorVersion,
+                  payload: {
+                    communication_code: communicationCode,
+                    utterance,
+                  },
+                  reasoning: utterance,
                 });
               }}
               onDecide={async (instanceId, worldVersion, decisionCode, reasoning) => {
