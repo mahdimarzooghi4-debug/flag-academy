@@ -34,7 +34,7 @@ Candidate Action:
 ```text
 action_type = NO_ACTION
 payload.no_action_code
-payload.rationale
+reasoning
 expected_world_version
 idempotency_key
 ```
@@ -101,7 +101,7 @@ Engine پس از اعمال effect:
 2. world_state_version را افزایش می‌دهد.
 3. ScheduledEffect را APPLIED می‌کند.
 4. Mission را از RUNNING به TIME_EXPIRED می‌برد.
-5. Assignment را COMPLETED می‌کند.
+5. Mission و Assignment lifecycle timestamp را با wall-clock `now` می‌بندد؛ `expired_at` و `simulation_time` همچنان زمان شبیه‌سازی را نگه می‌دارند.
 6. Runtime Event و Observation factual می‌سازد.
 
 ## Shared Time Engine
@@ -163,7 +163,7 @@ Result:
 ## Governance Invariants
 
 - NO_ACTION explicit CandidateAction است.
-- rationale برای NO_ACTION اجباری است.
+- Action reasoning برای NO_ACTION اجباری است و تنها منبع rationale محسوب می‌شود.
 - Candidate duration دلخواه ارسال نمی‌کند.
 - Candidate deadline دلخواه ارسال نمی‌کند.
 - Candidate effect دلخواه ارسال نمی‌کند.
