@@ -190,6 +190,11 @@ jobs:
           time_expired_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'mission.time_expired';")
           time_expired_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'MISSION_TIME_EXPIRED';")
           timeout_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where status = 'TIME_EXPIRED' and world_state #>> '{risk,level}' = 'CRITICAL' and world_state #>> '{mission,decision_status}' = 'EXPIRED' and world_state #>> '{mission,escalation_status}' = 'DEADLINE_MISSED';")
+          cancelled_deadlines=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects where effect_code = 'RECOVERY_DECISION_DEADLINE' and status = 'CANCELLED' and cancelled_at is not null;")
+          scheduled_cancel_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.cancelled';")
+          internal_cancel_condition_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scheduled_effect.cancelled' and payload ? 'cancel_condition_matched';")
+          scheduled_cancel_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'SCHEDULED_EFFECT_CANCELLED_OBSERVED';")
+          pending_deadlines_on_completed=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.scheduled_effects se join mission_runtime.mission_instances mi on mi.id = se.mission_instance_id where se.effect_code = 'RECOVERY_DECISION_DEADLINE' and se.status = 'PENDING' and mi.status = 'COMPLETED';")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -250,6 +255,11 @@ jobs:
           test "$time_expired_events" -ge 1
           test "$time_expired_observations" -ge 1
           test "$timeout_world_state" -ge 1
+          test "$cancelled_deadlines" -ge 1
+          test "$scheduled_cancel_events" -ge 1
+          test "$internal_cancel_condition_events" -ge 1
+          test "$scheduled_cancel_observations" -ge 1
+          test "$pending_deadlines_on_completed" -eq 0
 
           mkdir -p stage-artifacts
           {
@@ -313,6 +323,12 @@ jobs:
             echo "mission_time_expired_events=$time_expired_events"
             echo "mission_time_expired_observations=$time_expired_observations"
             echo "timeout_world_state_rows=$timeout_world_state"
+            echo "cancelled_recovery_deadlines=$cancelled_deadlines"
+            echo "scheduled_effect_cancelled_events=$scheduled_cancel_events"
+            echo "internal_cancel_condition_events=$internal_cancel_condition_events"
+            echo "scheduled_effect_cancelled_observations=$scheduled_cancel_observations"
+            echo "pending_deadlines_on_completed_missions=$pending_deadlines_on_completed"
+            echo "scheduled_effect_cancellation=ENGINE_WORLD_STATE_RULE_ONLY"
             echo "no_action_time_advance=CANONICAL_OPTION_ONLY"
             echo "timeout_transition=SCHEDULED_EFFECT_ONLY"
             echo "scheduled_effect_mutation=ENGINE_RULE_ONLY"
