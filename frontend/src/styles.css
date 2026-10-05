@@ -177,3 +177,36 @@ input:focus, select:focus {
 @media (max-width: 760px) {
   .form-grid { grid-template-columns: 1fr; }
 }
+
+.mission-shell { margin-top: -58px; }
+.mission-runtime-card { display: grid; gap: 12px; }
+.runtime-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  direction: ltr;
+  font-size: .78rem;
+  color: #6f7787;
+}
+.runtime-meta span {
+  border: 1px solid #e3ded2;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #faf8f3;
+}
+.runtime-block {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f7f5ef;
+}
+.runtime-block pre {
+  margin: 10px 0 0;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .8rem;
+}
+.runtime-timeline { margin: 10px 0 0; padding-right: 20px; }
+.runtime-timeline li { margin: 8px 0; line-height: 1.7; }
