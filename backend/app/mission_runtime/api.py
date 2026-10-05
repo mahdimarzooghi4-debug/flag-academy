@@ -20,6 +20,7 @@ from app.mission_runtime.domain import (
     apply_world_effect,
     assignment_transition_allowed,
     candidate_event_payload,
+    candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
     project_candidate_visible_state,
@@ -395,7 +396,10 @@ async def _instance_response(
     ).scalars().all()
 
     candidate_events = [
-        item for item in events if item.visibility == "CANDIDATE"
+        item
+        for item in events
+        if item.visibility == "CANDIDATE"
+        and candidate_event_visible(item.event_type)
     ]
     candidate_observations = [
         item
