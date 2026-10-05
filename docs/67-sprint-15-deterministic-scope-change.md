@@ -1,7 +1,8 @@
 # 67 — Sprint 15: Deterministic Scope Change
 
-**Status:** IN PROGRESS  
-**Date:** 2026-10-05
+**Status:** ACCEPTED  
+**Date:** 2026-10-05  
+**Acceptance Date:** 2026-10-05
 
 ## Goal
 
@@ -106,3 +107,17 @@ Expected deterministic result:
 - arbitrary Candidate-authored world patches
 - immutable Mission target-scope mutation
 - Evidence-scope / Proven-Scope mutation
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `45a32a3661db06339078750c141bb9703bad110d`
+- Sprint 15 product PR: #13
+- Main CI Run: `37318314937` — PASS
+- Ephemeral Stage Run: `37318314988` — PASS
+- Code Review: `docs/reviews/15-sprint-15-deterministic-scope-change-code-review.md` — PASS
+- Stage evidence: `docs/68-sprint-15-stage-acceptance.md`
+- Stage artifact: `stage-acceptance-evidence`, ID `11348452540`
+- Stage artifact digest: `sha256:f864c49ea18442fcc9c3ded107a75b30d26b46883b76b85a11b45ecf849db9cd`
+
+> **Sprint 15 is accepted only as deterministic Mission Runtime capability. Evidence interpretation and Profile/Gate mutation remain out of scope.**
