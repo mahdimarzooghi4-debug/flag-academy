@@ -32,6 +32,8 @@ def upgrade() -> None:
         sa.Column("observation_type", sa.String(80), nullable=False),
         sa.Column("observed_fact", sa.Text(), nullable=False),
         sa.Column("observed_payload", postgresql.JSONB(), nullable=False),
+        sa.Column("candidate_visible", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("candidate_visible_payload", postgresql.JSONB(), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("source_independence_group", sa.String(255), nullable=False),
         sa.Column("provenance", postgresql.JSONB(), nullable=False),
