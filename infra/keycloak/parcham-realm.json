@@ -12,6 +12,9 @@
       },
       {
         "name": "ACADEMY_ADMIN"
+      },
+      {
+        "name": "ASSESSOR"
       }
     ]
   },
@@ -88,6 +91,18 @@
         "ACADEMY_ADMIN"
       ],
       "email": "academy-admin@parcham.local",
+      "emailVerified": true
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "username": "assessor",
+      "enabled": true,
+      "firstName": "Assessor",
+      "lastName": "Demo",
+      "realmRoles": [
+        "ASSESSOR"
+      ],
+      "email": "assessor@parcham.local",
       "emailVerified": true
     }
   ]
