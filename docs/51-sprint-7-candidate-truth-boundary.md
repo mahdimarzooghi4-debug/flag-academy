@@ -1,7 +1,8 @@
 # 51 — Sprint 7 Candidate-visible Truth Boundary
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -150,3 +151,13 @@ Live OIDC + PostgreSQL باید اثبات کند:
 - acceptance evidence recorded in GitHub
 
 > **Canonical truth may exist without being Candidate-visible. Visibility is explicit policy, never an accidental consequence of serialization.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `872f628763a42ef2ff45443d3d7f0336b758f668`
+- Main CI Run: `37268426792` — PASS
+- Ephemeral Stage Run: `37268426855` — PASS
+- Code Review: `docs/reviews/07-sprint-7-candidate-truth-boundary-code-review.md` — PASS
+- GitHub Review ID: `5410301553`
+- Stage evidence: `docs/52-sprint-7-stage-acceptance.md`
