@@ -181,6 +181,26 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await login(page, "candidate", candidatePassword);
 
   await expect(page.getByText("مأموریت‌های شبیه‌سازی")).toBeVisible();
+  await expect(page.getByText("هنوز Mission فعال قابل اجرا وجود ندارد.")).toBeVisible();
+  await expect(page.getByText("OWNERSHIP_RECOVERY_E2E")).not.toBeVisible();
+
+  await logout(page);
+  await login(page, "academy-admin", adminPassword);
+
+  const activeMissionCard = page.locator(".assignment-card").filter({
+    hasText: "OWNERSHIP_RECOVERY_E2E",
+  });
+  await activeMissionCard
+    .getByLabel("Candidate برای Assignment")
+    .selectOption({ label: "Candidate Demo" });
+  await activeMissionCard.getByRole("button", { name: "اختصاص مأموریت" }).click();
+  await expect(page.getByText("Mission Assignment ثبت شد.")).toBeVisible();
+  await expect(activeMissionCard).toContainText("Candidate Demo · ASSIGNED");
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+
+  await expect(page.getByText("مأموریت‌های شبیه‌سازی")).toBeVisible();
   const runtimeCard = page.locator(".mission-runtime-card").filter({
     hasText: "OWNERSHIP_RECOVERY_E2E",
   });
@@ -199,6 +219,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     .click();
 
   await expect(runtimeCard.getByTestId("runtime-status")).toHaveText("COMPLETED");
+  await expect(runtimeCard).toContainText("Assignment COMPLETED");
   await expect(runtimeCard.getByTestId("world-state")).toContainText('"rollback_started": true');
   await expect(runtimeCard).toContainText("world state advanced from version 1 to 2");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
