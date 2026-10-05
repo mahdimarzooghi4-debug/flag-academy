@@ -36,6 +36,15 @@ export type MissionObservation = {
   occurred_at: string;
 };
 
+export type MissionActorInstance = {
+  id: string;
+  actor_key: string;
+  display_name: string;
+  state: Record<string, unknown>;
+  state_version: number;
+  communication_options: Array<{ code: string; label: string }>;
+};
+
 export type MissionInstance = {
   id: string;
   version: number;
@@ -50,6 +59,7 @@ export type MissionInstance = {
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
+  actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
   audit_events: MissionRuntimeEvent[];
   observations: MissionObservation[];
@@ -67,6 +77,14 @@ type Props = {
     worldVersion: number,
     label: string,
   ) => Promise<void>;
+  onCommunicate: (
+    instanceId: string,
+    worldVersion: number,
+    actorKey: string,
+    actorVersion: number,
+    communicationCode: string,
+    utterance: string,
+  ) => Promise<void>;
   onDecide: (
     instanceId: string,
     worldVersion: number,
@@ -81,10 +99,12 @@ export function MissionWorkspace({
   instances,
   onStart,
   onRequestInformation,
+  onCommunicate,
   onDecide,
   busy,
 }: Props) {
   const [reasoningByInstance, setReasoningByInstance] = useState<Record<string, string>>({});
+  const [utteranceByActor, setUtteranceByActor] = useState<Record<string, string>>({});
 
   const instanceByAssignment = useMemo(() => {
     const map = new Map<string, MissionInstance>();
@@ -150,6 +170,75 @@ export function MissionWorkspace({
 
                   {instance.status === "RUNNING" ? (
                     <>
+                      {instance.actors.length > 0 ? (
+                        <div className="runtime-block">
+                          <strong>تعامل با Actorها</strong>
+                          <div className="stack">
+                            {instance.actors.map((actor) => {
+                              const utterance = utteranceByActor[actor.id] ?? "";
+                              const responses = instance.audit_events.filter(
+                                (event) =>
+                                  event.event_type === "actor.responded" &&
+                                  event.payload.actor_key === actor.actor_key,
+                              );
+                              return (
+                                <div key={actor.id} className="actor-runtime-card">
+                                  <div className="assignment-head">
+                                    <div>
+                                      <b>{actor.display_name}</b>
+                                      <p>{actor.actor_key} · Actor v{actor.state_version}</p>
+                                    </div>
+                                  </div>
+                                  <pre data-testid={`actor-state-${actor.actor_key}`}>
+                                    {JSON.stringify(actor.state, null, 2)}
+                                  </pre>
+                                  <label>
+                                    پیام به {actor.display_name}
+                                    <textarea
+                                      aria-label={`پیام به ${actor.display_name}`}
+                                      value={utterance}
+                                      onChange={(event) =>
+                                        setUtteranceByActor((current) => ({
+                                          ...current,
+                                          [actor.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="پیام واقعی خود را به Actor بنویسید."
+                                    />
+                                  </label>
+                                  <div className="action-row">
+                                    {actor.communication_options.map((option) => (
+                                      <button
+                                        key={option.code}
+                                        className="ghost dark"
+                                        disabled={busy || !utterance.trim()}
+                                        onClick={() =>
+                                          void onCommunicate(
+                                            instance.id,
+                                            instance.world_state_version,
+                                            actor.actor_key,
+                                            actor.state_version,
+                                            option.code,
+                                            utterance.trim(),
+                                          )
+                                        }
+                                      >
+                                        {option.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {responses.map((response) => (
+                                    <p key={response.id} className="success-note">
+                                      پاسخ {actor.display_name}: {String(response.payload.reply ?? "")}
+                                    </p>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div className="runtime-block">
                         <strong>اطلاعات قابل درخواست</strong>
                         <div className="action-row">
