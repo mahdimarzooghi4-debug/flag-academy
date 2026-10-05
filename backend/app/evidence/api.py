@@ -591,6 +591,12 @@ async def request_candidate_context(
 ) -> EvidenceCaseResponse:
     case = await _load_case(db, actor=actor, case_id=case_id, for_update=True)
     _require_expected_version(case, body.expected_version)
+    if not case.candidate_visible:
+        raise AppError(
+            "EVIDENCE_CONTEXT_NOT_CANDIDATE_VISIBLE",
+            "Candidate context cannot be requested for this observation.",
+            status_code=422,
+        )
     if not case_transition_allowed(case.status, EvidenceCaseStatus.NEEDS_CONTEXT.value):
         raise AppError(
             "EVIDENCE_STATUS_TRANSITION_INVALID",
