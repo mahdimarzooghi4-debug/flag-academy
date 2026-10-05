@@ -9,7 +9,7 @@ Close the next Mission Runtime action gap by making `DELEGATE` executable throug
 
 ## Product boundary
 
-Delegation changes execution responsibility inside the simulated world; it does **not** transfer the Candidate's accountability for the Mission outcome.
+Delegation changes execution responsibility inside the simulated world; it does **not** transfer the Candidate's accountability for the Mission outcome. Any Mission that exposes delegation must declare the canonical `mission.accountability_owner=CANDIDATE`, and the Engine rejects a delegation effect that changes it.
 
 **Delegation ≠ Proven Capability**  
 **Delegation ≠ Evidence**  
@@ -45,14 +45,15 @@ The Candidate cannot submit state patches or consequence rules.
 2. Enforce RUNNING status, world optimistic concurrency, and Actor optimistic concurrency.
 3. Resolve the delegation only from the pinned Mission Version.
 4. Validate world/actor effects through existing reserved-namespace guards.
-5. Persist CandidateAction.
-6. Emit `delegation.requested`.
-7. Apply Engine-owned world and Actor effects.
-8. Increment world and Actor state versions.
-9. Emit `delegation.accepted`.
-10. Persist factual `DELEGATION_OBSERVED`.
-11. Run scheduled-effect cancellation and state-trigger fixed-point evaluation after the world mutation.
-12. Record internal `mission.delegation_processed.v1`.
+5. Enforce that canonical `mission.accountability_owner` remains `CANDIDATE`.
+6. Persist CandidateAction.
+7. Emit `delegation.requested`.
+8. Apply Engine-owned world and Actor effects.
+9. Increment world and Actor state versions.
+10. Emit `delegation.accepted`.
+11. Persist factual `DELEGATION_OBSERVED`.
+12. Run scheduled-effect cancellation and state-trigger fixed-point evaluation after the world mutation.
+13. Record internal `mission.delegation_processed.v1`.
 
 ## Candidate truth boundary
 
