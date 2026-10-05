@@ -385,11 +385,15 @@ def test_scope_change_visibility_is_factual_and_fail_closed() -> None:
         "scope_change.requested",
         {
             "scope_change_code": "CRITICAL_CUSTOMERS_ONLY",
+            "from_scope": "FULL_ROLLOUT",
+            "to_scope": "CRITICAL_CUSTOMERS_ONLY",
             "rationale": "Reduce blast radius while keeping accountability.",
             "hidden_rule": "DO_NOT_EXPOSE",
         },
     )
     assert requested["scope_change_code"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert requested["from_scope"] == "FULL_ROLLOUT"
+    assert requested["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
     assert "hidden_rule" not in requested
 
     accepted = candidate_event_payload(
@@ -397,6 +401,9 @@ def test_scope_change_visibility_is_factual_and_fail_closed() -> None:
         {
             "scope_change_code": "CRITICAL_CUSTOMERS_ONLY",
             "response": "Scope changed.",
+            "scope_path": "delivery.scope",
+            "from_scope": "FULL_ROLLOUT",
+            "to_scope": "CRITICAL_CUSTOMERS_ONLY",
             "world_version_before": 2,
             "world_version_after": 3,
             "world_effect_applied": {
@@ -405,6 +412,9 @@ def test_scope_change_visibility_is_factual_and_fail_closed() -> None:
         },
     )
     assert accepted["world_version_after"] == 3
+    assert accepted["from_scope"] == "FULL_ROLLOUT"
+    assert accepted["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert "scope_path" not in accepted
     assert "world_effect_applied" not in accepted
 
     assert candidate_observation_visible("SCOPE_CHANGE_OBSERVED")
@@ -412,12 +422,16 @@ def test_scope_change_visibility_is_factual_and_fail_closed() -> None:
         "SCOPE_CHANGE_OBSERVED",
         {
             "scope_change_code": "CRITICAL_CUSTOMERS_ONLY",
+            "from_scope": "FULL_ROLLOUT",
+            "to_scope": "CRITICAL_CUSTOMERS_ONLY",
             "world_version_before": 2,
             "world_version_after": 3,
             "judgment": "good scope decision",
         },
     )
     assert observation["scope_change_code"] == "CRITICAL_CUSTOMERS_ONLY"
+    assert observation["from_scope"] == "FULL_ROLLOUT"
+    assert observation["to_scope"] == "CRITICAL_CUSTOMERS_ONLY"
     assert "judgment" not in observation
 
 
