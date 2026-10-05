@@ -83,6 +83,9 @@ def test_mission_runtime_contract_is_exposed() -> None:
     assert "escalation_options" in instance_props
     assert "no_action_options" in instance_props
     assert "simulation_seed" not in instance_props
+    scheduled_props = schemas["ScheduledEffectResponse"]["properties"]
+    assert "due_at" in scheduled_props
+    assert "trigger_mode" in scheduled_props
 
     advance_props = schemas["AdvanceSimulationRequest"]["properties"]
     assert "expected_world_version" in advance_props
