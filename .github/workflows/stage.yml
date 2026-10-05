@@ -168,6 +168,13 @@ jobs:
           actor_response_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded';")
           internal_actor_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'actor.responded' and payload ? 'actor_effect_applied';")
           actor_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'ACTOR_RESPONSE_OBSERVED';")
+          resource_allocation_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'ALLOCATE_RESOURCE';")
+          pinned_resource_cost_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'ALLOCATE_RESOURCE' and resource_cost->>'engineering_capacity_units' = '2';")
+          resource_allocation_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'resource_allocation.requested';")
+          resource_allocation_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'resource_allocation.accepted';")
+          internal_resource_allocation_contract=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'resource_allocation.accepted' and payload->>'available_path' = 'resources.engineering_capacity.available_units' and payload->>'allocated_path' = 'delivery.recovery_capacity_units' and (payload->>'from_available')::int = 3 and (payload->>'to_available')::int = 1 and (payload->>'from_allocated')::int = 0 and (payload->>'to_allocated')::int = 2 and payload ? 'resource_cost_applied' and payload ? 'world_effect_applied';")
+          resource_allocation_observations=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.observations where observation_type = 'RESOURCE_ALLOCATION_OBSERVED';")
+          allocated_resource_world_state=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{mission,resource_allocation_status}' = 'ACTIVE' and world_state #>> '{mission,accountability_owner}' = 'CANDIDATE' and (world_state #>> '{resources,engineering_capacity,available_units}')::int = 1 and (world_state #>> '{delivery,recovery_capacity_units}')::int = 2;")
           scope_change_actions=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.candidate_actions where action_type = 'CHANGE_SCOPE';")
           scope_change_requested_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scope_change.requested';")
           scope_change_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'scope_change.accepted';")
@@ -257,6 +264,13 @@ jobs:
           test "$actor_response_events" -ge 1
           test "$internal_actor_effects" -ge 1
           test "$actor_observations" -ge 1
+          test "$resource_allocation_actions" -ge 1
+          test "$pinned_resource_cost_actions" -ge 1
+          test "$resource_allocation_requested_events" -ge 1
+          test "$resource_allocation_accepted_events" -ge 1
+          test "$internal_resource_allocation_contract" -ge 1
+          test "$resource_allocation_observations" -ge 1
+          test "$allocated_resource_world_state" -ge 1
           test "$scope_change_actions" -ge 1
           test "$scope_change_requested_events" -ge 1
           test "$scope_change_accepted_events" -ge 1
@@ -349,6 +363,13 @@ jobs:
             echo "actor_response_events=$actor_response_events"
             echo "internal_actor_effect_events=$internal_actor_effects"
             echo "actor_response_observations=$actor_observations"
+            echo "resource_allocation_actions=$resource_allocation_actions"
+            echo "pinned_resource_cost_actions=$pinned_resource_cost_actions"
+            echo "resource_allocation_requested_events=$resource_allocation_requested_events"
+            echo "resource_allocation_accepted_events=$resource_allocation_accepted_events"
+            echo "internal_resource_allocation_contract_events=$internal_resource_allocation_contract"
+            echo "resource_allocation_observations=$resource_allocation_observations"
+            echo "allocated_resource_world_state_rows=$allocated_resource_world_state"
             echo "scope_change_actions=$scope_change_actions"
             echo "scope_change_requested_events=$scope_change_requested_events"
             echo "scope_change_accepted_events=$scope_change_accepted_events"
@@ -410,6 +431,12 @@ jobs:
             echo "scope_change_accountability_transfer=FORBIDDEN"
             echo "scope_change_candidate_state_patch=FORBIDDEN"
             echo "scope_change_transition=PINNED_PATH+FROM_SCOPE+TO_SCOPE"
+            echo "resource_allocation_world_mutation=ENGINE_RULE_ONLY"
+            echo "resource_allocation_arithmetic=BALANCED_NONNEGATIVE"
+            echo "resource_allocation_candidate_quantity=FORBIDDEN"
+            echo "resource_allocation_candidate_resource_cost=FORBIDDEN"
+            echo "resource_allocation_resource_cost=ENGINE_PINNED"
+            echo "resource_allocation_accountability_transfer=FORBIDDEN"
             echo "delegation_world_mutation=ENGINE_RULE_ONLY"
             echo "delegation_actor_mutation=ENGINE_RULE_ONLY"
             echo "delegation_accountability_transfer=FORBIDDEN"
