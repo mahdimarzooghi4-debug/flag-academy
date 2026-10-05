@@ -124,10 +124,12 @@ def delegation_preserves_candidate_accountability(
     return preserves_candidate_accountability(before_state, after_state)
 
 
-def canonical_resource_balance_matches(value: Any, expected: int) -> bool:
+def canonical_resource_balance_matches(value: Any, expected: Any) -> bool:
     return (
         isinstance(value, int)
         and not isinstance(value, bool)
+        and isinstance(expected, int)
+        and not isinstance(expected, bool)
         and value == expected
     )
 
