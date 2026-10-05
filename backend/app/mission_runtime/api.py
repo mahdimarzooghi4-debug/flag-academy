@@ -987,6 +987,14 @@ async def _advance_simulation_through(
             command_key=f"{command_key}:after-applied:{effect.id}",
             now=now,
         )
+        await _apply_matching_state_triggered_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=effect_event,
+            command_key=f"{command_key}:after-applied:{effect.id}",
+            now=now,
+        )
 
         if effect.terminal_status is not None:
             if effect.terminal_status != MissionInstanceStatus.TIME_EXPIRED.value:
@@ -2567,6 +2575,14 @@ async def submit_mission_action(
             command_key=f"{body.idempotency_key}:after-escalation",
             now=now,
         )
+        await _apply_matching_state_triggered_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-escalation",
+            now=now,
+        )
 
     elif body.action_type == MissionActionType.NO_ACTION:
         no_action_code = body.payload.get("no_action_code")
@@ -2758,6 +2774,14 @@ async def submit_mission_action(
         )
 
         await _cancel_matching_scheduled_effects(
+            db,
+            instance=instance,
+            actor=actor,
+            source_event=event,
+            command_key=f"{body.idempotency_key}:after-decision",
+            now=now,
+        )
+        await _apply_matching_state_triggered_effects(
             db,
             instance=instance,
             actor=actor,
