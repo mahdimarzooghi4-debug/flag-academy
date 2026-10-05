@@ -153,6 +153,20 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
             "actor_state_version_after",
         }
     ),
+    "escalation.requested": frozenset(
+        {"actor_key", "escalation_code", "rationale"}
+    ),
+    "escalation.accepted": frozenset(
+        {
+            "actor_key",
+            "escalation_code",
+            "response",
+            "world_version_before",
+            "world_version_after",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
     "decision.committed": frozenset({"decision_code"}),
     "mission.completed": frozenset({"from_status", "to_status"}),
 }
@@ -164,6 +178,16 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         {
             "actor_key",
             "communication_code",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
+    "ESCALATION_OBSERVED": frozenset(
+        {
+            "actor_key",
+            "escalation_code",
+            "world_version_before",
+            "world_version_after",
             "actor_state_version_before",
             "actor_state_version_after",
         }

@@ -263,7 +263,7 @@ function AuthenticatedApp({
     }: {
       instanceId: string;
       worldVersion: number;
-      actionType: "REQUEST_INFORMATION" | "COMMUNICATE" | "DECIDE";
+      actionType: "REQUEST_INFORMATION" | "COMMUNICATE" | "ESCALATE" | "DECIDE";
       target?: string;
       actorVersion?: number;
       payload: Record<string, unknown>;
@@ -597,6 +597,27 @@ function AuthenticatedApp({
                     utterance,
                   },
                   reasoning: utterance,
+                });
+              }}
+              onEscalate={async (
+                instanceId,
+                worldVersion,
+                actorKey,
+                actorVersion,
+                escalationCode,
+                rationale,
+              ) => {
+                await submitMissionAction.mutateAsync({
+                  instanceId,
+                  worldVersion,
+                  actionType: "ESCALATE",
+                  target: actorKey,
+                  actorVersion,
+                  payload: {
+                    escalation_code: escalationCode,
+                    rationale,
+                  },
+                  reasoning: rationale,
                 });
               }}
               onDecide={async (instanceId, worldVersion, decisionCode, reasoning) => {
