@@ -24,6 +24,7 @@ from app.mission_runtime.domain import (
     apply_world_effect,
     assignment_transition_allowed,
     candidate_event_payload,
+    candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
     project_candidate_visible_state,
@@ -174,6 +175,9 @@ def test_candidate_world_projection_is_allowlist_only() -> None:
 
 
 def test_candidate_event_payload_is_fail_closed() -> None:
+    assert candidate_event_visible("decision.committed")
+    assert not candidate_event_visible("internal.secret_event")
+
     decision_payload = {
         "decision_code": "ROLLBACK_AND_RECOVER",
         "effect_applied": {
