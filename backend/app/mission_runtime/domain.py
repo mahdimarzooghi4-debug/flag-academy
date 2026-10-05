@@ -209,12 +209,14 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         }
     ),
     "scope_change.requested": frozenset(
-        {"scope_change_code", "rationale"}
+        {"scope_change_code", "from_scope", "to_scope", "rationale"}
     ),
     "scope_change.accepted": frozenset(
         {
             "scope_change_code",
             "response",
+            "from_scope",
+            "to_scope",
             "world_version_before",
             "world_version_after",
         }
@@ -298,6 +300,8 @@ CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
     "SCOPE_CHANGE_OBSERVED": frozenset(
         {
             "scope_change_code",
+            "from_scope",
+            "to_scope",
             "world_version_before",
             "world_version_after",
         }
