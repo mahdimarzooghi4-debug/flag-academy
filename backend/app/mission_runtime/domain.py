@@ -97,8 +97,6 @@ def apply_world_effect(
     return next_state
 
 
-
-
 def apply_actor_effect(
     actor_state: dict[str, Any],
     effect: dict[str, Any],
