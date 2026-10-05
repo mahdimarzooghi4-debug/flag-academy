@@ -929,6 +929,58 @@ async def start_mission_instance(
     db.add(instance)
     await db.flush()
 
+    defined_actor_names = {
+        item.get("name")
+        for item in version.actors
+        if isinstance(item, dict) and isinstance(item.get("name"), str)
+    }
+    for actor_key, actor_config_value in _actor_runtime_configs(version).items():
+        if not isinstance(actor_key, str) or not actor_key:
+            raise AppError(
+                "MISSION_ACTOR_RUNTIME_DEFINITION_INVALID",
+                "Actor runtime keys must be non-empty strings.",
+                status_code=422,
+            )
+        if not isinstance(actor_config_value, dict):
+            raise AppError(
+                "MISSION_ACTOR_RUNTIME_DEFINITION_INVALID",
+                "Actor runtime configuration must be an object.",
+                status_code=422,
+            )
+        definition_name = actor_config_value.get("definition_name")
+        initial_actor_state = actor_config_value.get("initial_state")
+        if (
+            not isinstance(definition_name, str)
+            or definition_name not in defined_actor_names
+            or not isinstance(initial_actor_state, dict)
+        ):
+            raise AppError(
+                "MISSION_ACTOR_RUNTIME_DEFINITION_INVALID",
+                "Actor runtime must reference a Mission actor and define initial_state.",
+                status_code=422,
+            )
+        try:
+            validated_actor_state = apply_actor_effect({}, initial_actor_state)
+        except ValueError as exc:
+            raise AppError(
+                "MISSION_ACTOR_RUNTIME_DEFINITION_INVALID",
+                str(exc),
+                status_code=422,
+            ) from exc
+        db.add(
+            ActorInstance(
+                id=uuid4(),
+                mission_instance_id=instance.id,
+                actor_key=actor_key,
+                definition_name=definition_name,
+                state=validated_actor_state,
+                state_version=1,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+    await db.flush()
+
     previous = instance.status
     if not runtime_transition_allowed(
         previous,
