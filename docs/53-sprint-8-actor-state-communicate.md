@@ -1,7 +1,8 @@
 # 53 — Sprint 8 Actor State & COMMUNICATE
 
-**وضعیت:** IN PROGRESS  
-**تاریخ شروع:** 2026-10-05
+**وضعیت:** ACCEPTED  
+**تاریخ شروع:** 2026-10-05  
+**تاریخ پذیرش:** 2026-10-05
 
 ## Sprint Goal
 
@@ -206,3 +207,12 @@ Live OIDC + PostgreSQL باید اثبات کند:
 - acceptance record in GitHub
 
 > **Actor dialogue can be expressive; Actor State authority remains deterministic and engine-owned.**
+
+
+## Acceptance Record
+
+- Accepted implementation commit: `71337f351214aa1f12debf486b85fe7cd9552744`
+- Main CI Run: `37271987906` — PASS
+- Ephemeral Stage Run: `37271987912` — PASS
+- Code Review: `docs/reviews/08-sprint-8-actor-state-communicate-code-review.md` — PASS
+- Stage evidence: `docs/54-sprint-8-stage-acceptance.md`
