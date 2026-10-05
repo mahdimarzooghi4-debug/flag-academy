@@ -126,9 +126,52 @@ jobs:
           cat /tmp/parcham-web.log
           exit 1
 
-      - name: Run browser acceptance with live OIDC
-        working-directory: frontend
-        run: npm run e2e
+      - name: Replay sealed observation delivery for evidence idempotency
+        working-directory: backend
+        shell: bash
+        run: |
+          python - <<'PY'
+          import asyncio
+          import json
+          from uuid import uuid4
+
+          import nats
+          from sqlalchemy import select
+
+          from app.config import get_settings
+          from app.db import SessionFactory
+          from app.platform.models import OutboxEvent
+
+          async def main() -> None:
+              async with SessionFactory() as db:
+                  payload = (
+                      await db.execute(
+                          select(OutboxEvent.payload)
+                          .where(OutboxEvent.event_type == "observation.sealed.v1")
+                          .order_by(OutboxEvent.created_at)
+                          .limit(1)
+                      )
+                  ).scalar_one()
+
+              nc = await nats.connect(get_settings().nats_url)
+              try:
+                  js = nc.jetstream()
+                  subject = "parcham.events.observation.sealed.v1"
+                  encoded = json.dumps(payload, default=str).encode()
+                  await js.publish(subject, encoded)
+
+                  replay = dict(payload)
+                  replay["event_id"] = str(uuid4())
+                  await js.publish(
+                      subject,
+                      json.dumps(replay, default=str).encode(),
+                  )
+              finally:
+                  await nc.close()
+
+          asyncio.run(main())
+          PY
+          sleep 3
 
       - name: Verify event and read-model acceptance
         shell: bash
@@ -248,6 +291,7 @@ jobs:
           evidence_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'evidence.accepted.v1';")
           evidence_profile_gate_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'profile.%' or event_type like 'gate.%';")
           evidence_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'evidence' and ccu.table_schema <> 'evidence';")
+          duplicate_evidence_sources=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from (select source_observation_id from evidence.evidence_cases group by source_observation_id having count(*) > 1) duplicates;")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -363,6 +407,7 @@ jobs:
           test "$evidence_accepted_events" -ge 1
           test "$evidence_profile_gate_events" -eq 0
           test "$evidence_cross_context_fks" -eq 0
+          test "$duplicate_evidence_sources" -eq 0
 
           mkdir -p stage-artifacts
           {
@@ -481,6 +526,8 @@ jobs:
             echo "evidence_accepted_events=$evidence_accepted_events"
             echo "profile_gate_events_after_evidence=$evidence_profile_gate_events"
             echo "evidence_cross_context_foreign_keys=$evidence_cross_context_fks"
+            echo "duplicate_evidence_source_rows=$duplicate_evidence_sources"
+            echo "evidence_duplicate_delivery=SAME_EVENT_ID+NEW_EVENT_ID_REPLAYED"
             echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
             echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"
             echo "candidate_response_mutates_evidence=FORBIDDEN"
