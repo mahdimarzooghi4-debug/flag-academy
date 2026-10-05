@@ -28,6 +28,7 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    canonical_resource_balance_matches,
     delegation_preserves_candidate_accountability,
     preserves_candidate_accountability,
     project_candidate_visible_state,
@@ -356,6 +357,12 @@ def test_delegation_visibility_is_factual_and_fail_closed() -> None:
     )
     assert observation["actor_key"] == "delivery_lead"
     assert "judgment" not in observation
+
+
+def test_canonical_resource_balance_requires_strict_integer() -> None:
+    assert canonical_resource_balance_matches(1, 1)
+    assert not canonical_resource_balance_matches(True, 1)
+    assert not canonical_resource_balance_matches("1", 1)
 
 
 def test_resource_allocation_arithmetic_is_balanced_and_nonnegative() -> None:
