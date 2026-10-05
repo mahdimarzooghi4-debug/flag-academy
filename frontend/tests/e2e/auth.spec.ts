@@ -213,6 +213,29 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
   await expect(runtimeCard).not.toContainText("Seed");
 
+  const actorState = runtimeCard.getByTestId("actor-state-business_sponsor");
+  await expect(runtimeCard).toContainText("Business Sponsor");
+  await expect(actorState).toContainText('"trust_toward_candidate": 35');
+  await expect(actorState).toContainText('"current_frustration": 70');
+  await expect(actorState).toContainText('"commitment": "CONDITIONAL"');
+  await expect(runtimeCard).not.toContainText("private_escalation_threshold");
+
+  await runtimeCard
+    .getByLabel("پیام به Business Sponsor")
+    .fill(
+      "مالکیت نتیجه با من است. rollback را کنترل‌شده پیش می‌برم و در checkpoint بعدی وضعیت و ریسک را شفاف گزارش می‌کنم.",
+    );
+  await runtimeCard
+    .getByRole("button", { name: "پذیرش مالکیت و هم‌راستا کردن برنامه بازیابی" })
+    .click();
+
+  await expect(actorState).toContainText('"trust_toward_candidate": 60');
+  await expect(actorState).toContainText('"current_frustration": 40');
+  await expect(actorState).toContainText('"commitment": "SUPPORTIVE"');
+  await expect(runtimeCard).toContainText("Actor v2");
+  await expect(runtimeCard).toContainText("مالکیت روشن شد.");
+  await expect(runtimeCard).not.toContainText("private_escalation_threshold");
+
   await runtimeCard.getByRole("button", { name: "درخواست Dependency trace" }).click();
   await expect(runtimeCard).toContainText("intermittent timeout spikes");
 
@@ -229,5 +252,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(runtimeCard.getByTestId("world-state")).not.toContainText("root_cause_code");
   await expect(runtimeCard).not.toContainText("DOWNSTREAM_DEPENDENCY");
   await expect(runtimeCard).toContainText("world state advanced from version 1 to 2");
+  await expect(runtimeCard).toContainText("ACTOR_RESPONSE_OBSERVED");
+  await expect(runtimeCard).not.toContainText("actor_effect_applied");
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });
