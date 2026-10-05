@@ -1,10 +1,13 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import cast
 from uuid import UUID
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.evidence import api as evidence_api
+from app.evidence.models import EvidenceCase
 
 
 class _EmptyScalarResult:
@@ -20,9 +23,9 @@ class _FakeDb:
         return _EmptyScalarResult()
 
 
-def _case():
+def _case() -> EvidenceCase:
     now = datetime.now(UTC)
-    return SimpleNamespace(
+    return cast(EvidenceCase, SimpleNamespace(
         id=UUID("90000000-0000-0000-0000-000000000001"),
         version=3,
         organization_context_id=UUID("00000000-0000-0000-0000-000000000001"),
@@ -46,7 +49,7 @@ def _case():
         updated_at=now,
         accepted_at=None,
         rejected_at=None,
-    )
+    ))
 
 
 @pytest.mark.asyncio
@@ -58,7 +61,10 @@ async def test_candidate_evidence_response_uses_only_candidate_safe_projection(
 
     monkeypatch.setattr(evidence_api, "_candidate_responses", no_responses)
 
-    response = await evidence_api._candidate_case_response(_FakeDb(), _case())
+    response = await evidence_api._candidate_case_response(
+        cast(AsyncSession, _FakeDb()),
+        _case(),
+    )
 
     assert response.observed_payload == {"safe": "value"}
     assert "hidden_world_truth" not in response.observed_payload
@@ -77,7 +83,10 @@ async def test_assessor_evidence_response_keeps_canonical_observation_snapshot(
     monkeypatch.setattr(evidence_api, "_candidate_responses", no_responses)
     monkeypatch.setattr(evidence_api, "_active_interpretation", no_interpretation)
 
-    response = await evidence_api._full_response(_FakeDb(), _case())
+    response = await evidence_api._full_response(
+        cast(AsyncSession, _FakeDb()),
+        _case(),
+    )
 
     assert response.observed_payload["hidden_world_truth"] == "SECRET"
     assert response.provenance == {"internal": "lineage"}
