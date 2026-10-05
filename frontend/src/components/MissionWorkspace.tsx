@@ -72,7 +72,12 @@ export type MissionInstance = {
   decision_options: Array<{ code?: string; label?: string }>;
   escalation_options: Array<{ code: string; label: string; actor_key: string }>;
   delegation_options: Array<{ code: string; label: string; actor_key: string }>;
-  scope_change_options: Array<{ code: string; label: string }>;
+  scope_change_options: Array<{
+    code: string;
+    label: string;
+    from_scope: string;
+    to_scope: string;
+  }>;
   no_action_options: Array<{ code: string; label: string }>;
   actors: MissionActorInstance[];
   disclosed_information: Array<{ label?: string; content?: string; access?: string }>;
@@ -312,7 +317,7 @@ export function MissionWorkspace({
                                     )
                                   }
                                 >
-                                  {option.label}
+                                  {option.label} · {option.from_scope} → {option.to_scope}
                                 </button>
                               );
                             })}
