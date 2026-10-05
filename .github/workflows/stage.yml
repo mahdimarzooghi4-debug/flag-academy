@@ -137,14 +137,16 @@ jobs:
           python - <<'PY'
           import asyncio
           import json
+          import os
           from uuid import uuid4
 
           import nats
-          from sqlalchemy import select
+          from sqlalchemy import func, select
 
           from app.config import get_settings
           from app.db import SessionFactory
-          from app.platform.models import OutboxEvent
+          from app.evidence.consumer import CONSUMER_NAME
+          from app.platform.models import InboxEvent, OutboxEvent
 
           async def main() -> None:
               async with SessionFactory() as db:
@@ -156,6 +158,16 @@ jobs:
                           .limit(1)
                       )
                   ).scalar_one()
+                  inbox_before = (
+                      await db.execute(
+                          select(func.count())
+                          .select_from(InboxEvent)
+                          .where(InboxEvent.consumer_name == CONSUMER_NAME)
+                      )
+                  ).scalar_one()
+
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+                  env_file.write(f"EVIDENCE_REPLAY_INBOX_BEFORE={inbox_before}\n")
 
               nc = await nats.connect(get_settings().nats_url)
               try:
@@ -183,7 +195,8 @@ jobs:
           for i in {1..30}; do
             runtime_observation_count=$(docker compose -f infra/docker-compose.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from mission_runtime.observations;")
             evidence_case_count=$(docker compose -f infra/docker-compose.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from evidence.evidence_cases;")
-            if [ "$evidence_case_count" -ge "$runtime_observation_count" ]; then
+            evidence_replay_inbox_after=$(docker compose -f infra/docker-compose.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from platform.inbox_events where consumer_name = 'evidence-observation-ingestor-v1';")
+            if [ "$evidence_case_count" -ge "$runtime_observation_count" ] && [ "$evidence_replay_inbox_after" -ge "$((EVIDENCE_REPLAY_INBOX_BEFORE + 1))" ]; then
               break
             fi
             sleep 1
@@ -303,6 +316,7 @@ jobs:
           evidence_profile_gate_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'profile.%' or event_type like 'gate.%';")
           evidence_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'evidence' and ccu.table_schema <> 'evidence';")
           duplicate_evidence_sources=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from (select source_observation_id from evidence.evidence_cases group by source_observation_id having count(*) > 1) duplicates;")
+          evidence_replay_inbox_after=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events where consumer_name = 'evidence-observation-ingestor-v1';")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -419,6 +433,7 @@ jobs:
           test "$evidence_profile_gate_events" -eq 0
           test "$evidence_cross_context_fks" -eq 0
           test "$duplicate_evidence_sources" -eq 0
+          test "$evidence_replay_inbox_after" -ge "$((EVIDENCE_REPLAY_INBOX_BEFORE + 1))"
 
           mkdir -p stage-artifacts
           {
@@ -538,6 +553,8 @@ jobs:
             echo "profile_gate_events_after_evidence=$evidence_profile_gate_events"
             echo "evidence_cross_context_foreign_keys=$evidence_cross_context_fks"
             echo "duplicate_evidence_source_rows=$duplicate_evidence_sources"
+            echo "evidence_replay_inbox_before=$EVIDENCE_REPLAY_INBOX_BEFORE"
+            echo "evidence_replay_inbox_after=$evidence_replay_inbox_after"
             echo "evidence_duplicate_delivery=SAME_EVENT_ID+NEW_EVENT_ID_REPLAYED"
             echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
             echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"
