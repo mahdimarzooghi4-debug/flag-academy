@@ -19,6 +19,9 @@ A Mission Version may expose bounded `scope_change_options`. Each option pins:
 
 - `code`
 - Candidate-visible `label`
+- Candidate-visible `from_scope`
+- Candidate-visible `to_scope`
+- internal canonical `scope_path`
 - Engine response
 - deterministic `world_effect`
 
@@ -36,23 +39,27 @@ Candidate cannot submit raw state patches, consequence rules, Evidence claims, c
 1. Lock Mission Instance.
 2. Enforce RUNNING status and world optimistic concurrency.
 3. Resolve the scope option only from the pinned Mission Version.
-4. Validate its world effect through the existing reserved-namespace guard.
-5. Enforce `mission.accountability_owner=CANDIDATE` before and after the effect.
-6. Persist CandidateAction.
-7. Emit `scope_change.requested`.
-8. Apply the Engine-owned world effect.
-9. Increment world state version.
-10. Emit `scope_change.accepted`.
-11. Persist factual `SCOPE_CHANGE_OBSERVED`.
-12. Run scheduled-effect cancellation.
-13. Run state-triggered fixed-point evaluation.
-14. Record internal `mission.scope_change_processed.v1`.
+4. Require distinct `from_scope` and `to_scope` plus an internal canonical `scope_path`.
+5. Require the current canonical value at `scope_path` to equal `from_scope`.
+6. Validate its world effect through the existing reserved-namespace guard.
+7. Require the post-effect canonical value at `scope_path` to equal `to_scope`.
+8. Enforce `mission.accountability_owner=CANDIDATE` before and after the effect.
+9. Persist CandidateAction.
+10. Emit `scope_change.requested`.
+11. Apply the Engine-owned world effect.
+12. Increment world state version.
+13. Emit `scope_change.accepted`.
+14. Persist factual `SCOPE_CHANGE_OBSERVED`.
+15. Run scheduled-effect cancellation.
+16. Run state-triggered fixed-point evaluation.
+17. Record internal `mission.scope_change_processed.v1`.
 
 ## Candidate truth boundary
 
 Candidate may see:
 
 - scope option code and label
+- bounded `from_scope → to_scope`
 - accepted response
 - world version before/after
 - candidate-visible World projection
@@ -61,6 +68,7 @@ Candidate may see:
 Candidate must not see:
 
 - raw `world_effect`
+- internal canonical `scope_path`
 - hidden World truth
 - hidden trigger/cancellation rules
 - Evidence/Profile/Gate mutations
@@ -72,6 +80,7 @@ The recovery Mission starts with:
 - `mission.accountability_owner=CANDIDATE`
 - `delivery.scope=FULL_ROLLOUT`
 - `delivery.recovery_coordinator=CANDIDATE`
+- canonical scope path is pinned internally as `delivery.scope`
 
 Candidate chooses the bounded scope option `CRITICAL_CUSTOMERS_ONLY`.
 
