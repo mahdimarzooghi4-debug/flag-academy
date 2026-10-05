@@ -28,6 +28,7 @@ from app.mission_runtime.domain import (
     delegation_preserves_candidate_accountability,
     preserves_candidate_accountability,
     project_candidate_visible_state,
+    resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
 from app.mission_runtime.models import (
@@ -3205,13 +3206,6 @@ async def submit_mission_action(
         to_allocated = option.get("to_allocated")
         pinned_resource_cost = option.get("resource_cost")
         world_effect = option.get("world_effect")
-        integer_values = (
-            quantity,
-            from_available,
-            to_available,
-            from_allocated,
-            to_allocated,
-        )
         if (
             not isinstance(response, str)
             or not response
@@ -3226,22 +3220,13 @@ async def submit_mission_action(
             or not isinstance(allocated_path, str)
             or not allocated_path
             or available_path == allocated_path
-            or any(
-                not isinstance(value, int) or isinstance(value, bool)
-                for value in integer_values
+            or not resource_allocation_transition_valid(
+                quantity=quantity,
+                from_available=from_available,
+                to_available=to_available,
+                from_allocated=from_allocated,
+                to_allocated=to_allocated,
             )
-            or not isinstance(quantity, int)
-            or quantity <= 0
-            or not isinstance(from_available, int)
-            or not isinstance(to_available, int)
-            or not isinstance(from_allocated, int)
-            or not isinstance(to_allocated, int)
-            or to_available != from_available - quantity
-            or to_allocated != from_allocated + quantity
-            or to_available < 0
-            or from_available < 0
-            or from_allocated < 0
-            or to_allocated < 0
             or not isinstance(pinned_resource_cost, dict)
             or not pinned_resource_cost
             or not isinstance(world_effect, dict)
