@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
@@ -17,6 +17,7 @@ from app.mission_runtime.domain import (
     MissionActionType,
     MissionAssignmentStatus,
     MissionInstanceStatus,
+    ScheduledEffectStatus,
     apply_actor_effect,
     apply_world_effect,
     assignment_transition_allowed,
@@ -35,6 +36,7 @@ from app.mission_runtime.models import (
     MissionInstance,
     Observation,
     RuntimeEvent,
+    ScheduledEffect,
 )
 from app.platform.events import new_event, record_event
 
@@ -132,6 +134,16 @@ class ActorInstanceResponse(BaseModel):
     communication_options: list[dict[str, str]]
 
 
+class ScheduledEffectResponse(BaseModel):
+    id: UUID
+    effect_code: str
+    status: str
+    due_at: datetime
+    message: str | None
+    applied_at: datetime | None
+    cancelled_at: datetime | None
+
+
 class MissionInstanceResponse(BaseModel):
     id: UUID
     version: int
@@ -148,6 +160,7 @@ class MissionInstanceResponse(BaseModel):
     decision_options: list[dict[str, Any]]
     escalation_options: list[dict[str, str]]
     actors: list[ActorInstanceResponse]
+    scheduled_effects: list[ScheduledEffectResponse]
     disclosed_information: list[dict[str, Any]]
     audit_events: list[RuntimeEventResponse]
     observations: list[ObservationResponse]
@@ -483,6 +496,14 @@ async def _instance_response(
         )
     ).scalars().all()
 
+    scheduled_effects = (
+        await db.execute(
+            select(ScheduledEffect)
+            .where(ScheduledEffect.mission_instance_id == instance.id)
+            .order_by(ScheduledEffect.created_at)
+        )
+    ).scalars().all()
+
     candidate_events = [
         item
         for item in events
@@ -539,6 +560,18 @@ async def _instance_response(
                 ),
             )
             for item in actor_instances
+        ],
+        scheduled_effects=[
+            ScheduledEffectResponse(
+                id=item.id,
+                effect_code=item.effect_code,
+                status=item.status,
+                due_at=item.due_at,
+                message=item.candidate_message,
+                applied_at=item.applied_at,
+                cancelled_at=item.cancelled_at,
+            )
+            for item in scheduled_effects
         ],
         disclosed_information=disclosed_information,
         audit_events=[
@@ -1673,6 +1706,91 @@ async def submit_mission_action(
                 trace_id=actor.trace_id,
             ),
         )
+
+        scheduled_config = option.get("scheduled_effect")
+        if scheduled_config is not None:
+            if not isinstance(scheduled_config, dict):
+                raise AppError(
+                    "MISSION_SCHEDULED_EFFECT_DEFINITION_INVALID",
+                    "scheduled_effect must be an object.",
+                    status_code=422,
+                )
+            effect_code = scheduled_config.get("effect_code")
+            delay_seconds = scheduled_config.get("delay_seconds")
+            scheduled_world_effect = scheduled_config.get("world_effect")
+            candidate_message = scheduled_config.get("candidate_message")
+            cancellable = scheduled_config.get("cancellable", True)
+            cancel_condition = scheduled_config.get(
+                "cancel_condition",
+                {"mission_must_be_running": True},
+            )
+            if (
+                not isinstance(effect_code, str)
+                or not effect_code
+                or not isinstance(delay_seconds, int)
+                or delay_seconds < 0
+                or not isinstance(scheduled_world_effect, dict)
+                or (
+                    candidate_message is not None
+                    and not isinstance(candidate_message, str)
+                )
+                or not isinstance(cancellable, bool)
+                or not isinstance(cancel_condition, dict)
+            ):
+                raise AppError(
+                    "MISSION_SCHEDULED_EFFECT_DEFINITION_INVALID",
+                    "Scheduled effect definition is invalid.",
+                    status_code=422,
+                )
+            try:
+                apply_world_effect(instance.world_state, scheduled_world_effect)
+            except ValueError as exc:
+                raise AppError(
+                    "MISSION_SCHEDULED_EFFECT_INVALID",
+                    str(exc),
+                    status_code=422,
+                ) from exc
+
+            due_at = now + timedelta(seconds=delay_seconds)
+            scheduled_effect = ScheduledEffect(
+                id=uuid4(),
+                mission_instance_id=instance.id,
+                origin_event_id=event.id,
+                effect_code=effect_code,
+                status=ScheduledEffectStatus.PENDING.value,
+                due_at=due_at,
+                world_effect=scheduled_world_effect,
+                candidate_message=candidate_message,
+                cancellable=cancellable,
+                cancel_condition=cancel_condition,
+                workflow_id=None,
+                created_at=now,
+                scheduled_at=None,
+                applied_at=None,
+                cancelled_at=None,
+            )
+            db.add(scheduled_effect)
+            await db.flush()
+            record_event(
+                db,
+                new_event(
+                    event_type="mission.scheduled_effect_created.v1",
+                    aggregate_type="ScheduledEffect",
+                    aggregate_id=scheduled_effect.id,
+                    aggregate_version=1,
+                    actor={"type": "SYSTEM", "id": "MISSION_ENGINE"},
+                    organization_context_id=actor.organization_context_id,
+                    data_classification="INTERNAL",
+                    payload={
+                        "mission_instance_id": str(instance.id),
+                        "scheduled_effect_id": str(scheduled_effect.id),
+                        "effect_code": effect_code,
+                        "due_at": due_at.isoformat(),
+                    },
+                    trace_id=actor.trace_id,
+                    causation_id=event.id,
+                ),
+            )
 
     elif body.action_type == MissionActionType.DECIDE:
         decision_code = body.payload.get("decision_code")
