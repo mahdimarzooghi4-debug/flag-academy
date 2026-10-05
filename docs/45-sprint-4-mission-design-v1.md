@@ -1,6 +1,6 @@
 # 45 — Sprint 4: Mission Design v1
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED — Stage Acceptance PASS on 2026-10-05  
 **Backlog source:** Epic 08 — Mission Design (approved Product Backlog v1)
 
 ## Goal
@@ -43,3 +43,25 @@ without introducing Mission Runtime yet.
 - Evidence review;
 - AI actors;
 - adaptive difficulty.
+
+
+## Sprint 4 Acceptance
+
+Accepted implementation commit: `1fb9187a904fedf8d0d43853d3b67a9a9330c30f`
+
+Validated end-to-end:
+- Academy Admin authentication through live Keycloak;
+- Mission Template creation in Academy Studio;
+- exact Capability Version reference;
+- structured Actors, Information, Constraints, Decision Points, Consequence Rules and Evidence Opportunities;
+- Definition Validation;
+- lifecycle DRAFT → PILOT → VALIDATED → ACTIVE;
+- optimistic aggregate version checks;
+- transactional Domain Events and Outbox;
+- one ACTIVE Mission Version persisted in PostgreSQL;
+- Mission Design remains separate from Mission Runtime, Evidence and Profile.
+
+CI Run: `37260658807` — PASS  
+Stage Acceptance Run: `37260658937` — PASS
+
+Sprint 4 is **ACCEPTED** against its scoped Definition of Done.
