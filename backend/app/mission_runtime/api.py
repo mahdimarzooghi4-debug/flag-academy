@@ -588,7 +588,7 @@ async def _cancel_matching_scheduled_effects(
             payload={
                 "effect_code": effect.effect_code,
                 "label": effect.label,
-                "due_at": due_at.isoformat(),
+                "due_at": _scheduled_effect_due_at_text(effect),
                 "cancelled_at": instance.simulation_time.isoformat(),
                 "reason_code": reason_code,
                 "cancel_condition_matched": effect.cancel_condition,
@@ -617,7 +617,7 @@ async def _cancel_matching_scheduled_effects(
                 ),
                 payload={
                     "effect_code": effect.effect_code,
-                    "due_at": due_at.isoformat(),
+                    "due_at": _scheduled_effect_due_at_text(effect),
                     "cancelled_at": instance.simulation_time.isoformat(),
                     "reason_code": reason_code,
                     "world_version": instance.world_state_version,
