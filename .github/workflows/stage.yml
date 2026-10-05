@@ -126,6 +126,10 @@ jobs:
           cat /tmp/parcham-web.log
           exit 1
 
+      - name: Run browser acceptance with live OIDC
+        working-directory: frontend
+        run: npm run e2e
+
       - name: Replay sealed observation delivery for evidence idempotency
         working-directory: backend
         shell: bash
