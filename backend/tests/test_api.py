@@ -77,4 +77,5 @@ def test_mission_runtime_contract_is_exposed() -> None:
     assert "world_state_version" in instance_props
     assert "observations" in instance_props
     assert "actors" in instance_props
+    assert "escalation_options" in instance_props
     assert "simulation_seed" not in instance_props
