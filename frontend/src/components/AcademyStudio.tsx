@@ -211,7 +211,30 @@ export function AcademyStudio({
                   cancellable: false,
                   cancel_condition: {},
                 },
+                {
+                  code: "RECOVERY_DECISION_DEADLINE",
+                  label: "Recovery decision deadline",
+                  due_after_seconds: 1800,
+                  effect: {
+                    risk: { level: "CRITICAL" },
+                    mission: {
+                      decision_status: "EXPIRED",
+                      escalation_status: "DEADLINE_MISSED",
+                    },
+                  },
+                  terminal_status: "TIME_EXPIRED",
+                  visibility: "CANDIDATE",
+                  cancellable: false,
+                  cancel_condition: {},
+                },
               ],
+            },
+          ],
+          no_action_options: [
+            {
+              code: "WAIT_30_MINUTES",
+              label: "۳۰ دقیقه بدون اقدام جدید صبر می‌کنم",
+              wait_seconds: 1800,
             },
           ],
           decision_options: [
