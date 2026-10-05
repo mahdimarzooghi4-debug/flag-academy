@@ -1,6 +1,11 @@
 from uuid import UUID
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
+from app.evidence.domain import (
+    EvidenceCaseStatus,
+    case_transition_allowed,
+    interpretation_contract_valid,
+)
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
     LearningPhase,
@@ -826,3 +831,88 @@ def test_state_triggered_effect_visibility_hides_internal_condition() -> None:
     )
     assert observation["trigger_mode"] == "STATE_TRIGGERED"
     assert "judgment" not in observation
+
+
+def test_evidence_case_review_lifecycle_is_explicit() -> None:
+    assert case_transition_allowed(
+        EvidenceCaseStatus.DRAFT.value,
+        EvidenceCaseStatus.SUBMITTED.value,
+    )
+    assert case_transition_allowed(
+        EvidenceCaseStatus.SUBMITTED.value,
+        EvidenceCaseStatus.UNDER_REVIEW.value,
+    )
+    assert case_transition_allowed(
+        EvidenceCaseStatus.UNDER_REVIEW.value,
+        EvidenceCaseStatus.NEEDS_CONTEXT.value,
+    )
+    assert case_transition_allowed(
+        EvidenceCaseStatus.NEEDS_CONTEXT.value,
+        EvidenceCaseStatus.UNDER_REVIEW.value,
+    )
+    assert case_transition_allowed(
+        EvidenceCaseStatus.UNDER_REVIEW.value,
+        EvidenceCaseStatus.ACCEPTED.value,
+    )
+    assert not case_transition_allowed(
+        EvidenceCaseStatus.ACCEPTED.value,
+        EvidenceCaseStatus.UNDER_REVIEW.value,
+    )
+
+
+def test_evidence_interpretation_contract_requires_links_and_qualitative_confidence() -> None:
+    interpretation = {
+        "behaviour_code": "METRIC_REASONING",
+        "behaviour_description": "Candidate distinguishes measurement from interpretation.",
+        "signal": "POSITIVE",
+        "scope": "MISSION",
+        "confidence": "HIGH",
+        "context_difficulty": "D3",
+        "prompt_contamination": "NONE",
+        "ai_contribution": "NONE",
+        "mode": "ASSESSMENT",
+        "rationale": "Observed result was handled as data rather than automatic proof.",
+        "links": [
+            {
+                "target_type": "CAPABILITY",
+                "target_ref": "METRICS_EXPERIMENTATION",
+                "signal": "POSITIVE",
+                "scope": "MISSION",
+                "relevance": "HIGH",
+                "confidence": "HIGH",
+            }
+        ],
+    }
+    assert interpretation_contract_valid(interpretation)
+
+    missing_links = {**interpretation, "links": []}
+    assert not interpretation_contract_valid(missing_links)
+
+    numeric_confidence = {**interpretation, "confidence": 0.9}
+    assert not interpretation_contract_valid(numeric_confidence)
+
+
+def test_evidence_interpretation_rejects_unknown_target_type() -> None:
+    interpretation = {
+        "behaviour_code": "METRIC_REASONING",
+        "behaviour_description": "Candidate distinguishes measurement from interpretation.",
+        "signal": "NEUTRAL",
+        "scope": "MISSION",
+        "confidence": "MEDIUM",
+        "context_difficulty": "D3",
+        "prompt_contamination": "NONE",
+        "ai_contribution": "NONE",
+        "mode": "ASSESSMENT",
+        "rationale": "Target links must remain explicit and bounded.",
+        "links": [
+            {
+                "target_type": "PROFILE",
+                "target_ref": "proof_state",
+                "signal": "POSITIVE",
+                "scope": "MISSION",
+                "relevance": "HIGH",
+                "confidence": "MEDIUM",
+            }
+        ],
+    }
+    assert not interpretation_contract_valid(interpretation)
