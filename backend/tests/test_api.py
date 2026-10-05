@@ -58,6 +58,7 @@ def test_mission_runtime_contract_is_exposed() -> None:
     assert "/api/v1/missions/{version_id}/instances" in paths
     assert "/api/v1/mission-instances/{instance_id}" in paths
     assert "/api/v1/mission-instances/{instance_id}/actions" in paths
+    assert "/api/v1/mission-instances/{instance_id}/advance-to-next-event" in paths
 
     schemas = app.openapi()["components"]["schemas"]
     assignment_props = schemas["MissionAssignmentCreateRequest"]["properties"]
@@ -75,7 +76,13 @@ def test_mission_runtime_contract_is_exposed() -> None:
     assert "idempotency_key" in action_props
     instance_props = schemas["MissionInstanceResponse"]["properties"]
     assert "world_state_version" in instance_props
+    assert "simulation_time" in instance_props
+    assert "scheduled_effects" in instance_props
     assert "observations" in instance_props
     assert "actors" in instance_props
     assert "escalation_options" in instance_props
     assert "simulation_seed" not in instance_props
+
+    advance_props = schemas["AdvanceSimulationRequest"]["properties"]
+    assert "expected_world_version" in advance_props
+    assert "idempotency_key" in advance_props
