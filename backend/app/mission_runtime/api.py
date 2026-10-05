@@ -25,6 +25,7 @@ from app.mission_runtime.domain import (
     candidate_event_visible,
     candidate_observation_payload,
     candidate_observation_visible,
+    canonical_resource_balance_matches,
     delegation_preserves_candidate_accountability,
     preserves_candidate_accountability,
     project_candidate_visible_state,
@@ -3246,8 +3247,14 @@ async def submit_mission_action(
             allocated_path,
         )
         if (
-            current_available != from_available
-            or current_allocated != from_allocated
+            not canonical_resource_balance_matches(
+                current_available,
+                from_available,
+            )
+            or not canonical_resource_balance_matches(
+                current_allocated,
+                from_allocated,
+            )
         ):
             raise AppError(
                 "RESOURCE_ALLOCATION_PRECONDITION_NOT_MET",
@@ -3265,8 +3272,14 @@ async def submit_mission_action(
             ) from exc
 
         if (
-            _world_state_path_value(next_world, available_path) != to_available
-            or _world_state_path_value(next_world, allocated_path) != to_allocated
+            not canonical_resource_balance_matches(
+                _world_state_path_value(next_world, available_path),
+                to_available,
+            )
+            or not canonical_resource_balance_matches(
+                _world_state_path_value(next_world, allocated_path),
+                to_allocated,
+            )
         ):
             raise AppError(
                 "MISSION_RESOURCE_ALLOCATION_DEFINITION_INVALID",
