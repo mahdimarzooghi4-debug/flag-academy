@@ -29,9 +29,21 @@ def upgrade() -> None:
         sa.Column("trigger_condition", postgresql.JSONB(), nullable=True),
         schema="mission_runtime",
     )
+    op.create_check_constraint(
+        "ck_scheduled_effect_exactly_one_trigger",
+        "scheduled_effects",
+        "(due_at IS NOT NULL) <> (trigger_condition IS NOT NULL)",
+        schema="mission_runtime",
+    )
 
 
 def downgrade() -> None:
+    op.drop_constraint(
+        "ck_scheduled_effect_exactly_one_trigger",
+        "scheduled_effects",
+        type_="check",
+        schema="mission_runtime",
+    )
     op.execute(
         "DELETE FROM mission_runtime.scheduled_effects WHERE due_at IS NULL"
     )
