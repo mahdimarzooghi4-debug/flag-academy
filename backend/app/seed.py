@@ -35,6 +35,7 @@ from app.learning.models import (
 )
 from app.mission_design.models import MissionTemplate, MissionVersion
 from app.mission_runtime.models import (
+    ActorInstance,
     CandidateAction,
     DecisionRecord,
     MissionAssignment,
@@ -91,6 +92,7 @@ async def seed() -> None:
             DecisionRecord,
             RuntimeEvent,
             CandidateAction,
+            ActorInstance,
             MissionInstance,
             MissionAssignment,
             MissionVersion,

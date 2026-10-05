@@ -62,6 +62,9 @@ ALLOWED_RUNTIME_TRANSITIONS: dict[
 }
 
 RESERVED_WORLD_NAMESPACES = frozenset({"profile", "evidence", "competency", "gate"})
+RESERVED_ACTOR_STATE_KEYS = frozenset(
+    {"profile", "evidence", "competency", "gate", "world_state"}
+)
 
 
 def runtime_transition_allowed(current: str, target: str) -> bool:
@@ -94,6 +97,21 @@ def apply_world_effect(
     return next_state
 
 
+def apply_actor_effect(
+    actor_state: dict[str, Any],
+    effect: dict[str, Any],
+) -> dict[str, Any]:
+    forbidden = RESERVED_ACTOR_STATE_KEYS.intersection(effect)
+    if forbidden:
+        names = ", ".join(sorted(forbidden))
+        raise ValueError(f"Actor effect cannot mutate reserved keys: {names}")
+
+    next_state = deepcopy(actor_state)
+    for key, value in effect.items():
+        next_state[key] = deepcopy(value)
+    return next_state
+
+
 ALLOWED_ASSIGNMENT_TRANSITIONS: dict[
     MissionAssignmentStatus, frozenset[MissionAssignmentStatus]
 ] = {
@@ -123,6 +141,18 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
         {"assignment_id", "mission_version_id", "mission_code"}
     ),
     "information.disclosed": frozenset({"label", "content", "access"}),
+    "communication.sent": frozenset(
+        {"actor_key", "communication_code", "utterance"}
+    ),
+    "actor.responded": frozenset(
+        {
+            "actor_key",
+            "communication_code",
+            "reply",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
     "decision.committed": frozenset({"decision_code"}),
     "mission.completed": frozenset({"from_status", "to_status"}),
 }
@@ -130,6 +160,14 @@ CANDIDATE_EVENT_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
 CANDIDATE_OBSERVATION_PAYLOAD_ALLOWLIST: dict[str, frozenset[str]] = {
     "MISSION_STARTED": frozenset({"assignment_id", "mission_version_id"}),
     "INFORMATION_REQUESTED": frozenset({"label", "access"}),
+    "ACTOR_RESPONSE_OBSERVED": frozenset(
+        {
+            "actor_key",
+            "communication_code",
+            "actor_state_version_before",
+            "actor_state_version_after",
+        }
+    ),
     "DECISION_COMMITTED": frozenset(
         {"decision_code", "world_version_before", "world_version_after"}
     ),

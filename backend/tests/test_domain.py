@@ -21,6 +21,7 @@ from app.mission_runtime.domain import (
     MissionActionType,
     MissionAssignmentStatus,
     MissionInstanceStatus,
+    apply_actor_effect,
     apply_world_effect,
     assignment_transition_allowed,
     candidate_event_payload,
@@ -103,6 +104,7 @@ def test_mission_runtime_lifecycle_and_action_contract_are_explicit() -> None:
         MissionInstanceStatus.COMPLETED.value,
     )
     assert MissionActionType.REQUEST_INFORMATION.value == "REQUEST_INFORMATION"
+    assert MissionActionType.COMMUNICATE.value == "COMMUNICATE"
     assert MissionActionType.DECIDE.value == "DECIDE"
 
 
@@ -206,3 +208,31 @@ def test_candidate_observation_visibility_is_explicit() -> None:
         "world_version_before": 1,
         "world_version_after": 2,
     }
+
+
+def test_actor_effect_is_deterministic_and_cannot_touch_governance_state() -> None:
+    initial = {
+        "trust_toward_candidate": 35,
+        "current_frustration": 70,
+        "commitment": "CONDITIONAL",
+        "private_escalation_threshold": "LOW",
+    }
+    effect = {
+        "trust_toward_candidate": 60,
+        "current_frustration": 40,
+        "commitment": "SUPPORTIVE",
+    }
+    assert apply_actor_effect(initial, effect) == {
+        "trust_toward_candidate": 60,
+        "current_frustration": 40,
+        "commitment": "SUPPORTIVE",
+        "private_escalation_threshold": "LOW",
+    }
+    assert initial["trust_toward_candidate"] == 35
+
+    try:
+        apply_actor_effect(initial, {"profile": {"proof_state": "PROVEN"}})
+    except ValueError as exc:
+        assert "reserved keys" in str(exc)
+    else:
+        raise AssertionError("Actor Runtime must reject direct Profile mutation.")

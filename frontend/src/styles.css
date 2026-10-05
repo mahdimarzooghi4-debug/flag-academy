@@ -237,3 +237,28 @@ input:focus, select:focus {
 @media (max-width: 760px) {
   .mission-assignment-box { grid-template-columns: 1fr; }
 }
+
+.actor-runtime-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e3ded2;
+  border-radius: 12px;
+  background: #fff;
+}
+.actor-runtime-card pre {
+  margin: 0;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .8rem;
+  background: #f7f5ef;
+  border-radius: 10px;
+  padding: 10px;
+}
+.actor-runtime-card label {
+  display: grid;
+  gap: 7px;
+  font-weight: 750;
+}

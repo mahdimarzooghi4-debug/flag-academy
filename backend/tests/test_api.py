@@ -71,8 +71,10 @@ def test_mission_runtime_contract_is_exposed() -> None:
 
     action_props = schemas["MissionActionRequest"]["properties"]
     assert "expected_world_version" in action_props
+    assert "expected_actor_version" in action_props
     assert "idempotency_key" in action_props
     instance_props = schemas["MissionInstanceResponse"]["properties"]
     assert "world_state_version" in instance_props
     assert "observations" in instance_props
+    assert "actors" in instance_props
     assert "simulation_seed" not in instance_props

@@ -90,6 +90,29 @@ class MissionInstance(Base):
     )
 
 
+class ActorInstance(Base):
+    __tablename__ = "actor_instances"
+    __table_args__ = (
+        UniqueConstraint(
+            "mission_instance_id",
+            "actor_key",
+            name="uq_actor_instance_mission_actor",
+        ),
+        {"schema": "mission_runtime"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    mission_instance_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mission_runtime.mission_instances.id")
+    )
+    actor_key: Mapped[str] = mapped_column(String(120))
+    definition_name: Mapped[str] = mapped_column(String(120))
+    state: Mapped[dict] = mapped_column(JSONB)
+    state_version: Mapped[int] = mapped_column(BigInteger, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class CandidateAction(Base):
     __tablename__ = "candidate_actions"
     __table_args__ = (

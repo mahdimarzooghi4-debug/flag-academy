@@ -145,6 +145,35 @@ export function AcademyStudio({
             "risk.level",
             "mission.decision_status",
           ],
+          actor_runtime: {
+            business_sponsor: {
+              definition_name: "Business Sponsor",
+              initial_state: {
+                trust_toward_candidate: 35,
+                current_frustration: 70,
+                commitment: "CONDITIONAL",
+                private_escalation_threshold: "LOW",
+              },
+              candidate_visible_paths: [
+                "trust_toward_candidate",
+                "current_frustration",
+                "commitment",
+              ],
+              communication_options: [
+                {
+                  code: "OWN_AND_ALIGN_RECOVERY",
+                  label: "پذیرش مالکیت و هم‌راستا کردن برنامه بازیابی",
+                  reply:
+                    "مالکیت روشن شد. برنامه بازیابی را با checkpoint مشخص جلو ببرید؛ من rollout را تا ارزیابی بعدی متوقف نگه می‌دارم.",
+                  effect: {
+                    trust_toward_candidate: 60,
+                    current_frustration: 40,
+                    commitment: "SUPPORTIVE",
+                  },
+                },
+              ],
+            },
+          },
           decision_options: [
             {
               code: "ROLLBACK_AND_RECOVER",
