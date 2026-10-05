@@ -47,7 +47,6 @@ export type MissionInstance = {
   status: string;
   world_state: Record<string, unknown>;
   world_state_version: number;
-  simulation_seed: number;
   decision_points: Array<Record<string, unknown>>;
   information_options: Array<{ label?: string; access?: string }>;
   decision_options: Array<{ code?: string; label?: string }>;
@@ -146,7 +145,7 @@ export function MissionWorkspace({
                 <>
                   <div className="runtime-meta">
                     <span>World v{instance.world_state_version}</span>
-                    <span>Seed {instance.simulation_seed}</span>
+                    <span>Candidate-visible state</span>
                   </div>
 
                   {instance.status === "RUNNING" ? (
@@ -231,7 +230,7 @@ export function MissionWorkspace({
                   ) : null}
 
                   <div className="runtime-block">
-                    <strong>World State</strong>
+                    <strong>Candidate-visible World State</strong>
                     <pre data-testid="world-state">
                       {JSON.stringify(instance.world_state, null, 2)}
                     </pre>

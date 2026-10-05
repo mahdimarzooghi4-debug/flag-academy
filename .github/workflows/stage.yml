@@ -157,6 +157,9 @@ jobs:
           completed_mission_assignments=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_assignments where status = 'COMPLETED';")
           assignment_bound_instances=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances mi join mission_runtime.mission_assignments ma on ma.id = mi.assignment_id where ma.candidate_id = mi.candidate_id and ma.mission_version_id = mi.mission_version_id;")
           unassigned_instances=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where assignment_id is null;")
+          hidden_world_truth=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where world_state #>> '{technical,root_cause_code}' = 'DOWNSTREAM_DEPENDENCY';")
+          internal_simulation_seeds=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.mission_instances where simulation_seed is not null;")
+          internal_decision_effects=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from mission_runtime.runtime_events where event_type = 'decision.committed' and payload ? 'effect_applied';")
 
           test "$published" -ge 23
           test "$inbox" -ge 23
@@ -184,6 +187,9 @@ jobs:
           test "$completed_mission_assignments" -ge 1
           test "$assignment_bound_instances" -ge 1
           test "$unassigned_instances" -eq 0
+          test "$hidden_world_truth" -ge 1
+          test "$internal_simulation_seeds" -ge 1
+          test "$internal_decision_effects" -ge 1
 
           mkdir -p stage-artifacts
           {
@@ -214,6 +220,13 @@ jobs:
             echo "completed_mission_assignments=$completed_mission_assignments"
             echo "assignment_bound_instances=$assignment_bound_instances"
             echo "unassigned_mission_instances=$unassigned_instances"
+            echo "hidden_world_truth_rows=$hidden_world_truth"
+            echo "internal_simulation_seed_rows=$internal_simulation_seeds"
+            echo "internal_decision_effect_events=$internal_decision_effects"
+            echo "candidate_world_truth_projection=ALLOWLIST_ONLY"
+            echo "candidate_hidden_world_truth=NOT_EXPOSED"
+            echo "candidate_simulation_seed=NOT_EXPOSED"
+            echo "candidate_event_payload_policy=ALLOWLIST_FAIL_CLOSED"
             echo "unassigned_active_mission_visibility=BLOCKED_BY_QUERY"
             echo "eligibility_checks=CANDIDATE_MEMBERSHIP+ACTIVE_JOURNEY+ASSIGNMENT"
             echo "profile_mutation_from_runtime=FORBIDDEN_BY_DOMAIN"

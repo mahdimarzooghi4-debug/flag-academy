@@ -132,10 +132,19 @@ export function AcademyStudio({
               error_rate_percent: 13,
               rollback_available: true,
               rollback_started: false,
+              root_cause_code: "DOWNSTREAM_DEPENDENCY",
             },
             risk: { level: "HIGH" },
             mission: { decision_status: "OPEN" },
           },
+          candidate_visible_paths: [
+            "business.rollout_status",
+            "technical.error_rate_percent",
+            "technical.rollback_available",
+            "technical.rollback_started",
+            "risk.level",
+            "mission.decision_status",
+          ],
           decision_options: [
             {
               code: "ROLLBACK_AND_RECOVER",

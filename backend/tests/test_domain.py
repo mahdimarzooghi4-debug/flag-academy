@@ -23,6 +23,11 @@ from app.mission_runtime.domain import (
     MissionInstanceStatus,
     apply_world_effect,
     assignment_transition_allowed,
+    candidate_event_payload,
+    candidate_event_visible,
+    candidate_observation_payload,
+    candidate_observation_visible,
+    project_candidate_visible_state,
     runtime_transition_allowed,
 )
 from app.platform.events import new_event
@@ -137,3 +142,67 @@ def test_mission_assignment_lifecycle_is_explicit() -> None:
         MissionAssignmentStatus.COMPLETED.value,
         MissionAssignmentStatus.STARTED.value,
     )
+
+
+def test_candidate_world_projection_is_allowlist_only() -> None:
+    canonical = {
+        "business": {"rollout_status": "DEGRADED"},
+        "technical": {
+            "error_rate_percent": 13,
+            "rollback_available": True,
+            "root_cause_code": "DOWNSTREAM_DEPENDENCY",
+        },
+        "risk": {"level": "HIGH"},
+    }
+    projected = project_candidate_visible_state(
+        canonical,
+        [
+            "business.rollout_status",
+            "technical.error_rate_percent",
+            "technical.rollback_available",
+            "risk.level",
+        ],
+    )
+    assert projected == {
+        "business": {"rollout_status": "DEGRADED"},
+        "technical": {
+            "error_rate_percent": 13,
+            "rollback_available": True,
+        },
+        "risk": {"level": "HIGH"},
+    }
+    assert "root_cause_code" not in projected["technical"]
+
+
+def test_candidate_event_payload_is_fail_closed() -> None:
+    assert candidate_event_visible("decision.committed")
+    assert not candidate_event_visible("internal.secret_event")
+
+    decision_payload = {
+        "decision_code": "ROLLBACK_AND_RECOVER",
+        "effect_applied": {
+            "technical": {"root_cause_code": "DOWNSTREAM_DEPENDENCY"}
+        },
+    }
+    assert candidate_event_payload("decision.committed", decision_payload) == {
+        "decision_code": "ROLLBACK_AND_RECOVER"
+    }
+    assert candidate_event_payload("internal.secret_event", {"secret": "x"}) == {}
+
+
+def test_candidate_observation_visibility_is_explicit() -> None:
+    assert candidate_observation_visible("DECISION_COMMITTED")
+    assert not candidate_observation_visible("INTERNAL_WORLD_FACT")
+    assert candidate_observation_payload(
+        "DECISION_COMMITTED",
+        {
+            "decision_code": "ROLLBACK_AND_RECOVER",
+            "world_version_before": 1,
+            "world_version_after": 2,
+            "hidden_root_cause": "DOWNSTREAM_DEPENDENCY",
+        },
+    ) == {
+        "decision_code": "ROLLBACK_AND_RECOVER",
+        "world_version_before": 1,
+        "world_version_after": 2,
+    }

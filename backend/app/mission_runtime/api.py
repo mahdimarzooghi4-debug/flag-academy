@@ -19,6 +19,11 @@ from app.mission_runtime.domain import (
     MissionInstanceStatus,
     apply_world_effect,
     assignment_transition_allowed,
+    candidate_event_payload,
+    candidate_event_visible,
+    candidate_observation_payload,
+    candidate_observation_visible,
+    project_candidate_visible_state,
     runtime_transition_allowed,
 )
 from app.mission_runtime.models import (
@@ -126,7 +131,6 @@ class MissionInstanceResponse(BaseModel):
     status: str
     world_state: dict[str, Any]
     world_state_version: int
-    simulation_seed: int
     decision_points: list[dict[str, Any]]
     information_options: list[dict[str, Any]]
     decision_options: list[dict[str, Any]]
@@ -154,6 +158,13 @@ def _information_options(version: MissionVersion) -> list[dict[str, Any]]:
 def _decision_options(version: MissionVersion) -> list[dict[str, Any]]:
     value = _runtime_config(version).get("decision_options", [])
     return value if isinstance(value, list) else []
+
+
+def _candidate_visible_paths(version: MissionVersion) -> list[str]:
+    value = _runtime_config(version).get("candidate_visible_paths", [])
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
 
 
 async def _load_version_and_template(
@@ -301,6 +312,7 @@ async def _append_runtime_event(
     idempotency_key: str,
     now: datetime,
     causal_parent_ids: list[str] | None = None,
+    visibility: str = "CANDIDATE",
 ) -> RuntimeEvent:
     event = RuntimeEvent(
         id=uuid4(),
@@ -312,7 +324,7 @@ async def _append_runtime_event(
         trigger_reference=trigger_reference,
         occurred_at=now,
         effective_at=now,
-        visibility="CANDIDATE",
+        visibility=visibility,
         payload=payload,
         world_version_before=world_version_before,
         world_version_after=world_version_after,
@@ -383,13 +395,24 @@ async def _instance_response(
         )
     ).scalars().all()
 
+    candidate_events = [
+        item
+        for item in events
+        if item.visibility == "CANDIDATE"
+        and candidate_event_visible(item.event_type)
+    ]
+    candidate_observations = [
+        item
+        for item in observations
+        if candidate_observation_visible(item.observation_type)
+    ]
     disclosed_information = [
         {
             "label": event.payload.get("label"),
             "content": event.payload.get("content"),
             "access": event.payload.get("access"),
         }
-        for event in events
+        for event in candidate_events
         if event.event_type == "information.disclosed"
     ]
 
@@ -402,9 +425,11 @@ async def _instance_response(
         mission_code=template.code,
         title=version.title,
         status=instance.status,
-        world_state=instance.world_state,
+        world_state=project_candidate_visible_state(
+            instance.world_state,
+            _candidate_visible_paths(version),
+        ),
         world_state_version=instance.world_state_version,
-        simulation_seed=instance.simulation_seed,
         decision_points=version.decision_points,
         information_options=_information_options(version),
         decision_options=_decision_options(version),
@@ -416,12 +441,12 @@ async def _instance_response(
                 event_type=item.event_type,
                 source=item.source,
                 visibility=item.visibility,
-                payload=item.payload,
+                payload=candidate_event_payload(item.event_type, item.payload),
                 world_version_before=item.world_version_before,
                 world_version_after=item.world_version_after,
                 occurred_at=item.occurred_at,
             )
-            for item in events
+            for item in candidate_events
         ],
         observations=[
             ObservationResponse(
@@ -430,10 +455,13 @@ async def _instance_response(
                 sequence_number=item.sequence_number,
                 observation_type=item.observation_type,
                 factual_statement=item.factual_statement,
-                payload=item.payload,
+                payload=candidate_observation_payload(
+                    item.observation_type,
+                    item.payload,
+                ),
                 occurred_at=item.occurred_at,
             )
-            for item in observations
+            for item in candidate_observations
         ],
         created_at=instance.created_at,
         started_at=instance.started_at,
