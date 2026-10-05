@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import func, select
 from temporalio import activity
 
+from app import models as all_models  # noqa: F401
 from app.db import SessionFactory
 from app.mission_runtime.domain import (
     MissionInstanceStatus,
