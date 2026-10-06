@@ -17,6 +17,7 @@ from app.flag_profile.application import (
     ApproveProfileUpdateCaseCommand,
     CreateProfileUpdateCaseCommand,
     ProfileUpdatePatternInput,
+    RequestProfileUpdateReviewCommand,
     _applied_retry_matches,
     _approval_retry_matches,
     _claim_snapshot_matches_current,
