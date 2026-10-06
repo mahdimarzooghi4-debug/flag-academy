@@ -1,5 +1,9 @@
+from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
+
+import pytest
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
 from app.evidence.domain import (
@@ -42,6 +46,11 @@ from app.mission_runtime.domain import (
     project_candidate_visible_state,
     resource_allocation_transition_valid,
     runtime_transition_allowed,
+)
+from app.patterns.application import (
+    AcceptedEvidenceSnapshot,
+    _accepted_snapshot_matches_context,
+    _require_create_expected_version,
 )
 from app.patterns.domain import (
     PatternEvidenceRelationship,
@@ -934,6 +943,42 @@ PATTERN_INTERPRETATION_ID = "90000000-0000-0000-0000-000000000002"
 PATTERN_MEMBER_ID = "90000000-0000-0000-0000-000000000003"
 
 
+def _accepted_pattern_snapshot() -> AcceptedEvidenceSnapshot:
+    return AcceptedEvidenceSnapshot(
+        evidence_case_id=UUID(PATTERN_EVIDENCE_ID),
+        interpretation_id=UUID(PATTERN_INTERPRETATION_ID),
+        interpretation_version=1,
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+        status="ACCEPTED",
+        interpretation_status="ACTIVE",
+        behaviour_code="METRIC_REASONING",
+        signal="POSITIVE",
+        scope="RECOVERY_EXPERIMENT",
+        confidence="HIGH",
+        context_difficulty="HIGH",
+        prompt_contamination="NONE",
+        source_independence_group="MISSION_INSTANCE:mission-1",
+        accepted_at=datetime(2026, 10, 6, 7, 0, tzinfo=UTC),
+        target_links=[
+            {
+                "target_type": "CAPABILITY",
+                "target_ref": "METRICS_EXPERIMENTATION",
+                "signal": "POSITIVE",
+                "scope": "RECOVERY_EXPERIMENT",
+                "relevance": "HIGH",
+                "confidence": "HIGH",
+            }
+        ],
+        source_lineage={
+            "source_observation_id": "observation-1",
+            "source_context": "MISSION_RUNTIME",
+            "source_reference": "MISSION_INSTANCE:mission-1",
+            "observation_type": "EXPERIMENT_RESULT_OBSERVED",
+        },
+    )
+
+
 def _pattern_evidence_set() -> dict:
     return {
         "organization_context_id": PATTERN_ORG_ID,
@@ -1031,6 +1076,48 @@ def test_pattern_candidate_rejects_duplicate_evidence_members() -> None:
     candidate = _pattern_candidate()
     candidate["evidence"].append(dict(candidate["evidence"][0]))
     assert not pattern_candidate_contract_valid(candidate)
+
+def test_pattern_application_requires_creation_expected_version() -> None:
+    _require_create_expected_version(0)
+
+    with pytest.raises(AppError) as exc_info:
+        _require_create_expected_version(1)
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 0,
+    }
+
+
+def test_pattern_application_requires_accepted_active_interpretation_context() -> None:
+    snapshot = _accepted_pattern_snapshot()
+    assert _accepted_snapshot_matches_context(
+        snapshot,
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+
+    assert not _accepted_snapshot_matches_context(
+        replace(snapshot, status="REJECTED"),
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+    assert not _accepted_snapshot_matches_context(
+        replace(snapshot, interpretation_status="SUPERSEDED"),
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+    assert not _accepted_snapshot_matches_context(
+        replace(
+            snapshot,
+            subject_person_id=UUID("00000000-0000-0000-0000-000000000102"),
+        ),
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+
 
 def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> None:
     application_source = Path("app/patterns/application.py").read_text()

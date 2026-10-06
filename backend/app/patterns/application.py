@@ -22,6 +22,7 @@ class AcceptedEvidenceSnapshot:
     organization_context_id: UUID
     subject_person_id: UUID
     status: str
+    interpretation_status: str
     behaviour_code: str
     signal: str
     scope: str
@@ -50,8 +51,36 @@ class CreateEvidenceSetCommand:
     subject_person_id: UUID
     created_by: UUID
     evidence_case_ids: tuple[UUID, ...]
+    expected_version: int
     idempotency_key: str
     trace_id: str
+
+
+def _require_create_expected_version(expected_version: int) -> None:
+    if expected_version != 0:
+        raise AppError(
+            "VERSION_CONFLICT",
+            "Evidence set changed. Refresh and retry.",
+            status_code=409,
+            details={
+                "expected_version": expected_version,
+                "current_version": 0,
+            },
+        )
+
+
+def _accepted_snapshot_matches_context(
+    snapshot: AcceptedEvidenceSnapshot,
+    *,
+    organization_context_id: UUID,
+    subject_person_id: UUID,
+) -> bool:
+    return (
+        snapshot.status == "ACCEPTED"
+        and snapshot.interpretation_status == "ACTIVE"
+        and snapshot.organization_context_id == organization_context_id
+        and snapshot.subject_person_id == subject_person_id
+    )
 
 
 async def create_evidence_set(
@@ -115,6 +144,8 @@ async def create_evidence_set(
             )
         return existing
 
+    _require_create_expected_version(command.expected_version)
+
     snapshots = await reader.load(
         organization_context_id=command.organization_context_id,
         subject_person_id=command.subject_person_id,
@@ -132,14 +163,17 @@ async def create_evidence_set(
 
     ordered = [by_id[item] for item in evidence_case_ids]
     for snapshot in ordered:
-        if (
-            snapshot.status != "ACCEPTED"
-            or snapshot.organization_context_id != command.organization_context_id
-            or snapshot.subject_person_id != command.subject_person_id
+        if not _accepted_snapshot_matches_context(
+            snapshot,
+            organization_context_id=command.organization_context_id,
+            subject_person_id=command.subject_person_id,
         ):
             raise AppError(
                 "PATTERN_EVIDENCE_NOT_ACCEPTED",
-                "Every Evidence set member must reference accepted Evidence for the same subject.",
+                (
+                    "Every Evidence set member must reference accepted Evidence "
+                    "with its active accepted Interpretation for the same subject."
+                ),
                 status_code=422,
             )
 
