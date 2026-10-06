@@ -31,6 +31,7 @@ import {
 import {
   AssessorPatternWorkspace,
   type PatternCandidate,
+  type PatternCandidateReviewLineage,
   type PatternEvidenceRelationship,
   type PatternEvidenceSet,
   type PatternStatus,
@@ -731,6 +732,19 @@ function AuthenticatedApp({
     },
   });
 
+  const loadPatternCandidateLineage = async (
+    candidateId: string,
+  ): Promise<PatternCandidateReviewLineage> => {
+    const { data, error } = await api.GET(
+      "/api/v1/pattern-candidates/{candidate_id}/lineage",
+      {
+        params: { path: { candidate_id: candidateId } },
+      },
+    );
+    if (error || !data) throw new Error("دریافت Lineage پیش از Pattern Review ناموفق بود.");
+    return data as PatternCandidateReviewLineage;
+  };
+
   const loadPatternLineage = async (patternId: string): Promise<ReviewedPatternLineage> => {
     const { data, error } = await api.GET("/api/v1/patterns/{pattern_id}/lineage", {
       params: { path: { pattern_id: patternId } },
@@ -1154,6 +1168,7 @@ function AuthenticatedApp({
             onCreateCandidate={async (input) =>
               createPatternCandidate.mutateAsync(input)
             }
+            onLoadCandidateLineage={loadPatternCandidateLineage}
             onReviewCandidate={async (
               candidateId,
               expectedVersion,

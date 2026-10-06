@@ -317,6 +317,19 @@ jobs:
           evidence_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'evidence' and ccu.table_schema <> 'evidence';")
           duplicate_evidence_sources=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from (select source_observation_id from evidence.evidence_cases group by source_observation_id having count(*) > 1) duplicates;")
           evidence_replay_inbox_after=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events where consumer_name = 'evidence-observation-ingestor-v1';")
+          pattern_evidence_sets=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.evidence_sets;")
+          pattern_evidence_members=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.evidence_set_members;")
+          pattern_candidates=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.pattern_candidates;")
+          pattern_candidate_evidence=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.pattern_candidate_evidence;")
+          reviewed_patterns=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.behaviour_patterns;")
+          pattern_reviews=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.pattern_reviews;")
+          pattern_updated_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'pattern.updated.v1';")
+          published_pattern_updated_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.outbox_events where event_type = 'pattern.updated.v1' and published_at is not null;")
+          pattern_lineage_rows=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.pattern_candidate_evidence pce join patterns.evidence_set_members esm on esm.id = pce.evidence_set_member_id join patterns.pattern_candidates pc on pc.id = pce.pattern_candidate_id join patterns.evidence_sets es on es.id = pc.evidence_set_id where esm.evidence_set_id = es.id and esm.source_lineage ?& array['source_observation_id','source_context','source_reference','observation_type'];")
+          invalid_pattern_relationships=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.pattern_candidate_evidence where relationship not in ('SUPPORTING','CONTRADICTORY');")
+          pattern_context_mismatches=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select (select count(*) from patterns.pattern_candidates pc join patterns.evidence_sets es on es.id = pc.evidence_set_id where pc.organization_context_id <> es.organization_context_id or pc.subject_person_id <> es.subject_person_id) + (select count(*) from patterns.behaviour_patterns bp join patterns.pattern_candidates pc on pc.id = bp.source_pattern_candidate_id join patterns.evidence_sets es on es.id = bp.evidence_set_id where bp.organization_context_id <> pc.organization_context_id or bp.subject_person_id <> pc.subject_person_id or bp.organization_context_id <> es.organization_context_id or bp.subject_person_id <> es.subject_person_id);")
+          pattern_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'patterns' and ccu.table_schema <> 'patterns';")
+          pattern_downstream_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'profile.%' or event_type like 'gate.%' or event_type like 'capability.%' or event_type like 'responsibility.%';")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -434,6 +447,19 @@ jobs:
           test "$evidence_cross_context_fks" -eq 0
           test "$duplicate_evidence_sources" -eq 0
           test "$evidence_replay_inbox_after" -ge "$((EVIDENCE_REPLAY_INBOX_BEFORE + 1))"
+          test "$pattern_evidence_sets" -ge 1
+          test "$pattern_evidence_members" -ge 1
+          test "$pattern_candidates" -ge 1
+          test "$pattern_candidate_evidence" -ge 1
+          test "$reviewed_patterns" -ge 1
+          test "$pattern_reviews" -ge 1
+          test "$pattern_updated_events" -ge 1
+          test "$published_pattern_updated_events" -ge 1
+          test "$pattern_lineage_rows" -eq "$pattern_candidate_evidence"
+          test "$invalid_pattern_relationships" -eq 0
+          test "$pattern_context_mismatches" -eq 0
+          test "$pattern_cross_context_fks" -eq 0
+          test "$pattern_downstream_events" -eq 0
 
           mkdir -p stage-artifacts
           {
@@ -555,6 +581,22 @@ jobs:
             echo "duplicate_evidence_source_rows=$duplicate_evidence_sources"
             echo "evidence_replay_inbox_before=$EVIDENCE_REPLAY_INBOX_BEFORE"
             echo "evidence_replay_inbox_after=$evidence_replay_inbox_after"
+            echo "pattern_evidence_sets=$pattern_evidence_sets"
+            echo "pattern_evidence_set_members=$pattern_evidence_members"
+            echo "pattern_candidates=$pattern_candidates"
+            echo "pattern_candidate_evidence_links=$pattern_candidate_evidence"
+            echo "reviewed_behaviour_patterns=$reviewed_patterns"
+            echo "pattern_review_records=$pattern_reviews"
+            echo "pattern_updated_events=$pattern_updated_events"
+            echo "published_pattern_updated_events=$published_pattern_updated_events"
+            echo "pattern_complete_lineage_rows=$pattern_lineage_rows"
+            echo "invalid_pattern_relationships=$invalid_pattern_relationships"
+            echo "pattern_context_mismatches=$pattern_context_mismatches"
+            echo "pattern_cross_context_foreign_keys=$pattern_cross_context_fks"
+            echo "pattern_downstream_mutation_events=$pattern_downstream_events"
+            echo "pattern_pre_review_lineage=REQUIRED"
+            echo "pattern_candidate_state_mutation=HUMAN_REVIEW_ONLY"
+            echo "pattern_profile_gate_claim_responsibility_mutation=FORBIDDEN"
             echo "evidence_duplicate_delivery=SAME_EVENT_ID+NEW_EVENT_ID_REPLAYED"
             echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
             echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"

@@ -124,6 +124,14 @@ export type ReviewedPatternLineage = {
   }>;
 };
 
+export type PatternCandidateReviewLineage = {
+  organization_context_id: string;
+  subject_person_id: string;
+  candidate: ReviewedPatternLineage["candidate"];
+  evidence_set: ReviewedPatternLineage["evidence_set"];
+  evidence: ReviewedPatternLineage["evidence"];
+};
+
 type CreateCandidateInput = {
   subjectPersonId: string;
   evidenceSetId: string;
@@ -147,6 +155,9 @@ type Props = {
     evidenceCaseIds: string[],
   ) => Promise<PatternEvidenceSet>;
   onCreateCandidate: (input: CreateCandidateInput) => Promise<PatternCandidate>;
+  onLoadCandidateLineage: (
+    candidateId: string,
+  ) => Promise<PatternCandidateReviewLineage>;
   onReviewCandidate: (
     candidateId: string,
     expectedVersion: number,
@@ -171,6 +182,7 @@ export function AssessorPatternWorkspace({
   busy,
   onCreateEvidenceSet,
   onCreateCandidate,
+  onLoadCandidateLineage,
   onReviewCandidate,
   onLoadLineage,
 }: Props) {
@@ -200,6 +212,10 @@ export function AssessorPatternWorkspace({
   const [scope, setScope] = useState("");
   const [candidateRationale, setCandidateRationale] = useState("");
   const [candidate, setCandidate] = useState<PatternCandidate | null>(null);
+  const [candidateLineage, setCandidateLineage] =
+    useState<PatternCandidateReviewLineage | null>(null);
+  const [candidateLineageLoading, setCandidateLineageLoading] = useState(false);
+  const [candidateLineageError, setCandidateLineageError] = useState("");
   const [reviewStatus, setReviewStatus] = useState<PatternStatus>("EMERGING");
   const [reviewRationale, setReviewRationale] = useState("");
   const [reviewedPattern, setReviewedPattern] = useState<PatternSummary | null>(null);
@@ -223,6 +239,8 @@ export function AssessorPatternWorkspace({
     setEvidenceSet(null);
     setRelationships({});
     setCandidate(null);
+    setCandidateLineage(null);
+    setCandidateLineageError("");
     setReviewedPattern(null);
     setLineage(null);
   };
@@ -267,14 +285,28 @@ export function AssessorPatternWorkspace({
       })),
     });
     setCandidate(created);
+    setCandidateLineage(null);
+    setCandidateLineageError("");
+    setCandidateLineageLoading(true);
     setReviewStatus(created.proposed_pattern_status as PatternStatus);
     setReviewRationale(
       "Full Evidence lineage and explicit supporting/contradictory relationships reviewed by the assessor.",
     );
+    try {
+      setCandidateLineage(await onLoadCandidateLineage(created.id));
+    } catch (error) {
+      setCandidateLineageError(
+        error instanceof Error
+          ? error.message
+          : "دریافت Lineage پیش از Human Review ناموفق بود.",
+      );
+    } finally {
+      setCandidateLineageLoading(false);
+    }
   };
 
   const reviewCandidate = async () => {
-    if (!candidate) return;
+    if (!candidate || !candidateLineage) return;
     const reviewed = await onReviewCandidate(
       candidate.id,
       candidate.version,
@@ -351,6 +383,8 @@ export function AssessorPatternWorkspace({
                     onChange={(event) => {
                       setEvidenceSet(null);
                       setCandidate(null);
+                      setCandidateLineage(null);
+                      setCandidateLineageError("");
                       setReviewedPattern(null);
                       setSelectedEvidenceIds((current) =>
                         event.target.checked
@@ -514,6 +548,48 @@ export function AssessorPatternWorkspace({
             </div>
             <span className="state">v{candidate.version}</span>
           </div>
+          {candidateLineageLoading ? (
+            <p className="muted">در حال دریافت Lineage کامل پیش از Review...</p>
+          ) : null}
+          {candidateLineageError ? <p className="error">{candidateLineageError}</p> : null}
+          {candidateLineage ? (
+            <div className="pattern-lineage" data-testid="pattern-pre-review-lineage">
+              <div className="assignment-head">
+                <div>
+                  <strong>Lineage قبل از بستن Review</strong>
+                  <p className="muted">
+                    Evidence Set v{candidateLineage.evidence_set.version_number} · Candidate
+                    v{candidateLineage.candidate.version}
+                  </p>
+                </div>
+                <span className="state">{candidateLineage.evidence.length} EVIDENCE</span>
+              </div>
+              <div className="pattern-lineage-evidence">
+                {candidateLineage.evidence.map((item) => (
+                  <article className="runtime-block" key={item.evidence_set_member_id}>
+                    <div className="assignment-head">
+                      <strong>{item.behaviour_code}</strong>
+                      <span className="state">{item.relationship}</span>
+                    </div>
+                    <p>
+                      {item.signal} · {item.scope} · {item.confidence} · Interpretation v
+                      {item.interpretation_version}
+                    </p>
+                    <small>
+                      {item.source_lineage.observation_type} ·{" "}
+                      {item.source_lineage.source_context} ·{" "}
+                      {item.source_lineage.source_reference}
+                    </small>
+                    <pre>{JSON.stringify(item.target_links, null, 2)}</pre>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="muted">
+              Human Review تا بارگذاری موفق Lineage کامل Evidence بسته نمی‌شود.
+            </p>
+          )}
           <label>
             Reviewed Pattern status
             <select
@@ -538,7 +614,12 @@ export function AssessorPatternWorkspace({
           </label>
           <button
             className="primary"
-            disabled={busy || !reviewRationale.trim()}
+            disabled={
+              busy ||
+              candidateLineageLoading ||
+              !candidateLineage ||
+              !reviewRationale.trim()
+            }
             onClick={() => void reviewCandidate()}
           >
             ثبت Reviewed Behaviour Pattern

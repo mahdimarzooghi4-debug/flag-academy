@@ -716,6 +716,14 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     patternWorkspace.getByTestId("pattern-candidate-created"),
   ).toContainText("REPEATED");
 
+  const preReviewLineage = patternWorkspace.getByTestId(
+    "pattern-pre-review-lineage",
+  );
+  await expect(preReviewLineage).toContainText("METRIC_REASONING");
+  await expect(preReviewLineage).toContainText("SUPPORTING");
+  await expect(preReviewLineage).toContainText("EXPERIMENT_RESULT_OBSERVED");
+  await expect(preReviewLineage).toContainText("MISSION_RUNTIME");
+
   await patternWorkspace
     .getByLabel("Reviewed Pattern status")
     .selectOption("REPEATED");
