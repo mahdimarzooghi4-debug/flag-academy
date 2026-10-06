@@ -27,11 +27,18 @@ def upgrade() -> None:
         sa.Column("organization_context_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("subject_person_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("idempotency_key", sa.String(160), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint(
             "evidence_set_key",
             "version_number",
             name="uq_pattern_evidence_set_key_version",
+        ),
+        sa.UniqueConstraint(
+            "organization_context_id",
+            "created_by",
+            "idempotency_key",
+            name="uq_pattern_evidence_set_idempotency",
         ),
         schema="patterns",
     )
