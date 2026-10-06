@@ -280,12 +280,10 @@ def upgrade() -> None:
             CREATE OR REPLACE FUNCTION gate_assessment.reject_gate_definition_mutation()
             RETURNS trigger
             LANGUAGE plpgsql
-            AS $
-            BEGIN
+            AS 'BEGIN
                 RAISE EXCEPTION
-                    'gate definition registry rows are immutable; create a new version instead';
-            END;
-            $;
+                    ''gate definition registry rows are immutable; create a new version instead'';
+            END;';
             """
         )
     )
