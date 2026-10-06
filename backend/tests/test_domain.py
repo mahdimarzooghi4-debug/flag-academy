@@ -1525,7 +1525,10 @@ def test_profile_update_creation_does_not_infer_claim_or_import_pattern_models()
 
 def test_profile_update_creation_starts_proposed_and_does_not_apply_claim() -> None:
     source = Path("app/flag_profile/application.py").read_text()
-    create_source = source.split("async def create_profile_update_case", 1)[1]
+    create_source = source.split("async def create_profile_update_case", 1)[1].split(
+        "@dataclass(frozen=True)\nclass RequestProfileUpdateReviewCommand",
+        1,
+    )[0]
 
     assert "state=ProfileUpdateCaseState.PROPOSED.value" in create_source
     assert "CapabilityClaim(" not in create_source
@@ -1724,7 +1727,10 @@ def test_profile_update_approval_does_not_apply_claim_or_emit_claim_changed() ->
     approval = source.split(
         "async def approve_profile_update_case",
         1,
-    )[1]
+    )[1].split(
+        "@dataclass(frozen=True)\nclass ApplyProfileUpdateCaseCommand",
+        1,
+    )[0]
 
     assert "CapabilityClaim(" not in approval
     assert 'event_type="profile.claim_changed.v1"' not in approval
