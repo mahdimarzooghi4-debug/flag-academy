@@ -224,3 +224,47 @@ def test_candidate_pattern_projection_is_self_scoped_and_reviewed_only() -> None
     assert "PatternCandidateEvidence" not in candidate_source
     assert "source_lineage" not in candidate_source
 
+
+def test_pattern_command_contract_is_exposed() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/pattern-evidence-sets" in paths
+    assert "/api/v1/pattern-candidates" in paths
+    assert "/api/v1/pattern-candidates/{candidate_id}/review" in paths
+    assert "post" in paths["/api/v1/pattern-evidence-sets"]
+    assert "post" in paths["/api/v1/pattern-candidates"]
+    assert "post" in paths["/api/v1/pattern-candidates/{candidate_id}/review"]
+
+    schemas = app.openapi()["components"]["schemas"]
+
+    evidence_set_props = schemas["EvidenceSetCreateRequest"]["properties"]
+    assert "subject_person_id" in evidence_set_props
+    assert "evidence_case_ids" in evidence_set_props
+    assert "expected_version" in evidence_set_props
+    assert "idempotency_key" in evidence_set_props
+
+    candidate_props = schemas["PatternCandidateCreateRequest"]["properties"]
+    assert "evidence_set_id" in candidate_props
+    assert "proposed_pattern_status" in candidate_props
+    assert "evidence" in candidate_props
+    assert "expected_version" in candidate_props
+    assert "idempotency_key" in candidate_props
+
+    review_props = schemas["PatternReviewRequest"]["properties"]
+    assert "resulting_pattern_status" in review_props
+    assert "rationale" in review_props
+    assert "expected_version" in review_props
+    assert "idempotency_key" in review_props
+
+
+def test_pattern_command_api_uses_evidence_reader_adapter_boundary() -> None:
+    from pathlib import Path
+
+    api_source = Path("app/patterns/api.py").read_text()
+    adapter_source = Path("app/patterns/evidence_reader.py").read_text()
+    application_source = Path("app/patterns/application.py").read_text()
+
+    assert "SqlAcceptedEvidenceReader" in api_source
+    assert "from app.evidence" not in api_source
+    assert "from app.evidence" in adapter_source
+    assert "from app.evidence" not in application_source
+
