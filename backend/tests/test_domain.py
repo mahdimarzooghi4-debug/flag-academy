@@ -33,7 +33,7 @@ from app.flag_profile.domain import (
     ProfileUpdateCaseState,
     profile_update_transition_allowed,
 )
-from app.flag_profile.models import ProfileUpdateCase
+from app.flag_profile.models import CapabilityClaim, ProfileUpdateCase
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
     LearningPhase,
