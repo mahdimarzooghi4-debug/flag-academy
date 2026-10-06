@@ -1,7 +1,8 @@
 # 75 — Sprint 19: Pattern Engine Foundation
 
-**Status:** IN PROGRESS  
-**Date:** 2026-10-06
+**Status:** ACCEPTED  
+**Date:** 2026-10-06  
+**Stage Acceptance:** [docs/76-sprint-19-stage-acceptance.md](76-sprint-19-stage-acceptance.md)
 
 ## Goal
 
