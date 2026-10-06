@@ -9,12 +9,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppError
-from app.patterns.domain import evidence_set_contract_valid, pattern_candidate_contract_valid
+from app.patterns.domain import (
+    PatternStatus,
+    evidence_set_contract_valid,
+    pattern_candidate_contract_valid,
+)
 from app.patterns.models import (
+    BehaviourPattern,
     EvidenceSet,
     EvidenceSetMember,
     PatternCandidate,
     PatternCandidateEvidence,
+    PatternReview,
 )
 from app.platform.events import new_event, record_event
 
@@ -489,4 +495,172 @@ async def create_pattern_candidate(
     )
     await db.commit()
     return candidate
+
+@dataclass(frozen=True)
+class ReviewPatternCandidateCommand:
+    organization_context_id: UUID
+    pattern_candidate_id: UUID
+    reviewer_id: UUID
+    resulting_pattern_status: str
+    rationale: str
+    expected_version: int
+    idempotency_key: str
+    trace_id: str
+
+
+def _reviewed_pattern_status_valid(value: str) -> bool:
+    return value in {item.value for item in PatternStatus}
+
+
+def _require_pattern_review_expected_version(
+    *,
+    current_version: int,
+    expected_version: int,
+) -> None:
+    if current_version != expected_version:
+        raise AppError(
+            "VERSION_CONFLICT",
+            "Pattern candidate changed. Refresh and retry.",
+            status_code=409,
+            details={
+                "expected_version": expected_version,
+                "current_version": current_version,
+            },
+        )
+
+
+async def review_pattern_candidate(
+    db: AsyncSession,
+    *,
+    command: ReviewPatternCandidateCommand,
+) -> BehaviourPattern:
+    idempotency_key = command.idempotency_key.strip()
+    if not idempotency_key:
+        raise AppError(
+            "PATTERN_IDEMPOTENCY_KEY_REQUIRED",
+            "Idempotency key is required.",
+            status_code=422,
+        )
+
+    rationale = command.rationale.strip()
+    if not rationale:
+        raise AppError(
+            "PATTERN_REVIEW_RATIONALE_REQUIRED",
+            "Human review rationale is required.",
+            status_code=422,
+        )
+    if not _reviewed_pattern_status_valid(command.resulting_pattern_status):
+        raise AppError(
+            "PATTERN_STATUS_INVALID",
+            "Reviewed Pattern status is not part of the DEC-401 vocabulary.",
+            status_code=422,
+        )
+
+    existing_review = (
+        await db.execute(
+            select(PatternReview).where(
+                PatternReview.pattern_candidate_id == command.pattern_candidate_id,
+                PatternReview.reviewer_id == command.reviewer_id,
+                PatternReview.idempotency_key == idempotency_key,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_review is not None:
+        resulting_pattern = (
+            await db.execute(
+                select(BehaviourPattern).where(
+                    BehaviourPattern.id == existing_review.resulting_pattern_id
+                )
+            )
+        ).scalar_one_or_none()
+        if (
+            resulting_pattern is None
+            or resulting_pattern.organization_context_id
+            != command.organization_context_id
+            or existing_review.resulting_pattern_status
+            != command.resulting_pattern_status
+            or existing_review.rationale != rationale
+        ):
+            raise AppError(
+                "PATTERN_IDEMPOTENCY_KEY_REUSED",
+                "Idempotency key was already used for a different Pattern review.",
+                status_code=409,
+            )
+        return resulting_pattern
+
+    candidate = (
+        await db.execute(
+            select(PatternCandidate)
+            .where(
+                PatternCandidate.id == command.pattern_candidate_id,
+                PatternCandidate.organization_context_id
+                == command.organization_context_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if candidate is None:
+        raise AppError(
+            "PATTERN_CANDIDATE_NOT_FOUND",
+            "Pattern candidate not found.",
+            status_code=404,
+        )
+
+    _require_pattern_review_expected_version(
+        current_version=candidate.version,
+        expected_version=command.expected_version,
+    )
+
+    existing_pattern = (
+        await db.execute(
+            select(BehaviourPattern).where(
+                BehaviourPattern.source_pattern_candidate_id == candidate.id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_pattern is not None:
+        raise AppError(
+            "PATTERN_CANDIDATE_ALREADY_REVIEWED",
+            "Pattern candidate already has a reviewed Behaviour Pattern.",
+            status_code=409,
+        )
+
+    now = datetime.now(UTC)
+    pattern = BehaviourPattern(
+        id=uuid4(),
+        version=1,
+        organization_context_id=candidate.organization_context_id,
+        subject_person_id=candidate.subject_person_id,
+        source_pattern_candidate_id=candidate.id,
+        evidence_set_id=candidate.evidence_set_id,
+        behaviour_code=candidate.behaviour_code,
+        behaviour_description=candidate.behaviour_description,
+        pattern_status=command.resulting_pattern_status,
+        scope=candidate.scope,
+        rationale=rationale,
+        reviewed_by=command.reviewer_id,
+        reviewed_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(pattern)
+
+    db.add(
+        PatternReview(
+            id=uuid4(),
+            pattern_candidate_id=candidate.id,
+            reviewer_id=command.reviewer_id,
+            resulting_pattern_status=command.resulting_pattern_status,
+            rationale=rationale,
+            resulting_pattern_id=pattern.id,
+            idempotency_key=idempotency_key,
+            created_at=now,
+        )
+    )
+
+    candidate.version += 1
+    candidate.updated_at = now
+
+    await db.commit()
+    return pattern
 

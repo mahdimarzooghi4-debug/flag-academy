@@ -154,17 +154,25 @@ class BehaviourPattern(Base):
 
 class PatternReview(Base):
     __tablename__ = "pattern_reviews"
-    __table_args__ = {"schema": "patterns"}
+    __table_args__ = (
+        UniqueConstraint(
+            "pattern_candidate_id",
+            "reviewer_id",
+            "idempotency_key",
+            name="uq_pattern_review_idempotency",
+        ),
+        {"schema": "patterns"},
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     pattern_candidate_id: Mapped[UUID] = mapped_column(
         ForeignKey("patterns.pattern_candidates.id")
     )
     reviewer_id: Mapped[UUID]
-    decision: Mapped[str] = mapped_column(String(32))
+    resulting_pattern_status: Mapped[str] = mapped_column(String(32))
     rationale: Mapped[str] = mapped_column(Text)
-    resulting_pattern_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("patterns.behaviour_patterns.id"),
-        nullable=True,
+    resulting_pattern_id: Mapped[UUID] = mapped_column(
+        ForeignKey("patterns.behaviour_patterns.id")
     )
+    idempotency_key: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

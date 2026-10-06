@@ -197,9 +197,10 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("pattern_candidate_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("reviewer_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("decision", sa.String(32), nullable=False),
+        sa.Column("resulting_pattern_status", sa.String(32), nullable=False),
         sa.Column("rationale", sa.Text(), nullable=False),
-        sa.Column("resulting_pattern_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("resulting_pattern_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("idempotency_key", sa.String(160), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["pattern_candidate_id"],
@@ -208,6 +209,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["resulting_pattern_id"],
             ["patterns.behaviour_patterns.id"],
+        ),
+        sa.UniqueConstraint(
+            "pattern_candidate_id",
+            "reviewer_id",
+            "idempotency_key",
+            name="uq_pattern_review_idempotency",
         ),
         schema="patterns",
     )

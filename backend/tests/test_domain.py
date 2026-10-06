@@ -53,6 +53,8 @@ from app.patterns.application import (
     _accepted_snapshot_matches_context,
     _require_create_expected_version,
     _require_pattern_candidate_create_expected_version,
+    _require_pattern_review_expected_version,
+    _reviewed_pattern_status_valid,
 )
 from app.patterns.domain import (
     PatternEvidenceRelationship,
@@ -1146,6 +1148,34 @@ def test_pattern_candidate_contract_preserves_explicit_contradiction() -> None:
         }
     )
     assert pattern_candidate_contract_valid(candidate)
+
+
+def test_pattern_review_requires_current_candidate_version() -> None:
+    _require_pattern_review_expected_version(
+        current_version=1,
+        expected_version=1,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        _require_pattern_review_expected_version(
+            current_version=2,
+            expected_version=1,
+        )
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 2,
+    }
+
+
+def test_pattern_review_uses_only_dec401_status_vocabulary() -> None:
+    for status in PatternStatus:
+        assert _reviewed_pattern_status_valid(status.value)
+
+    assert not _reviewed_pattern_status_valid("PROVEN")
+    assert not _reviewed_pattern_status_valid("APPROVED")
 
 
 def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> None:
