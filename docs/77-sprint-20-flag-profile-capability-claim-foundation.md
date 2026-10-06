@@ -269,7 +269,25 @@ It must not expose:
 - internal idempotency/workflow metadata;
 - unrestricted Assessor lineage.
 
-The exact Candidate endpoint may follow existing Candidate Home/read-model conventions; no second source of truth may be introduced.
+The Candidate endpoint for Sprint 20 is:
+
+- `GET /api/v1/me/flag-profile`
+
+It is a strict allowlist projection over the same Current CapabilityClaim source of truth.
+
+Sprint 20 Candidate Claim projection exposes only:
+
+- capability reference;
+- State;
+- Level;
+- Proven Scope;
+- Evidence Recency;
+- Next Evidence Needed;
+- updated timestamp.
+
+Pattern references are deliberately not duplicated inside the Candidate Claim projection in Sprint 20 because no additional policy yet defines which Claim-linked Pattern relationships should be surfaced there. Candidate-visible Reviewed Patterns remain available from the existing `GET /api/v1/me/patterns` projection.
+
+No second source of truth is introduced.
 
 ## Event and AI boundary
 

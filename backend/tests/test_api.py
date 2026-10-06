@@ -405,3 +405,87 @@ def test_flag_profile_read_contract_has_no_overall_score() -> None:
     assert "next_evidence_needed" in props
     assert "score" not in props
     assert "overall_score" not in props
+
+
+def test_candidate_flag_profile_projection_is_exposed() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/me/flag-profile" in paths
+    assert "get" in paths["/api/v1/me/flag-profile"]
+
+    schemas = app.openapi()["components"]["schemas"]
+    claim_props = schemas["CandidateCapabilityClaimResponse"]["properties"]
+    assert set(claim_props) == {
+        "capability_id",
+        "state",
+        "level",
+        "proven_scope",
+        "evidence_recency",
+        "next_evidence_needed",
+        "updated_at",
+    }
+
+    hidden = {
+        "id",
+        "version",
+        "subject_person_id",
+        "organization_context_id",
+        "confidence_in_claim",
+        "reviewed_at",
+        "reviewed_by",
+        "source_profile_update_case_id",
+        "patterns",
+        "rationale",
+        "review_rationale",
+        "created_by",
+        "applied_by",
+        "idempotency_key",
+        "lineage",
+    }
+    assert hidden.isdisjoint(claim_props)
+
+
+def test_candidate_flag_profile_projection_is_self_scoped_and_fail_closed() -> None:
+    from pathlib import Path
+
+    source = Path("app/flag_profile/api.py").read_text()
+    segment = source.split(
+        '@router.get(\n    "/me/flag-profile"',
+        1,
+    )[1].split(
+        '@router.get(\n    "/people/{person_id}/flag-profile"',
+        1,
+    )[0]
+
+    assert 'require_role("CANDIDATE")' in segment
+    assert "FlagProfile.organization_context_id" in segment
+    assert "FlagProfile.subject_person_id == actor.person_id" in segment
+    assert "CapabilityClaim.organization_context_id" in segment
+    assert "CapabilityClaim.subject_person_id == actor.person_id" in segment
+
+    for forbidden in (
+        "ProfileUpdateCase",
+        "ProfileUpdatePattern",
+        "ProfileUpdatePatternEvidence",
+        "CapabilityClaimPattern",
+        "reviewed_by",
+        "review_rationale",
+        "source_profile_update_case_id",
+        "confidence_in_claim",
+        "source_observation_id",
+        "source_reference",
+        "interpretation_id",
+    ):
+        assert forbidden not in segment
+
+
+def test_candidate_flag_profile_has_no_overall_score_or_gate_state() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    claim_props = schemas["CandidateCapabilityClaimResponse"]["properties"]
+    track_props = schemas["CandidateFlagProfileTrackResponse"]["properties"]
+
+    assert "score" not in claim_props
+    assert "overall_score" not in claim_props
+    assert "gate_state" not in claim_props
+    assert "responsibility_state" not in claim_props
+    assert "score" not in track_props
+    assert "overall_score" not in track_props

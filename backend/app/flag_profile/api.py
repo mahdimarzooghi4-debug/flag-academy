@@ -204,6 +204,26 @@ class CapabilityClaimLineageResponse(BaseModel):
     patterns: list[ProfileUpdatePatternLineageResponse]
 
 
+class CandidateCapabilityClaimResponse(BaseModel):
+    capability_id: UUID
+    state: str
+    level: str
+    proven_scope: str
+    evidence_recency: str
+    next_evidence_needed: str
+    updated_at: datetime
+
+
+class CandidateFlagProfileTrackResponse(BaseModel):
+    track_code: str
+    updated_at: datetime
+    claims: list[CandidateCapabilityClaimResponse]
+
+
+class CandidateFlagProfileResponse(BaseModel):
+    profiles: list[CandidateFlagProfileTrackResponse]
+
+
 async def _case_patterns(
     db: AsyncSession,
     *,
@@ -584,6 +604,66 @@ async def apply_profile_update_case_api(
         ),
     )
     return await _claim_response(db, claim)
+
+
+@router.get(
+    "/me/flag-profile",
+    response_model=CandidateFlagProfileResponse,
+)
+async def get_my_flag_profile(
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> CandidateFlagProfileResponse:
+    profiles = list(
+        (
+            await db.execute(
+                select(FlagProfile)
+                .where(
+                    FlagProfile.organization_context_id
+                    == actor.organization_context_id,
+                    FlagProfile.subject_person_id == actor.person_id,
+                )
+                .order_by(FlagProfile.track_code, FlagProfile.id)
+            )
+        ).scalars().all()
+    )
+
+    response_profiles: list[CandidateFlagProfileTrackResponse] = []
+    for profile in profiles:
+        claims = list(
+            (
+                await db.execute(
+                    select(CapabilityClaim)
+                    .where(
+                        CapabilityClaim.flag_profile_id == profile.id,
+                        CapabilityClaim.organization_context_id
+                        == actor.organization_context_id,
+                        CapabilityClaim.subject_person_id == actor.person_id,
+                    )
+                    .order_by(CapabilityClaim.capability_id)
+                )
+            ).scalars().all()
+        )
+        response_profiles.append(
+            CandidateFlagProfileTrackResponse(
+                track_code=profile.track_code,
+                updated_at=profile.updated_at,
+                claims=[
+                    CandidateCapabilityClaimResponse(
+                        capability_id=claim.capability_id,
+                        state=claim.state,
+                        level=claim.level,
+                        proven_scope=claim.proven_scope,
+                        evidence_recency=claim.evidence_recency,
+                        next_evidence_needed=claim.next_evidence_needed,
+                        updated_at=claim.updated_at,
+                    )
+                    for claim in claims
+                ],
+            )
+        )
+
+    return CandidateFlagProfileResponse(profiles=response_profiles)
 
 
 @router.get(
