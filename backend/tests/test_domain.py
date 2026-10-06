@@ -7,7 +7,6 @@ import pytest
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
 from app.errors import AppError
-from app.patterns.contracts import _source_contract
 from app.evidence.domain import (
     EvidenceCaseStatus,
     case_transition_allowed,
@@ -55,6 +54,7 @@ from app.mission_runtime.domain import (
     resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
+from app.patterns.contracts import _source_contract
 from app.patterns.application import (
     AcceptedEvidenceSnapshot,
     _accepted_snapshot_matches_context,
