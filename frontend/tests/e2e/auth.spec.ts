@@ -748,6 +748,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
 
   await logout(page);
   await login(page, "candidate", candidatePassword);
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
   const candidatePatternToken = await currentAccessToken(page);
   const candidatePatternsResponse = await page.context().request.get(
