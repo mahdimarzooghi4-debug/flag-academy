@@ -1,7 +1,8 @@
 # 77 — Sprint 20: Flag Profile Capability Claim Foundation
 
-**Status:** IN PROGRESS  
-**Date:** 2026-10-06
+**Status:** ACCEPTED  
+**Date:** 2026-10-06  
+**Stage Acceptance:** [docs/78-sprint-20-stage-acceptance.md](78-sprint-20-stage-acceptance.md)
 
 ## Goal
 
