@@ -22,7 +22,7 @@ from app.patterns.models import (
     PatternCandidateEvidence,
     PatternReview,
 )
-from app.platform.events import new_event, record_event
+from app.platform.events import EventEnvelope, new_event, record_event
 
 
 @dataclass(frozen=True)
@@ -529,6 +529,33 @@ def _require_pattern_review_expected_version(
         )
 
 
+def _new_pattern_updated_event(
+    *,
+    pattern: BehaviourPattern,
+    reviewer_id: UUID,
+    trace_id: str,
+) -> EventEnvelope:
+    return new_event(
+        event_type="pattern.updated.v1",
+        aggregate_type="BehaviourPattern",
+        aggregate_id=pattern.id,
+        aggregate_version=pattern.version,
+        actor={"type": "PERSON", "id": str(reviewer_id)},
+        organization_context_id=pattern.organization_context_id,
+        data_classification="CONFIDENTIAL",
+        payload={
+            "pattern_id": str(pattern.id),
+            "source_pattern_candidate_id": str(pattern.source_pattern_candidate_id),
+            "subject_person_id": str(pattern.subject_person_id),
+            "evidence_set_id": str(pattern.evidence_set_id),
+            "pattern_status": pattern.pattern_status,
+            "behaviour_code": pattern.behaviour_code,
+            "scope": pattern.scope,
+        },
+        trace_id=trace_id,
+    )
+
+
 async def review_pattern_candidate(
     db: AsyncSession,
     *,
@@ -660,6 +687,15 @@ async def review_pattern_candidate(
 
     candidate.version += 1
     candidate.updated_at = now
+
+    record_event(
+        db,
+        _new_pattern_updated_event(
+            pattern=pattern,
+            reviewer_id=command.reviewer_id,
+            trace_id=command.trace_id,
+        ),
+    )
 
     await db.commit()
     return pattern

@@ -53,6 +53,7 @@ from app.patterns.application import (
     _accepted_snapshot_matches_context,
     _require_create_expected_version,
     _require_pattern_candidate_create_expected_version,
+    _new_pattern_updated_event,
     _require_pattern_review_expected_version,
     _reviewed_pattern_status_valid,
 )
@@ -62,6 +63,7 @@ from app.patterns.domain import (
     evidence_set_contract_valid,
     pattern_candidate_contract_valid,
 )
+from app.patterns.models import BehaviourPattern
 from app.platform.events import new_event
 
 
@@ -1178,6 +1180,65 @@ def test_pattern_review_uses_only_dec401_status_vocabulary() -> None:
     assert not _reviewed_pattern_status_valid("APPROVED")
 
 
+def test_pattern_updated_event_contract_is_minimal_and_versioned() -> None:
+    pattern = BehaviourPattern(
+        id=UUID("90000000-0000-0000-0000-000000000010"),
+        version=1,
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+        source_pattern_candidate_id=UUID(
+            "90000000-0000-0000-0000-000000000011"
+        ),
+        evidence_set_id=UUID("90000000-0000-0000-0000-000000000012"),
+        behaviour_code="METRIC_REASONING",
+        behaviour_description="Reviewed behaviour.",
+        pattern_status="STABLE",
+        scope="RECOVERY_EXPERIMENT",
+        rationale="Human reviewed rationale.",
+        reviewed_by=UUID("90000000-0000-0000-0000-000000000013"),
+        reviewed_at=datetime(2026, 10, 6, 8, 0, tzinfo=UTC),
+        created_at=datetime(2026, 10, 6, 8, 0, tzinfo=UTC),
+        updated_at=datetime(2026, 10, 6, 8, 0, tzinfo=UTC),
+    )
+    reviewer_id = UUID("90000000-0000-0000-0000-000000000013")
+
+    event = _new_pattern_updated_event(
+        pattern=pattern,
+        reviewer_id=reviewer_id,
+        trace_id="trace-pattern-review",
+    )
+
+    assert event.event_type == "pattern.updated.v1"
+    assert event.event_version == 1
+    assert event.aggregate_type == "BehaviourPattern"
+    assert event.aggregate_id == pattern.id
+    assert event.aggregate_version == 1
+    assert event.actor == {"type": "PERSON", "id": str(reviewer_id)}
+    assert event.organization_context_id == UUID(PATTERN_ORG_ID)
+    assert event.data_classification == "CONFIDENTIAL"
+    assert event.trace_id == "trace-pattern-review"
+    assert event.payload == {
+        "pattern_id": str(pattern.id),
+        "source_pattern_candidate_id": str(pattern.source_pattern_candidate_id),
+        "subject_person_id": str(pattern.subject_person_id),
+        "evidence_set_id": str(pattern.evidence_set_id),
+        "pattern_status": "STABLE",
+        "behaviour_code": "METRIC_REASONING",
+        "scope": "RECOVERY_EXPERIMENT",
+    }
+    assert "rationale" not in event.payload
+    assert "reviewed_by" not in event.payload
+
+
+def test_pattern_review_records_update_event_before_commit() -> None:
+    application_source = Path("app/patterns/application.py").read_text()
+    review_source = application_source.split("async def review_pattern_candidate", 1)[1]
+
+    event_index = review_source.index("_new_pattern_updated_event(")
+    commit_index = review_source.index("await db.commit()")
+    assert event_index < commit_index
+
+
 def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> None:
     application_source = Path("app/patterns/application.py").read_text()
     models_source = Path("app/patterns/models.py").read_text()
@@ -1185,5 +1246,5 @@ def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> No
     assert "app.evidence" not in application_source
     assert "app.evidence" not in models_source
     assert "evidence.evidence_" not in models_source
-    assert "pattern.updated.v1" not in application_source
+    assert 'event_type="pattern.updated.v1"' in application_source
 
