@@ -262,3 +262,75 @@ input:focus, select:focus {
   gap: 7px;
   font-weight: 750;
 }
+
+.pattern-shell {
+  padding-top: 10px;
+  border-top: 1px solid #ded7c8;
+}
+.pattern-shell label {
+  display: grid;
+  gap: 7px;
+  font-weight: 750;
+  font-size: .88rem;
+}
+.center-state.compact {
+  min-height: 120px;
+}
+.pattern-evidence-list,
+.pattern-relationship-list,
+.pattern-lineage-evidence {
+  display: grid;
+  gap: 10px;
+}
+.pattern-evidence-choice {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px !important;
+  padding: 12px 14px;
+  border: 1px solid #e8e3d8;
+  border-radius: 12px;
+  background: #fffdf9;
+}
+.pattern-evidence-choice input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+.pattern-evidence-choice span {
+  display: grid;
+  gap: 3px;
+}
+.pattern-evidence-choice small {
+  direction: ltr;
+  color: #7a8190;
+}
+.pattern-relationship-list .pattern-evidence-choice {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+}
+.pattern-reviewed-card {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 320px;
+}
+.pattern-lineage {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid #d8cfbd;
+  border-radius: 14px;
+  background: #fbf8f1;
+}
+.pattern-lineage pre {
+  margin: 10px 0 0;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .78rem;
+}
+@media (max-width: 760px) {
+  .pattern-relationship-list .pattern-evidence-choice {
+    grid-template-columns: 1fr;
+  }
+}

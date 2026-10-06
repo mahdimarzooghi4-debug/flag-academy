@@ -1,0 +1,111 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { AssessorPatternWorkspace, type PatternEvidenceSet } from "./PatternWorkspace";
+import type { EvidenceCase } from "./EvidenceWorkspace";
+
+const acceptedCase: EvidenceCase = {
+  id: "90000000-0000-0000-0000-000000000001",
+  version: 4,
+  organization_context_id: "00000000-0000-0000-0000-000000000001",
+  subject_person_id: "00000000-0000-0000-0000-000000000101",
+  source_observation_id: "90000000-0000-0000-0000-000000000002",
+  source_context: "MISSION_RUNTIME",
+  source_reference: "MISSION_INSTANCE:mission-1",
+  source_runtime_event_id: null,
+  observation_type: "EXPERIMENT_RESULT_OBSERVED",
+  observed_fact: "Experiment measurements were recorded.",
+  observed_payload: {},
+  occurred_at: "2026-10-06T07:00:00Z",
+  source_independence_group: "MISSION_INSTANCE:mission-1",
+  provenance: {},
+  integrity_state: "VERIFIED",
+  status: "ACCEPTED",
+  context_request: null,
+  interpretation: {
+    id: "90000000-0000-0000-0000-000000000003",
+    version_number: 1,
+    status: "ACTIVE",
+    behaviour_code: "METRIC_REASONING",
+    behaviour_description: "Candidate reasons from measurements without inventing proof.",
+    signal: "POSITIVE",
+    scope: "RECOVERY_EXPERIMENT",
+    confidence: "HIGH",
+    context_difficulty: "HIGH",
+    prompt_contamination: "NONE",
+    ai_contribution: "NONE",
+    mode: "ASSESSMENT",
+    rationale: "Human-reviewed interpretation.",
+    created_by: "90000000-0000-0000-0000-000000000004",
+    created_at: "2026-10-06T07:10:00Z",
+    links: [],
+  },
+  reviews: [],
+  candidate_responses: [],
+  created_at: "2026-10-06T07:00:00Z",
+  updated_at: "2026-10-06T07:20:00Z",
+  accepted_at: "2026-10-06T07:20:00Z",
+};
+
+describe("AssessorPatternWorkspace", () => {
+  it("starts Pattern assembly from Accepted Evidence only", async () => {
+    const evidenceSet: PatternEvidenceSet = {
+      id: "90000000-0000-0000-0000-000000000010",
+      evidence_set_key: "90000000-0000-0000-0000-000000000011",
+      version_number: 1,
+      subject_person_id: acceptedCase.subject_person_id,
+      created_at: "2026-10-06T08:00:00Z",
+      members: [
+        {
+          id: "90000000-0000-0000-0000-000000000012",
+          evidence_case_id: acceptedCase.id,
+          interpretation_id: acceptedCase.interpretation!.id,
+          interpretation_version: 1,
+          behaviour_code: "METRIC_REASONING",
+          signal: "POSITIVE",
+          scope: "RECOVERY_EXPERIMENT",
+          confidence: "HIGH",
+          accepted_at: "2026-10-06T07:20:00Z",
+          target_links: [],
+        },
+      ],
+    };
+    const onCreateEvidenceSet = vi.fn(async () => evidenceSet);
+
+    render(
+      <AssessorPatternWorkspace
+        cases={[
+          acceptedCase,
+          {
+            ...acceptedCase,
+            id: "90000000-0000-0000-0000-000000000099",
+            status: "UNDER_REVIEW",
+            observed_fact: "This case is not accepted yet.",
+          },
+        ]}
+        patterns={[]}
+        busy={false}
+        onCreateEvidenceSet={onCreateEvidenceSet}
+        onCreateCandidate={vi.fn()}
+        onReviewCandidate={vi.fn()}
+        onLoadLineage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Experiment measurements were recorded.")).toBeInTheDocument();
+    expect(screen.queryByText("This case is not accepted yet.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(`انتخاب Evidence ${acceptedCase.id}`));
+    fireEvent.click(screen.getByRole("button", { name: "ساخت Evidence Set" }));
+
+    await waitFor(() =>
+      expect(onCreateEvidenceSet).toHaveBeenCalledWith(
+        acceptedCase.subject_person_id,
+        [acceptedCase.id],
+      ),
+    );
+    expect(await screen.findByTestId("pattern-evidence-set-created")).toHaveTextContent(
+      "Evidence Set v1",
+    );
+    expect(screen.getByText("۲. Pattern Candidate")).toBeInTheDocument();
+  });
+});
