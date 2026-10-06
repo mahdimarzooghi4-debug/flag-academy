@@ -12,6 +12,12 @@ from app.evidence.domain import (
     case_transition_allowed,
     interpretation_contract_valid,
 )
+from app.flag_profile.domain import (
+    CapabilityClaimState,
+    CapabilityLevel,
+    ClaimPatternRelationship,
+    ProfileUpdateCaseState,
+)
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
     LearningPhase,
@@ -1267,3 +1273,72 @@ def test_pattern_candidate_evidence_set_lookup_is_tenant_scoped_before_lock() ->
     assert "EvidenceSet.id == command.evidence_set_id" in lookup
     assert "EvidenceSet.organization_context_id" in lookup
     assert "command.organization_context_id" in lookup
+
+
+
+def test_flag_profile_claim_vocabularies_are_exact() -> None:
+    assert {state.value for state in CapabilityClaimState} == {
+        "UNPROVEN",
+        "EMERGING",
+        "DEMONSTRATED",
+        "PROVEN",
+    }
+    assert {level.value for level in CapabilityLevel} == {
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+    }
+    assert {state.value for state in ProfileUpdateCaseState} == {
+        "PROPOSED",
+        "REVIEW_REQUIRED",
+        "AUTO_ELIGIBLE",
+        "APPROVED",
+        "APPLIED",
+    }
+    assert {item.value for item in ClaimPatternRelationship} == {
+        "SUPPORTING",
+        "CONTRADICTORY",
+    }
+
+
+def test_flag_profile_persistence_keeps_cross_context_refs_opaque() -> None:
+    models_source = Path("app/flag_profile/models.py").read_text()
+    migration_source = Path(
+        "alembic/versions/0016_flag_profile_capability_claim_foundation.py"
+    ).read_text()
+
+    assert "app.patterns" not in models_source
+    assert "app.evidence" not in models_source
+    assert "app.curriculum" not in models_source
+    assert '"patterns.' not in migration_source
+    assert '"evidence.' not in migration_source
+    assert '"curriculum.' not in migration_source
+
+    assert 'ForeignKey("flag_profile.flag_profiles.id")' in models_source
+    assert 'ForeignKey("flag_profile.profile_update_cases.id")' in models_source
+    assert 'ForeignKey("flag_profile.profile_update_patterns.id")' in models_source
+    assert 'ForeignKey("flag_profile.capability_claims.id")' in models_source
+
+
+def test_flag_profile_lineage_is_explicit_not_aggregate_json() -> None:
+    models_source = Path("app/flag_profile/models.py").read_text()
+
+    assert "ProfileUpdatePattern" in models_source
+    assert "ProfileUpdatePatternEvidence" in models_source
+    assert "CapabilityClaimPattern" in models_source
+    assert "evidence_case_id" in models_source
+    assert "interpretation_id" in models_source
+    assert "source_observation_id" in models_source
+    assert "source_reference" in models_source
+    assert "JSONB" not in models_source
+
+
+def test_capability_claim_persistence_has_no_gate_or_responsibility_state() -> None:
+    models_source = Path("app/flag_profile/models.py").read_text()
+
+    assert "GateAssessment" not in models_source
+    assert "ResponsibilityRecommendation" not in models_source
+    assert "gate_state" not in models_source
+    assert "responsibility_state" not in models_source
