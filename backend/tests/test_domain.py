@@ -22,7 +22,6 @@ from app.flag_profile.application import (
     _require_profile_update_create_expected_version,
     _require_profile_update_expected_version,
 )
-from app.flag_profile.models import ProfileUpdateCase
 from app.flag_profile.domain import (
     CapabilityClaimState,
     CapabilityLevel,
@@ -30,6 +29,7 @@ from app.flag_profile.domain import (
     ProfileUpdateCaseState,
     profile_update_transition_allowed,
 )
+from app.flag_profile.models import ProfileUpdateCase
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
     LearningPhase,
