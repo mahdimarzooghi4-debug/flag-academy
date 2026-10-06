@@ -10,8 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppError
 from app.flag_profile.domain import (
-    CapabilityLevel,
-    ClaimPatternRelationship,
     ProfileUpdateCaseState,
     capability_level_valid,
     claim_pattern_relationship_valid,
