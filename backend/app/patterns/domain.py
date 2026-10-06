@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, TypeGuard
 
 
 class PatternStatus(StrEnum):
@@ -25,7 +25,7 @@ def _non_empty_text(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _uuid_text(value: Any) -> bool:
+def _uuid_text(value: Any) -> TypeGuard[str]:
     if not _non_empty_text(value):
         return False
     try:
