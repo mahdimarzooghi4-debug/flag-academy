@@ -13,7 +13,6 @@ class GateDefinition(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     code: Mapped[str] = mapped_column(String(8), unique=True)
-    name: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -33,6 +32,7 @@ class GateDefinitionVersion(Base):
         ForeignKey("gate_assessment.gate_definitions.id")
     )
     version_number: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(255))
     decision_question: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
