@@ -13,10 +13,14 @@ from app.evidence.domain import (
     interpretation_contract_valid,
 )
 from app.flag_profile.application import (
+    ApplyProfileUpdateCaseCommand,
     ApproveProfileUpdateCaseCommand,
     CreateProfileUpdateCaseCommand,
     ProfileUpdatePatternInput,
+    _applied_retry_matches,
     _approval_retry_matches,
+    _claim_snapshot_matches_current,
+    _new_profile_claim_changed_event,
     _require_create_contract,
     _require_profile_update_approval_contract,
     _require_profile_update_create_expected_version,
@@ -1795,3 +1799,207 @@ def test_profile_review_migration_is_flag_profile_local() -> None:
     assert "patterns." not in migration_source
     assert "evidence." not in migration_source
     assert "curriculum." not in migration_source
+
+
+
+def _profile_apply_command() -> ApplyProfileUpdateCaseCommand:
+    return ApplyProfileUpdateCaseCommand(
+        organization_context_id=UUID("00000000-0000-0000-0000-000000000001"),
+        profile_update_case_id=UUID(
+            "91000000-0000-0000-0000-000000000001"
+        ),
+        applied_by=UUID("00000000-0000-0000-0000-000000000106"),
+        expected_version=3,
+        idempotency_key="profile-update-apply-1",
+        trace_id="trace-profile-update-apply-1",
+    )
+
+
+def test_profile_apply_event_contains_old_and_new_claim_facts() -> None:
+    event = _new_profile_claim_changed_event(
+        organization_context_id=UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        subject_person_id=UUID(
+            "00000000-0000-0000-0000-000000000101"
+        ),
+        profile_update_case_id=UUID(
+            "91000000-0000-0000-0000-000000000001"
+        ),
+        claim_id=UUID("92000000-0000-0000-0000-000000000001"),
+        claim_version=2,
+        capability_id=UUID(
+            "10000000-0000-0000-0000-000000000003"
+        ),
+        track_code="PRODUCT_MANAGER",
+        old_claim={
+            "claim_id": "92000000-0000-0000-0000-000000000001",
+            "version": 1,
+            "state": "EMERGING",
+            "level": "L1",
+            "proven_scope": "SIMULATION",
+            "evidence_recency": "CURRENT",
+            "confidence_in_claim": "MODERATE",
+            "next_evidence_needed": "Real project evidence.",
+        },
+        new_claim={
+            "claim_id": "92000000-0000-0000-0000-000000000001",
+            "version": 2,
+            "state": "DEMONSTRATED",
+            "level": "L2",
+            "proven_scope": "PROJECT",
+            "evidence_recency": "CURRENT",
+            "confidence_in_claim": "MODERATE",
+            "next_evidence_needed": "Authority-pressure evidence.",
+        },
+        pattern_refs=[
+            {
+                "pattern_id": "90000000-0000-0000-0000-000000000001",
+                "pattern_version": 1,
+                "relationship": "SUPPORTING",
+            }
+        ],
+        applied_by=UUID("00000000-0000-0000-0000-000000000106"),
+        trace_id="trace-profile-update-apply-1",
+    )
+
+    assert event.event_type == "profile.claim_changed.v1"
+    assert event.aggregate_type == "CapabilityClaim"
+    assert event.aggregate_version == 2
+    assert event.payload["old_claim"]["state"] == "EMERGING"
+    assert event.payload["new_claim"]["state"] == "DEMONSTRATED"
+    assert event.payload["pattern_refs"][0]["relationship"] == "SUPPORTING"
+    assert "review_rationale" not in event.payload
+    assert "reviewed_by" not in event.payload
+
+
+def test_profile_apply_detects_current_claim_changed_after_proposal() -> None:
+    update_case = ProfileUpdateCase(
+        current_claim_id=UUID("92000000-0000-0000-0000-000000000001"),
+        current_claim_version=1,
+        current_claim_state="EMERGING",
+        current_level="L1",
+        current_proven_scope="SIMULATION",
+        current_evidence_recency="CURRENT",
+        current_confidence_in_claim="MODERATE",
+        current_next_evidence_needed="Real project evidence.",
+    )
+    current_claim = CapabilityClaim(
+        id=UUID("92000000-0000-0000-0000-000000000001"),
+        version=1,
+        state="EMERGING",
+        level="L1",
+        proven_scope="SIMULATION",
+        evidence_recency="CURRENT",
+        confidence_in_claim="MODERATE",
+        next_evidence_needed="Real project evidence.",
+    )
+    assert _claim_snapshot_matches_current(update_case, current_claim)
+
+    current_claim.version = 2
+    assert not _claim_snapshot_matches_current(update_case, current_claim)
+
+
+def test_profile_apply_new_claim_requires_snapshot_to_still_be_empty() -> None:
+    update_case = ProfileUpdateCase(
+        current_claim_id=None,
+        current_claim_version=None,
+        current_claim_state=None,
+        current_level=None,
+        current_proven_scope=None,
+        current_evidence_recency=None,
+        current_confidence_in_claim=None,
+        current_next_evidence_needed=None,
+    )
+    assert _claim_snapshot_matches_current(update_case, None)
+
+    unexpected_claim = CapabilityClaim(
+        id=UUID("92000000-0000-0000-0000-000000000001"),
+        version=1,
+        state="EMERGING",
+        level="L1",
+        proven_scope="SIMULATION",
+        evidence_recency="CURRENT",
+        confidence_in_claim="MODERATE",
+        next_evidence_needed="More evidence.",
+    )
+    assert not _claim_snapshot_matches_current(update_case, unexpected_claim)
+
+
+def test_profile_apply_is_approved_only_and_uses_reviewed_values() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    apply_source = source.split("async def apply_profile_update_case", 1)[1]
+
+    assert "ProfileUpdateCaseState.APPLIED.value" in apply_source
+    assert "profile_update_transition_allowed(" in apply_source
+    assert "update_case.reviewed_claim_state" in apply_source
+    assert "update_case.reviewed_level" in apply_source
+    assert "update_case.reviewed_proven_scope" in apply_source
+    assert "claim.state = update_case.proposed_claim_state" not in apply_source
+    assert "claim.level = update_case.proposed_level" not in apply_source
+
+
+def test_profile_apply_replaces_claim_pattern_relationships_explicitly() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    apply_source = source.split("async def apply_profile_update_case", 1)[1]
+
+    assert "delete(CapabilityClaimPattern)" in apply_source
+    assert "CapabilityClaimPattern(" in apply_source
+    assert "relationship=pattern.relationship" in apply_source
+    assert "pattern_version=pattern.pattern_version" in apply_source
+
+
+def test_profile_apply_records_event_before_single_commit() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    apply_source = source.split("async def apply_profile_update_case", 1)[1]
+
+    event_index = apply_source.index("_new_profile_claim_changed_event(")
+    commit_index = apply_source.index("await db.commit()")
+    assert event_index < commit_index
+    assert apply_source.count("await db.commit()") == 1
+    assert "record_event(" in apply_source
+
+
+def test_profile_apply_does_not_mutate_gate_or_responsibility() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    apply_source = source.split("async def apply_profile_update_case", 1)[1]
+
+    assert "GateAssessment" not in apply_source
+    assert "ResponsibilityRecommendation" not in apply_source
+    assert "gate." not in apply_source
+    assert "responsibility." not in apply_source
+
+
+def test_profile_apply_exact_retry_contract() -> None:
+    command = _profile_apply_command()
+    update_case = ProfileUpdateCase(
+        state="APPLIED",
+        apply_idempotency_key=command.idempotency_key,
+        applied_by=command.applied_by,
+    )
+    assert _applied_retry_matches(
+        update_case,
+        command=command,
+        idempotency_key=command.idempotency_key,
+    )
+    assert not _applied_retry_matches(
+        update_case,
+        command=replace(
+            command,
+            applied_by=UUID("00000000-0000-0000-0000-000000000107"),
+        ),
+        idempotency_key=command.idempotency_key,
+    )
+
+
+def test_profile_apply_is_tenant_scoped_before_lock() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    apply_source = source.split("async def apply_profile_update_case", 1)[1]
+    lookup = apply_source.split("select(ProfileUpdateCase)", 1)[1].split(
+        ".with_for_update()",
+        1,
+    )[0]
+
+    assert "ProfileUpdateCase.id == command.profile_update_case_id" in lookup
+    assert "ProfileUpdateCase.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup

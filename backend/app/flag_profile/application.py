@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppError
@@ -18,12 +18,14 @@ from app.flag_profile.domain import (
 )
 from app.flag_profile.models import (
     CapabilityClaim,
+    CapabilityClaimPattern,
     FlagProfile,
     ProfileUpdateCase,
     ProfileUpdatePattern,
     ProfileUpdatePatternEvidence,
 )
 from app.patterns.contracts import ReviewedPatternSnapshotContract
+from app.platform.events import EventEnvelope, new_event, record_event
 
 
 class ReviewedPatternReader(Protocol):
@@ -863,3 +865,360 @@ async def approve_profile_update_case(
 
     await db.commit()
     return update_case
+
+
+
+@dataclass(frozen=True)
+class ApplyProfileUpdateCaseCommand:
+    organization_context_id: UUID
+    profile_update_case_id: UUID
+    applied_by: UUID
+    expected_version: int
+    idempotency_key: str
+    trace_id: str
+
+
+def _claim_snapshot_matches_current(
+    update_case: ProfileUpdateCase,
+    current_claim: CapabilityClaim | None,
+) -> bool:
+    if update_case.current_claim_id is None:
+        return current_claim is None
+    return (
+        current_claim is not None
+        and current_claim.id == update_case.current_claim_id
+        and current_claim.version == update_case.current_claim_version
+        and current_claim.state == update_case.current_claim_state
+        and current_claim.level == update_case.current_level
+        and current_claim.proven_scope == update_case.current_proven_scope
+        and current_claim.evidence_recency
+        == update_case.current_evidence_recency
+        and current_claim.confidence_in_claim
+        == update_case.current_confidence_in_claim
+        and current_claim.next_evidence_needed
+        == update_case.current_next_evidence_needed
+    )
+
+
+def _new_profile_claim_changed_event(
+    *,
+    organization_context_id: UUID,
+    subject_person_id: UUID,
+    profile_update_case_id: UUID,
+    claim_id: UUID,
+    claim_version: int,
+    capability_id: UUID,
+    track_code: str,
+    old_claim: dict | None,
+    new_claim: dict,
+    pattern_refs: list[dict],
+    applied_by: UUID,
+    trace_id: str,
+) -> EventEnvelope:
+    return new_event(
+        event_type="profile.claim_changed.v1",
+        aggregate_type="CapabilityClaim",
+        aggregate_id=claim_id,
+        aggregate_version=claim_version,
+        actor={"type": "PERSON", "id": str(applied_by)},
+        organization_context_id=organization_context_id,
+        data_classification="CONFIDENTIAL",
+        payload={
+            "profile_update_case_id": str(profile_update_case_id),
+            "subject_person_id": str(subject_person_id),
+            "capability_id": str(capability_id),
+            "track_code": track_code,
+            "old_claim": old_claim,
+            "new_claim": new_claim,
+            "pattern_refs": pattern_refs,
+        },
+        trace_id=trace_id,
+    )
+
+
+def _applied_retry_matches(
+    update_case: ProfileUpdateCase,
+    *,
+    command: ApplyProfileUpdateCaseCommand,
+    idempotency_key: str,
+) -> bool:
+    return (
+        update_case.state == ProfileUpdateCaseState.APPLIED.value
+        and update_case.apply_idempotency_key == idempotency_key
+        and update_case.applied_by == command.applied_by
+    )
+
+
+def _reviewed_values_complete(update_case: ProfileUpdateCase) -> bool:
+    return (
+        update_case.reviewed_claim_state is not None
+        and update_case.reviewed_level is not None
+        and update_case.reviewed_proven_scope is not None
+        and update_case.reviewed_evidence_recency is not None
+        and update_case.reviewed_confidence_in_claim is not None
+        and update_case.reviewed_next_evidence_needed is not None
+        and update_case.reviewed_by is not None
+        and update_case.reviewed_at is not None
+        and update_case.review_rationale is not None
+    )
+
+
+async def apply_profile_update_case(
+    db: AsyncSession,
+    *,
+    command: ApplyProfileUpdateCaseCommand,
+) -> CapabilityClaim:
+    idempotency_key = command.idempotency_key.strip()
+    if not idempotency_key:
+        raise AppError(
+            "PROFILE_IDEMPOTENCY_KEY_REQUIRED",
+            "Idempotency key is required.",
+            status_code=422,
+        )
+
+    update_case = (
+        await db.execute(
+            select(ProfileUpdateCase)
+            .where(
+                ProfileUpdateCase.id == command.profile_update_case_id,
+                ProfileUpdateCase.organization_context_id
+                == command.organization_context_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if update_case is None:
+        raise AppError(
+            "PROFILE_UPDATE_CASE_NOT_FOUND",
+            "Profile update case not found.",
+            status_code=404,
+        )
+
+    if update_case.apply_idempotency_key is not None:
+        if _applied_retry_matches(
+            update_case,
+            command=command,
+            idempotency_key=idempotency_key,
+        ):
+            applied_claim = (
+                await db.execute(
+                    select(CapabilityClaim).where(
+                        CapabilityClaim.flag_profile_id
+                        == update_case.flag_profile_id,
+                        CapabilityClaim.capability_id
+                        == update_case.capability_id,
+                        CapabilityClaim.source_profile_update_case_id
+                        == update_case.id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if applied_claim is None:
+                raise AppError(
+                    "PROFILE_APPLIED_CLAIM_NOT_FOUND",
+                    "Applied Capability Claim could not be found.",
+                    status_code=409,
+                )
+            return applied_claim
+        if update_case.apply_idempotency_key == idempotency_key:
+            raise AppError(
+                "PROFILE_IDEMPOTENCY_KEY_REUSED",
+                "Idempotency key was already used for a different Profile apply command.",
+                status_code=409,
+            )
+
+    _require_profile_update_expected_version(
+        current_version=update_case.version,
+        expected_version=command.expected_version,
+    )
+    if not profile_update_transition_allowed(
+        update_case.state,
+        ProfileUpdateCaseState.APPLIED.value,
+    ):
+        raise AppError(
+            "PROFILE_UPDATE_STATE_CONFLICT",
+            "Profile update case cannot be applied from its current state.",
+            status_code=409,
+            details={
+                "current_state": update_case.state,
+                "target_state": ProfileUpdateCaseState.APPLIED.value,
+            },
+        )
+    if not _reviewed_values_complete(update_case):
+        raise AppError(
+            "PROFILE_UPDATE_REVIEW_INCOMPLETE",
+            "Approved Profile update is missing Human Review values.",
+            status_code=409,
+        )
+
+    profile = (
+        await db.execute(
+            select(FlagProfile)
+            .where(
+                FlagProfile.id == update_case.flag_profile_id,
+                FlagProfile.organization_context_id
+                == command.organization_context_id,
+                FlagProfile.subject_person_id == update_case.subject_person_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if profile is None:
+        raise AppError(
+            "FLAG_PROFILE_NOT_FOUND",
+            "Flag Profile not found.",
+            status_code=404,
+        )
+
+    current_claim = (
+        await db.execute(
+            select(CapabilityClaim)
+            .where(
+                CapabilityClaim.flag_profile_id == profile.id,
+                CapabilityClaim.capability_id == update_case.capability_id,
+                CapabilityClaim.organization_context_id
+                == command.organization_context_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if not _claim_snapshot_matches_current(update_case, current_claim):
+        raise AppError(
+            "PROFILE_CURRENT_CLAIM_CHANGED",
+            "Current Capability Claim changed after this Profile update was proposed.",
+            status_code=409,
+        )
+
+    pattern_rows = (
+        await db.execute(
+            select(ProfileUpdatePattern)
+            .where(
+                ProfileUpdatePattern.profile_update_case_id == update_case.id,
+            )
+            .order_by(ProfileUpdatePattern.pattern_id)
+        )
+    ).scalars().all()
+    if not pattern_rows:
+        raise AppError(
+            "PROFILE_UPDATE_LINEAGE_INCOMPLETE",
+            "Approved Profile update has no Reviewed Pattern lineage.",
+            status_code=409,
+        )
+
+    old_claim = (
+        None
+        if current_claim is None
+        else {
+            "claim_id": str(current_claim.id),
+            "version": current_claim.version,
+            "state": current_claim.state,
+            "level": current_claim.level,
+            "proven_scope": current_claim.proven_scope,
+            "evidence_recency": current_claim.evidence_recency,
+            "confidence_in_claim": current_claim.confidence_in_claim,
+            "next_evidence_needed": current_claim.next_evidence_needed,
+        }
+    )
+
+    now = datetime.now(UTC)
+    if current_claim is None:
+        claim = CapabilityClaim(
+            id=uuid4(),
+            version=1,
+            flag_profile_id=profile.id,
+            organization_context_id=update_case.organization_context_id,
+            subject_person_id=update_case.subject_person_id,
+            track_code=update_case.track_code,
+            capability_id=update_case.capability_id,
+            state=update_case.reviewed_claim_state,
+            level=update_case.reviewed_level,
+            proven_scope=update_case.reviewed_proven_scope,
+            evidence_recency=update_case.reviewed_evidence_recency,
+            confidence_in_claim=update_case.reviewed_confidence_in_claim,
+            reviewed_at=update_case.reviewed_at,
+            reviewed_by=update_case.reviewed_by,
+            next_evidence_needed=update_case.reviewed_next_evidence_needed,
+            source_profile_update_case_id=update_case.id,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(claim)
+        await db.flush()
+    else:
+        claim = current_claim
+        claim.version += 1
+        claim.state = update_case.reviewed_claim_state
+        claim.level = update_case.reviewed_level
+        claim.proven_scope = update_case.reviewed_proven_scope
+        claim.evidence_recency = update_case.reviewed_evidence_recency
+        claim.confidence_in_claim = update_case.reviewed_confidence_in_claim
+        claim.reviewed_at = update_case.reviewed_at
+        claim.reviewed_by = update_case.reviewed_by
+        claim.next_evidence_needed = update_case.reviewed_next_evidence_needed
+        claim.source_profile_update_case_id = update_case.id
+        claim.updated_at = now
+
+        await db.execute(
+            delete(CapabilityClaimPattern).where(
+                CapabilityClaimPattern.capability_claim_id == claim.id
+            )
+        )
+
+    pattern_refs = [
+        {
+            "pattern_id": str(pattern.pattern_id),
+            "pattern_version": pattern.pattern_version,
+            "relationship": pattern.relationship,
+        }
+        for pattern in pattern_rows
+    ]
+    for pattern in pattern_rows:
+        db.add(
+            CapabilityClaimPattern(
+                id=uuid4(),
+                capability_claim_id=claim.id,
+                pattern_id=pattern.pattern_id,
+                pattern_version=pattern.pattern_version,
+                relationship=pattern.relationship,
+                created_at=now,
+            )
+        )
+
+    profile.version += 1
+    profile.updated_at = now
+    update_case.state = ProfileUpdateCaseState.APPLIED.value
+    update_case.version += 1
+    update_case.applied_by = command.applied_by
+    update_case.applied_at = now
+    update_case.apply_idempotency_key = idempotency_key
+    update_case.updated_at = now
+
+    new_claim = {
+        "claim_id": str(claim.id),
+        "version": claim.version,
+        "state": claim.state,
+        "level": claim.level,
+        "proven_scope": claim.proven_scope,
+        "evidence_recency": claim.evidence_recency,
+        "confidence_in_claim": claim.confidence_in_claim,
+        "next_evidence_needed": claim.next_evidence_needed,
+    }
+    record_event(
+        db,
+        _new_profile_claim_changed_event(
+            organization_context_id=update_case.organization_context_id,
+            subject_person_id=update_case.subject_person_id,
+            profile_update_case_id=update_case.id,
+            claim_id=claim.id,
+            claim_version=claim.version,
+            capability_id=update_case.capability_id,
+            track_code=update_case.track_code,
+            old_claim=old_claim,
+            new_claim=new_claim,
+            pattern_refs=pattern_refs,
+            applied_by=command.applied_by,
+            trace_id=command.trace_id,
+        ),
+    )
+
+    await db.commit()
+    return claim
