@@ -14,6 +14,7 @@ from app.flag_profile.domain import (
     capability_level_valid,
     claim_pattern_relationship_valid,
     profile_claim_state_valid,
+    profile_update_transition_allowed,
 )
 from app.flag_profile.models import (
     CapabilityClaim,
@@ -415,3 +416,268 @@ async def create_profile_update_case(
 
     await db.commit()
     return update_case
+
+
+
+@dataclass(frozen=True)
+class RequestProfileUpdateReviewCommand:
+    organization_context_id: UUID
+    profile_update_case_id: UUID
+    expected_version: int
+    trace_id: str
+
+
+def _require_profile_update_expected_version(
+    *,
+    current_version: int,
+    expected_version: int,
+) -> None:
+    if expected_version != current_version:
+        raise AppError(
+            "VERSION_CONFLICT",
+            "Profile update case changed. Refresh and retry.",
+            status_code=409,
+            details={
+                "expected_version": expected_version,
+                "current_version": current_version,
+            },
+        )
+
+
+async def request_profile_update_review(
+    db: AsyncSession,
+    *,
+    command: RequestProfileUpdateReviewCommand,
+) -> ProfileUpdateCase:
+    update_case = (
+        await db.execute(
+            select(ProfileUpdateCase)
+            .where(
+                ProfileUpdateCase.id == command.profile_update_case_id,
+                ProfileUpdateCase.organization_context_id
+                == command.organization_context_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if update_case is None:
+        raise AppError(
+            "PROFILE_UPDATE_CASE_NOT_FOUND",
+            "Profile update case not found.",
+            status_code=404,
+        )
+
+    _require_profile_update_expected_version(
+        current_version=update_case.version,
+        expected_version=command.expected_version,
+    )
+
+    if not profile_update_transition_allowed(
+        update_case.state,
+        ProfileUpdateCaseState.REVIEW_REQUIRED.value,
+    ):
+        raise AppError(
+            "PROFILE_UPDATE_STATE_CONFLICT",
+            "Profile update case cannot enter Human Review from its current state.",
+            status_code=409,
+            details={
+                "current_state": update_case.state,
+                "target_state": ProfileUpdateCaseState.REVIEW_REQUIRED.value,
+            },
+        )
+
+    update_case.state = ProfileUpdateCaseState.REVIEW_REQUIRED.value
+    update_case.version += 1
+    update_case.updated_at = datetime.now(UTC)
+    await db.commit()
+    return update_case
+
+
+@dataclass(frozen=True)
+class ProfileUpdateEvidenceLineage:
+    evidence_set_member_id: UUID
+    evidence_case_id: UUID
+    interpretation_id: UUID
+    interpretation_version: int
+    evidence_relationship: str
+    signal: str
+    scope: str
+    confidence: str
+    context_difficulty: str
+    prompt_contamination: str
+    source_independence_group: str
+    accepted_at: datetime
+    source_observation_id: UUID
+    source_context: str
+    source_reference: str
+    observation_type: str
+
+
+@dataclass(frozen=True)
+class ProfileUpdatePatternLineage:
+    pattern_id: UUID
+    pattern_version: int
+    relationship: str
+    pattern_status: str
+    behaviour_code: str
+    scope: str
+    reviewed_at: datetime
+    evidence: tuple[ProfileUpdateEvidenceLineage, ...]
+
+
+@dataclass(frozen=True)
+class ProfileUpdateCasePreReview:
+    id: UUID
+    version: int
+    organization_context_id: UUID
+    subject_person_id: UUID
+    track_code: str
+    capability_id: UUID
+    state: str
+    current_claim_id: UUID | None
+    current_claim_version: int | None
+    current_claim_state: str | None
+    current_level: str | None
+    current_proven_scope: str | None
+    current_evidence_recency: str | None
+    current_confidence_in_claim: str | None
+    current_next_evidence_needed: str | None
+    proposed_claim_state: str
+    proposed_level: str
+    proposed_proven_scope: str
+    proposed_evidence_recency: str
+    proposed_confidence_in_claim: str
+    proposed_next_evidence_needed: str
+    rationale: str
+    patterns: tuple[ProfileUpdatePatternLineage, ...]
+
+
+async def load_profile_update_case_pre_review(
+    db: AsyncSession,
+    *,
+    organization_context_id: UUID,
+    profile_update_case_id: UUID,
+) -> ProfileUpdateCasePreReview:
+    update_case = (
+        await db.execute(
+            select(ProfileUpdateCase).where(
+                ProfileUpdateCase.id == profile_update_case_id,
+                ProfileUpdateCase.organization_context_id
+                == organization_context_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if update_case is None:
+        raise AppError(
+            "PROFILE_UPDATE_CASE_NOT_FOUND",
+            "Profile update case not found.",
+            status_code=404,
+        )
+    if update_case.state != ProfileUpdateCaseState.REVIEW_REQUIRED.value:
+        raise AppError(
+            "PROFILE_UPDATE_NOT_REVIEWABLE",
+            "Profile update case must be in REVIEW_REQUIRED before Human Review.",
+            status_code=409,
+            details={"current_state": update_case.state},
+        )
+
+    pattern_rows = (
+        await db.execute(
+            select(ProfileUpdatePattern)
+            .where(
+                ProfileUpdatePattern.profile_update_case_id == update_case.id,
+            )
+            .order_by(
+                ProfileUpdatePattern.pattern_reviewed_at,
+                ProfileUpdatePattern.pattern_id,
+            )
+        )
+    ).scalars().all()
+    if not pattern_rows:
+        raise AppError(
+            "PROFILE_UPDATE_LINEAGE_INCOMPLETE",
+            "Profile update case has no Reviewed Pattern lineage.",
+            status_code=409,
+        )
+
+    patterns: list[ProfileUpdatePatternLineage] = []
+    for pattern in pattern_rows:
+        evidence_rows = (
+            await db.execute(
+                select(ProfileUpdatePatternEvidence)
+                .where(
+                    ProfileUpdatePatternEvidence.profile_update_pattern_id
+                    == pattern.id,
+                )
+                .order_by(
+                    ProfileUpdatePatternEvidence.accepted_at,
+                    ProfileUpdatePatternEvidence.evidence_set_member_id,
+                )
+            )
+        ).scalars().all()
+        if not evidence_rows:
+            raise AppError(
+                "PROFILE_UPDATE_LINEAGE_INCOMPLETE",
+                "Profile update Pattern has no Evidence lineage.",
+                status_code=409,
+                details={"pattern_id": str(pattern.pattern_id)},
+            )
+
+        patterns.append(
+            ProfileUpdatePatternLineage(
+                pattern_id=pattern.pattern_id,
+                pattern_version=pattern.pattern_version,
+                relationship=pattern.relationship,
+                pattern_status=pattern.pattern_status,
+                behaviour_code=pattern.behaviour_code,
+                scope=pattern.pattern_scope,
+                reviewed_at=pattern.pattern_reviewed_at,
+                evidence=tuple(
+                    ProfileUpdateEvidenceLineage(
+                        evidence_set_member_id=evidence.evidence_set_member_id,
+                        evidence_case_id=evidence.evidence_case_id,
+                        interpretation_id=evidence.interpretation_id,
+                        interpretation_version=evidence.interpretation_version,
+                        evidence_relationship=evidence.evidence_relationship,
+                        signal=evidence.signal,
+                        scope=evidence.evidence_scope,
+                        confidence=evidence.confidence,
+                        context_difficulty=evidence.context_difficulty,
+                        prompt_contamination=evidence.prompt_contamination,
+                        source_independence_group=evidence.source_independence_group,
+                        accepted_at=evidence.accepted_at,
+                        source_observation_id=evidence.source_observation_id,
+                        source_context=evidence.source_context,
+                        source_reference=evidence.source_reference,
+                        observation_type=evidence.observation_type,
+                    )
+                    for evidence in evidence_rows
+                ),
+            )
+        )
+
+    return ProfileUpdateCasePreReview(
+        id=update_case.id,
+        version=update_case.version,
+        organization_context_id=update_case.organization_context_id,
+        subject_person_id=update_case.subject_person_id,
+        track_code=update_case.track_code,
+        capability_id=update_case.capability_id,
+        state=update_case.state,
+        current_claim_id=update_case.current_claim_id,
+        current_claim_version=update_case.current_claim_version,
+        current_claim_state=update_case.current_claim_state,
+        current_level=update_case.current_level,
+        current_proven_scope=update_case.current_proven_scope,
+        current_evidence_recency=update_case.current_evidence_recency,
+        current_confidence_in_claim=update_case.current_confidence_in_claim,
+        current_next_evidence_needed=update_case.current_next_evidence_needed,
+        proposed_claim_state=update_case.proposed_claim_state,
+        proposed_level=update_case.proposed_level,
+        proposed_proven_scope=update_case.proposed_proven_scope,
+        proposed_evidence_recency=update_case.proposed_evidence_recency,
+        proposed_confidence_in_claim=update_case.proposed_confidence_in_claim,
+        proposed_next_evidence_needed=update_case.proposed_next_evidence_needed,
+        rationale=update_case.rationale,
+        patterns=tuple(patterns),
+    )

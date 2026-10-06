@@ -17,12 +17,14 @@ from app.flag_profile.application import (
     ProfileUpdatePatternInput,
     _require_create_contract,
     _require_profile_update_create_expected_version,
+    _require_profile_update_expected_version,
 )
 from app.flag_profile.domain import (
     CapabilityClaimState,
     CapabilityLevel,
     ClaimPatternRelationship,
     ProfileUpdateCaseState,
+    profile_update_transition_allowed,
 )
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
@@ -1532,3 +1534,90 @@ def test_profile_update_creation_scopes_pattern_reader_to_tenant_and_subject() -
     assert "subject_person_id=command.subject_person_id" in create_source
     assert 'code="PROFILE_PATTERN_NOT_FOUND"' not in create_source
     assert '"PROFILE_PATTERN_NOT_FOUND"' in create_source
+
+
+
+def test_profile_update_transition_graph_is_explicit() -> None:
+    assert profile_update_transition_allowed("PROPOSED", "REVIEW_REQUIRED")
+    assert profile_update_transition_allowed("PROPOSED", "AUTO_ELIGIBLE")
+    assert profile_update_transition_allowed("REVIEW_REQUIRED", "APPROVED")
+    assert profile_update_transition_allowed("AUTO_ELIGIBLE", "APPROVED")
+    assert profile_update_transition_allowed("APPROVED", "APPLIED")
+
+    assert not profile_update_transition_allowed("PROPOSED", "APPROVED")
+    assert not profile_update_transition_allowed("REVIEW_REQUIRED", "APPLIED")
+    assert not profile_update_transition_allowed("APPLIED", "PROPOSED")
+
+
+def test_profile_update_review_request_rejects_stale_version() -> None:
+    _require_profile_update_expected_version(
+        current_version=1,
+        expected_version=1,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        _require_profile_update_expected_version(
+            current_version=2,
+            expected_version=1,
+        )
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 2,
+    }
+
+
+def test_profile_update_review_request_is_tenant_scoped_before_lock() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    segment = source.split(
+        "async def request_profile_update_review",
+        1,
+    )[1].split(
+        "@dataclass(frozen=True)\nclass ProfileUpdateEvidenceLineage",
+        1,
+    )[0]
+    lookup = segment.split("select(ProfileUpdateCase)", 1)[1].split(
+        ".with_for_update()",
+        1,
+    )[0]
+
+    assert "ProfileUpdateCase.id == command.profile_update_case_id" in lookup
+    assert "ProfileUpdateCase.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup
+    assert "ProfileUpdateCaseState.REVIEW_REQUIRED.value" in segment
+    assert "update_case.version += 1" in segment
+    assert "CapabilityClaim(" not in segment
+    assert "profile.claim_changed.v1" not in segment
+
+
+def test_profile_update_pre_review_reads_only_local_lineage_snapshots() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    segment = source.split(
+        "async def load_profile_update_case_pre_review",
+        1,
+    )[1]
+
+    assert "ProfileUpdateCase.organization_context_id" in segment
+    assert "ProfileUpdateCaseState.REVIEW_REQUIRED.value" in segment
+    assert "ProfileUpdatePattern" in segment
+    assert "ProfileUpdatePatternEvidence" in segment
+    assert "app.patterns.models" not in segment
+    assert "app.evidence" not in segment
+    assert "source_observation_id" in segment
+    assert "source_reference" in segment
+    assert "evidence_relationship" in segment
+
+
+def test_profile_update_pre_review_does_not_expose_gate_or_responsibility_state() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    pre_review = source.split(
+        "class ProfileUpdateCasePreReview",
+        1,
+    )[1]
+
+    assert "GateAssessment" not in pre_review
+    assert "ResponsibilityRecommendation" not in pre_review
+    assert "gate_state" not in pre_review
+    assert "responsibility_state" not in pre_review
