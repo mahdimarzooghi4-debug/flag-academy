@@ -168,3 +168,59 @@ def test_pattern_read_api_keeps_evidence_boundary_snapshot_only() -> None:
     assert "EvidenceCase" not in source
     assert "EvidenceInterpretation" not in source
 
+
+def test_candidate_pattern_projection_is_safe() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/me/patterns" in paths
+    assert "get" in paths["/api/v1/me/patterns"]
+
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["CandidatePatternResponse"]["properties"]
+
+    assert set(props) == {
+        "id",
+        "behaviour_code",
+        "behaviour_description",
+        "pattern_status",
+        "scope",
+        "reviewed_at",
+        "updated_at",
+    }
+
+    for hidden_field in (
+        "version",
+        "subject_person_id",
+        "organization_context_id",
+        "reviewed_by",
+        "rationale",
+        "candidate",
+        "review",
+        "evidence",
+        "evidence_set",
+        "source_lineage",
+        "created_by",
+        "idempotency_key",
+    ):
+        assert hidden_field not in props
+
+
+def test_candidate_pattern_projection_is_self_scoped_and_reviewed_only() -> None:
+    from pathlib import Path
+
+    source = Path("app/patterns/api.py").read_text()
+    candidate_source = source.split(
+        '@router.get("/me/patterns"',
+        1,
+    )[1].split('@router.get("/patterns"', 1)[0]
+
+    assert 'require_role("CANDIDATE")' in candidate_source
+    assert "BehaviourPattern.subject_person_id == actor.person_id" in candidate_source
+    assert (
+        "BehaviourPattern.organization_context_id"
+        in candidate_source
+    )
+    assert "PatternReview" not in candidate_source
+    assert "EvidenceSetMember" not in candidate_source
+    assert "PatternCandidateEvidence" not in candidate_source
+    assert "source_lineage" not in candidate_source
+

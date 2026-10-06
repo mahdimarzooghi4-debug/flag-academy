@@ -35,6 +35,16 @@ class PatternSummaryResponse(BaseModel):
     updated_at: datetime
 
 
+class CandidatePatternResponse(BaseModel):
+    id: UUID
+    behaviour_code: str
+    behaviour_description: str
+    pattern_status: str
+    scope: str
+    reviewed_at: datetime
+    updated_at: datetime
+
+
 class PatternCandidateLineageResponse(BaseModel):
     id: UUID
     version: int
@@ -273,6 +283,36 @@ async def _lineage_response(
         ),
         evidence=evidence,
     )
+
+
+@router.get("/me/patterns", response_model=list[CandidatePatternResponse])
+async def list_my_reviewed_patterns(
+    actor: Annotated[ActorContext, Depends(require_role("CANDIDATE"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> list[CandidatePatternResponse]:
+    patterns = (
+        await db.execute(
+            select(BehaviourPattern)
+            .where(
+                BehaviourPattern.organization_context_id
+                == actor.organization_context_id,
+                BehaviourPattern.subject_person_id == actor.person_id,
+            )
+            .order_by(BehaviourPattern.updated_at.desc(), BehaviourPattern.id)
+        )
+    ).scalars().all()
+    return [
+        CandidatePatternResponse(
+            id=pattern.id,
+            behaviour_code=pattern.behaviour_code,
+            behaviour_description=pattern.behaviour_description,
+            pattern_status=pattern.pattern_status,
+            scope=pattern.scope,
+            reviewed_at=pattern.reviewed_at,
+            updated_at=pattern.updated_at,
+        )
+        for pattern in patterns
+    ]
 
 
 @router.get("/patterns", response_model=list[PatternSummaryResponse])
