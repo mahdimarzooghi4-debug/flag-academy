@@ -51,9 +51,9 @@ from app.mission_runtime.domain import (
 from app.patterns.application import (
     AcceptedEvidenceSnapshot,
     _accepted_snapshot_matches_context,
+    _new_pattern_updated_event,
     _require_create_expected_version,
     _require_pattern_candidate_create_expected_version,
-    _new_pattern_updated_event,
     _require_pattern_review_expected_version,
     _reviewed_pattern_status_valid,
 )
