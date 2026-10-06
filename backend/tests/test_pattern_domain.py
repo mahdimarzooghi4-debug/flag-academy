@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from app.patterns import domain as pattern_domain
 
 
@@ -83,7 +81,7 @@ def test_evidence_set_contract_preserves_reviewed_evidence_lineage() -> None:
     assert pattern_domain.evidence_set_contract_valid(_evidence_set())
 
     duplicate = _evidence_set()
-    duplicate["members"].append(deepcopy(duplicate["members"][0]))
+    duplicate["members"].append(dict(duplicate["members"][0]))
     assert not pattern_domain.evidence_set_contract_valid(duplicate)
 
     missing_lineage = _evidence_set()
@@ -105,5 +103,5 @@ def test_pattern_candidate_requires_allowed_status_and_supporting_evidence() -> 
 
 def test_pattern_candidate_rejects_duplicate_evidence_members() -> None:
     candidate = _pattern_candidate()
-    candidate["evidence"].append(deepcopy(candidate["evidence"][0]))
+    candidate["evidence"].append(dict(candidate["evidence"][0]))
     assert not pattern_domain.pattern_candidate_contract_valid(candidate)
