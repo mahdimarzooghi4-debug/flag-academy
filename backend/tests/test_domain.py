@@ -1,6 +1,12 @@
+from dataclasses import replace
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
+import pytest
+
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
+from app.errors import AppError
 from app.evidence.domain import (
     EvidenceCaseStatus,
     case_transition_allowed,
@@ -42,6 +48,22 @@ from app.mission_runtime.domain import (
     resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
+from app.patterns.application import (
+    AcceptedEvidenceSnapshot,
+    _accepted_snapshot_matches_context,
+    _new_pattern_updated_event,
+    _require_create_expected_version,
+    _require_pattern_candidate_create_expected_version,
+    _require_pattern_review_expected_version,
+    _reviewed_pattern_status_valid,
+)
+from app.patterns.domain import (
+    PatternEvidenceRelationship,
+    PatternStatus,
+    evidence_set_contract_valid,
+    pattern_candidate_contract_valid,
+)
+from app.patterns.models import BehaviourPattern
 from app.platform.events import new_event
 
 
@@ -919,3 +941,329 @@ def test_evidence_interpretation_rejects_unknown_target_type() -> None:
         ],
     }
     assert not interpretation_contract_valid(interpretation)
+
+PATTERN_ORG_ID = "00000000-0000-0000-0000-000000000001"
+PATTERN_SUBJECT_ID = "00000000-0000-0000-0000-000000000101"
+PATTERN_EVIDENCE_ID = "90000000-0000-0000-0000-000000000001"
+PATTERN_INTERPRETATION_ID = "90000000-0000-0000-0000-000000000002"
+PATTERN_MEMBER_ID = "90000000-0000-0000-0000-000000000003"
+
+
+def _accepted_pattern_snapshot() -> AcceptedEvidenceSnapshot:
+    return AcceptedEvidenceSnapshot(
+        evidence_case_id=UUID(PATTERN_EVIDENCE_ID),
+        interpretation_id=UUID(PATTERN_INTERPRETATION_ID),
+        interpretation_version=1,
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+        status="ACCEPTED",
+        interpretation_status="ACTIVE",
+        behaviour_code="METRIC_REASONING",
+        signal="POSITIVE",
+        scope="RECOVERY_EXPERIMENT",
+        confidence="HIGH",
+        context_difficulty="HIGH",
+        prompt_contamination="NONE",
+        source_independence_group="MISSION_INSTANCE:mission-1",
+        accepted_at=datetime(2026, 10, 6, 7, 0, tzinfo=UTC),
+        target_links=[
+            {
+                "target_type": "CAPABILITY",
+                "target_ref": "METRICS_EXPERIMENTATION",
+                "signal": "POSITIVE",
+                "scope": "RECOVERY_EXPERIMENT",
+                "relevance": "HIGH",
+                "confidence": "HIGH",
+            }
+        ],
+        source_lineage={
+            "source_observation_id": "observation-1",
+            "source_context": "MISSION_RUNTIME",
+            "source_reference": "MISSION_INSTANCE:mission-1",
+            "observation_type": "EXPERIMENT_RESULT_OBSERVED",
+        },
+    )
+
+
+def _pattern_evidence_set() -> dict:
+    return {
+        "organization_context_id": PATTERN_ORG_ID,
+        "subject_person_id": PATTERN_SUBJECT_ID,
+        "members": [
+            {
+                "evidence_case_id": PATTERN_EVIDENCE_ID,
+                "interpretation_id": PATTERN_INTERPRETATION_ID,
+                "interpretation_version": 1,
+                "behaviour_code": "METRIC_REASONING",
+                "signal": "POSITIVE",
+                "scope": "RECOVERY_EXPERIMENT",
+                "confidence": "HIGH",
+                "context_difficulty": "HIGH",
+                "prompt_contamination": "NONE",
+                "source_independence_group": "MISSION_INSTANCE:mission-1",
+                "accepted_at": "2026-10-06T07:00:00Z",
+                "target_links": [
+                    {
+                        "target_type": "CAPABILITY",
+                        "target_ref": "METRICS_EXPERIMENTATION",
+                        "signal": "POSITIVE",
+                        "scope": "RECOVERY_EXPERIMENT",
+                        "relevance": "HIGH",
+                        "confidence": "HIGH",
+                    }
+                ],
+                "source_lineage": {
+                    "source_observation_id": "observation-1",
+                    "source_context": "MISSION_RUNTIME",
+                    "source_reference": "MISSION_INSTANCE:mission-1",
+                    "observation_type": "EXPERIMENT_RESULT_OBSERVED",
+                },
+            }
+        ],
+    }
+
+
+def _pattern_candidate() -> dict:
+    return {
+        "behaviour_code": "METRIC_REASONING",
+        "behaviour_description": "Uses experiment measurements to reason about outcomes.",
+        "proposed_pattern_status": "EMERGING",
+        "scope": "RECOVERY_EXPERIMENT",
+        "rationale": "Accepted evidence supports a reviewable emerging pattern.",
+        "evidence": [
+            {
+                "evidence_set_member_id": PATTERN_MEMBER_ID,
+                "relationship": "SUPPORTING",
+            }
+        ],
+    }
+
+
+def test_pattern_status_vocabulary_matches_final_decision() -> None:
+    assert {item.value for item in PatternStatus} == {
+        "EMERGING",
+        "REPEATED",
+        "STABLE",
+        "CONTRADICTED",
+        "REGRESSED",
+        "RECOVERING",
+    }
+    assert {item.value for item in PatternEvidenceRelationship} == {
+        "SUPPORTING",
+        "CONTRADICTORY",
+    }
+
+
+def test_pattern_evidence_set_contract_preserves_reviewed_lineage() -> None:
+    assert evidence_set_contract_valid(_pattern_evidence_set())
+
+    duplicate = _pattern_evidence_set()
+    duplicate["members"].append(dict(duplicate["members"][0]))
+    assert not evidence_set_contract_valid(duplicate)
+
+    missing_lineage = _pattern_evidence_set()
+    del missing_lineage["members"][0]["source_lineage"]["source_reference"]
+    assert not evidence_set_contract_valid(missing_lineage)
+
+
+def test_pattern_candidate_requires_allowed_status_and_supporting_evidence() -> None:
+    assert pattern_candidate_contract_valid(_pattern_candidate())
+
+    unknown_status = _pattern_candidate()
+    unknown_status["proposed_pattern_status"] = "PROVEN"
+    assert not pattern_candidate_contract_valid(unknown_status)
+
+    contradictory_only = _pattern_candidate()
+    contradictory_only["evidence"][0]["relationship"] = "CONTRADICTORY"
+    assert not pattern_candidate_contract_valid(contradictory_only)
+
+
+def test_pattern_candidate_rejects_duplicate_evidence_members() -> None:
+    candidate = _pattern_candidate()
+    candidate["evidence"].append(dict(candidate["evidence"][0]))
+    assert not pattern_candidate_contract_valid(candidate)
+
+def test_pattern_application_requires_creation_expected_version() -> None:
+    _require_create_expected_version(0)
+
+    with pytest.raises(AppError) as exc_info:
+        _require_create_expected_version(1)
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 0,
+    }
+
+
+def test_pattern_application_requires_accepted_active_interpretation_context() -> None:
+    snapshot = _accepted_pattern_snapshot()
+    assert _accepted_snapshot_matches_context(
+        snapshot,
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+
+    assert not _accepted_snapshot_matches_context(
+        replace(snapshot, status="REJECTED"),
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+    assert not _accepted_snapshot_matches_context(
+        replace(snapshot, interpretation_status="SUPERSEDED"),
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+    assert not _accepted_snapshot_matches_context(
+        replace(
+            snapshot,
+            subject_person_id=UUID("00000000-0000-0000-0000-000000000102"),
+        ),
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+    )
+
+
+def test_pattern_candidate_creation_requires_expected_version_zero() -> None:
+    _require_pattern_candidate_create_expected_version(0)
+
+    with pytest.raises(AppError) as exc_info:
+        _require_pattern_candidate_create_expected_version(1)
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 0,
+    }
+
+
+def test_pattern_candidate_contract_preserves_explicit_contradiction() -> None:
+    candidate = _pattern_candidate()
+    candidate["evidence"].append(
+        {
+            "evidence_set_member_id": (
+                "90000000-0000-0000-0000-000000000004"
+            ),
+            "relationship": "CONTRADICTORY",
+        }
+    )
+    assert pattern_candidate_contract_valid(candidate)
+
+
+def test_pattern_review_requires_current_candidate_version() -> None:
+    _require_pattern_review_expected_version(
+        current_version=1,
+        expected_version=1,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        _require_pattern_review_expected_version(
+            current_version=2,
+            expected_version=1,
+        )
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 2,
+    }
+
+
+def test_pattern_review_uses_only_dec401_status_vocabulary() -> None:
+    for status in PatternStatus:
+        assert _reviewed_pattern_status_valid(status.value)
+
+    assert not _reviewed_pattern_status_valid("PROVEN")
+    assert not _reviewed_pattern_status_valid("APPROVED")
+
+
+def test_pattern_updated_event_contract_is_minimal_and_versioned() -> None:
+    pattern = BehaviourPattern(
+        id=UUID("90000000-0000-0000-0000-000000000010"),
+        version=1,
+        organization_context_id=UUID(PATTERN_ORG_ID),
+        subject_person_id=UUID(PATTERN_SUBJECT_ID),
+        source_pattern_candidate_id=UUID(
+            "90000000-0000-0000-0000-000000000011"
+        ),
+        evidence_set_id=UUID("90000000-0000-0000-0000-000000000012"),
+        behaviour_code="METRIC_REASONING",
+        behaviour_description="Reviewed behaviour.",
+        pattern_status="STABLE",
+        scope="RECOVERY_EXPERIMENT",
+        rationale="Human reviewed rationale.",
+        reviewed_by=UUID("90000000-0000-0000-0000-000000000013"),
+        reviewed_at=datetime(2026, 10, 6, 8, 0, tzinfo=UTC),
+        created_at=datetime(2026, 10, 6, 8, 0, tzinfo=UTC),
+        updated_at=datetime(2026, 10, 6, 8, 0, tzinfo=UTC),
+    )
+    reviewer_id = UUID("90000000-0000-0000-0000-000000000013")
+
+    event = _new_pattern_updated_event(
+        pattern=pattern,
+        reviewer_id=reviewer_id,
+        trace_id="trace-pattern-review",
+    )
+
+    assert event.event_type == "pattern.updated.v1"
+    assert event.event_version == 1
+    assert event.aggregate_type == "BehaviourPattern"
+    assert event.aggregate_id == pattern.id
+    assert event.aggregate_version == 1
+    assert event.actor == {"type": "PERSON", "id": str(reviewer_id)}
+    assert event.organization_context_id == UUID(PATTERN_ORG_ID)
+    assert event.data_classification == "CONFIDENTIAL"
+    assert event.trace_id == "trace-pattern-review"
+    assert event.payload == {
+        "pattern_id": str(pattern.id),
+        "source_pattern_candidate_id": str(pattern.source_pattern_candidate_id),
+        "subject_person_id": str(pattern.subject_person_id),
+        "evidence_set_id": str(pattern.evidence_set_id),
+        "pattern_status": "STABLE",
+        "behaviour_code": "METRIC_REASONING",
+        "scope": "RECOVERY_EXPERIMENT",
+    }
+    assert "rationale" not in event.payload
+    assert "reviewed_by" not in event.payload
+
+
+def test_pattern_review_records_update_event_before_commit() -> None:
+    application_source = Path("app/patterns/application.py").read_text()
+    review_source = application_source.split("async def review_pattern_candidate", 1)[1]
+
+    event_index = review_source.index("_new_pattern_updated_event(")
+    commit_index = review_source.index("await db.commit()")
+    assert event_index < commit_index
+
+
+def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> None:
+    application_source = Path("app/patterns/application.py").read_text()
+    models_source = Path("app/patterns/models.py").read_text()
+
+    assert "app.evidence" not in application_source
+    assert "app.evidence" not in models_source
+    assert "evidence.evidence_" not in models_source
+    assert 'event_type="pattern.updated.v1"' in application_source
+
+
+
+def test_pattern_candidate_evidence_set_lookup_is_tenant_scoped_before_lock() -> None:
+    source = Path("app/patterns/application.py").read_text()
+    candidate_source = source.split(
+        "async def create_pattern_candidate",
+        1,
+    )[1].split(
+        "@dataclass(frozen=True)\nclass ReviewPatternCandidateCommand",
+        1,
+    )[0]
+    lookup = candidate_source.split("select(EvidenceSet)", 1)[1].split(
+        ".with_for_update()",
+        1,
+    )[0]
+
+    assert "EvidenceSet.id == command.evidence_set_id" in lookup
+    assert "EvidenceSet.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup

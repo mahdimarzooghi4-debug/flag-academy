@@ -28,6 +28,16 @@ import {
   type MissionAssignmentSummary,
   type MissionCreateInput,
 } from "./components/AcademyStudio";
+import {
+  AssessorPatternWorkspace,
+  type PatternCandidate,
+  type PatternCandidateReviewLineage,
+  type PatternEvidenceRelationship,
+  type PatternEvidenceSet,
+  type PatternStatus,
+  type PatternSummary,
+  type ReviewedPatternLineage,
+} from "./components/PatternWorkspace";
 
 function Loading({ text = "در حال بارگذاری..." }: { text?: string }) {
   return <div className="center-state">{text}</div>;
@@ -175,6 +185,16 @@ function AuthenticatedApp({
       const { data, error } = await api.GET("/api/v1/evidence-cases");
       if (error || !data) throw new Error("دریافت Evidence Caseها ناموفق بود.");
       return data as EvidenceCase[];
+    },
+  });
+
+  const assessorPatterns = useQuery({
+    queryKey: ["assessor-patterns"],
+    enabled: isAssessor,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/patterns");
+      if (error || !data) throw new Error("دریافت Reviewed Patternها ناموفق بود.");
+      return data as PatternSummary[];
     },
   });
 
@@ -614,6 +634,125 @@ function AuthenticatedApp({
     },
   });
 
+  const createPatternEvidenceSet = useMutation({
+    mutationFn: async ({
+      subjectPersonId,
+      evidenceCaseIds,
+    }: {
+      subjectPersonId: string;
+      evidenceCaseIds: string[];
+    }) => {
+      const { data, error } = await api.POST("/api/v1/pattern-evidence-sets", {
+        body: {
+          subject_person_id: subjectPersonId,
+          evidence_case_ids: evidenceCaseIds,
+          expected_version: 0,
+          idempotency_key: crypto.randomUUID(),
+        },
+      });
+      if (error || !data) throw new Error("ساخت Evidence Set ناموفق بود.");
+      return data as PatternEvidenceSet;
+    },
+  });
+
+  const createPatternCandidate = useMutation({
+    mutationFn: async ({
+      subjectPersonId,
+      evidenceSetId,
+      behaviourCode,
+      behaviourDescription,
+      proposedPatternStatus,
+      scope,
+      rationale,
+      evidence,
+    }: {
+      subjectPersonId: string;
+      evidenceSetId: string;
+      behaviourCode: string;
+      behaviourDescription: string;
+      proposedPatternStatus: PatternStatus;
+      scope: string;
+      rationale: string;
+      evidence: Array<{
+        evidenceSetMemberId: string;
+        relationship: PatternEvidenceRelationship;
+      }>;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/pattern-candidates", {
+        body: {
+          subject_person_id: subjectPersonId,
+          evidence_set_id: evidenceSetId,
+          behaviour_code: behaviourCode,
+          behaviour_description: behaviourDescription,
+          proposed_pattern_status: proposedPatternStatus,
+          scope,
+          rationale,
+          evidence: evidence.map((item) => ({
+            evidence_set_member_id: item.evidenceSetMemberId,
+            relationship: item.relationship,
+          })),
+          expected_version: 0,
+          idempotency_key: crypto.randomUUID(),
+        },
+      });
+      if (error || !data) throw new Error("ساخت Pattern Candidate ناموفق بود.");
+      return data as PatternCandidate;
+    },
+  });
+
+  const reviewPatternCandidate = useMutation({
+    mutationFn: async ({
+      candidateId,
+      expectedVersion,
+      status,
+      rationale,
+    }: {
+      candidateId: string;
+      expectedVersion: number;
+      status: PatternStatus;
+      rationale: string;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/pattern-candidates/{candidate_id}/review",
+        {
+          params: { path: { candidate_id: candidateId } },
+          body: {
+            resulting_pattern_status: status,
+            rationale,
+            expected_version: expectedVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("Human Review Pattern ناموفق بود.");
+      return data as PatternSummary;
+    },
+    onSuccess: async () => {
+      await assessorPatterns.refetch();
+    },
+  });
+
+  const loadPatternCandidateLineage = async (
+    candidateId: string,
+  ): Promise<PatternCandidateReviewLineage> => {
+    const { data, error } = await api.GET(
+      "/api/v1/pattern-candidates/{candidate_id}/lineage",
+      {
+        params: { path: { candidate_id: candidateId } },
+      },
+    );
+    if (error || !data) throw new Error("دریافت Lineage پیش از Pattern Review ناموفق بود.");
+    return data as PatternCandidateReviewLineage;
+  };
+
+  const loadPatternLineage = async (patternId: string): Promise<ReviewedPatternLineage> => {
+    const { data, error } = await api.GET("/api/v1/patterns/{pattern_id}/lineage", {
+      params: { path: { pattern_id: patternId } },
+    });
+    if (error || !data) throw new Error("دریافت Pattern Lineage ناموفق بود.");
+    return data as ReviewedPatternLineage;
+  };
+
   const respondEvidenceContext = useMutation({
     mutationFn: async ({
       caseId,
@@ -679,6 +818,7 @@ function AuthenticatedApp({
     activeMissions.isLoading ||
     missionInstances.isLoading ||
     assessorEvidence.isLoading ||
+    assessorPatterns.isLoading ||
     candidateEvidence.isLoading
   ) return <Loading />;
   const error =
@@ -692,6 +832,7 @@ function AuthenticatedApp({
     activeMissions.error ||
     missionInstances.error ||
     assessorEvidence.error ||
+    assessorPatterns.error ||
     candidateEvidence.error ||
     createMission.error ||
     validateMission.error ||
@@ -710,6 +851,9 @@ function AuthenticatedApp({
     requestEvidenceContext.error ||
     acceptEvidence.error ||
     rejectEvidence.error ||
+    createPatternEvidenceSet.error ||
+    createPatternCandidate.error ||
+    reviewPatternCandidate.error ||
     respondEvidenceContext.error;
   if (error) return <div className="center-state error">{error.message}</div>;
 
@@ -971,36 +1115,76 @@ function AuthenticatedApp({
           ) : null}
         </>
       ) : null}
-      {!isAdmin && !isCandidate && !isInstructor && isAssessor && assessorEvidence.data ? (
-        <AssessorEvidenceWorkspace
-          cases={assessorEvidence.data}
-          busy={
-            submitEvidence.isPending ||
-            startEvidenceReview.isPending ||
-            requestEvidenceContext.isPending ||
-            acceptEvidence.isPending ||
-            rejectEvidence.isPending
-          }
-          onSubmit={async (caseId, version, interpretation) => {
-            await submitEvidence.mutateAsync({ caseId, version, interpretation });
-          }}
-          onStartReview={async (caseId, version, rationale) => {
-            await startEvidenceReview.mutateAsync({ caseId, version, rationale });
-          }}
-          onRequestContext={async (caseId, version, contextRequest) => {
-            await requestEvidenceContext.mutateAsync({
-              caseId,
-              version,
-              contextRequest,
-            });
-          }}
-          onAccept={async (caseId, version, rationale) => {
-            await acceptEvidence.mutateAsync({ caseId, version, rationale });
-          }}
-          onReject={async (caseId, version, rationale) => {
-            await rejectEvidence.mutateAsync({ caseId, version, rationale });
-          }}
-        />
+      {!isAdmin &&
+      !isCandidate &&
+      !isInstructor &&
+      isAssessor &&
+      assessorEvidence.data &&
+      assessorPatterns.data ? (
+        <>
+          <AssessorEvidenceWorkspace
+            cases={assessorEvidence.data}
+            busy={
+              submitEvidence.isPending ||
+              startEvidenceReview.isPending ||
+              requestEvidenceContext.isPending ||
+              acceptEvidence.isPending ||
+              rejectEvidence.isPending
+            }
+            onSubmit={async (caseId, version, interpretation) => {
+              await submitEvidence.mutateAsync({ caseId, version, interpretation });
+            }}
+            onStartReview={async (caseId, version, rationale) => {
+              await startEvidenceReview.mutateAsync({ caseId, version, rationale });
+            }}
+            onRequestContext={async (caseId, version, contextRequest) => {
+              await requestEvidenceContext.mutateAsync({
+                caseId,
+                version,
+                contextRequest,
+              });
+            }}
+            onAccept={async (caseId, version, rationale) => {
+              await acceptEvidence.mutateAsync({ caseId, version, rationale });
+            }}
+            onReject={async (caseId, version, rationale) => {
+              await rejectEvidence.mutateAsync({ caseId, version, rationale });
+            }}
+          />
+          <AssessorPatternWorkspace
+            cases={assessorEvidence.data}
+            patterns={assessorPatterns.data}
+            busy={
+              createPatternEvidenceSet.isPending ||
+              createPatternCandidate.isPending ||
+              reviewPatternCandidate.isPending
+            }
+            onCreateEvidenceSet={async (subjectPersonId, evidenceCaseIds) =>
+              createPatternEvidenceSet.mutateAsync({
+                subjectPersonId,
+                evidenceCaseIds,
+              })
+            }
+            onCreateCandidate={async (input) =>
+              createPatternCandidate.mutateAsync(input)
+            }
+            onLoadCandidateLineage={loadPatternCandidateLineage}
+            onReviewCandidate={async (
+              candidateId,
+              expectedVersion,
+              status,
+              rationale,
+            ) =>
+              reviewPatternCandidate.mutateAsync({
+                candidateId,
+                expectedVersion,
+                status,
+                rationale,
+              })
+            }
+            onLoadLineage={loadPatternLineage}
+          />
+        </>
       ) : null}
       {!isAdmin && !isCandidate && isInstructor && instructor.data ? (
         <InstructorHome

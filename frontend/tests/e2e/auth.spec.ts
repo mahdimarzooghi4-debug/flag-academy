@@ -170,7 +170,7 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
 
 
 test("academy admin authors, activates, and candidate runs a deterministic mission", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
   const candidatePassword = process.env.PARCHAM_DEV_CANDIDATE_PASSWORD;
   const assessorPassword = process.env.PARCHAM_DEV_ASSESSOR_PASSWORD;
@@ -683,5 +683,114 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(
     acceptedEvidenceCard.getByTestId("candidate-accepted-interpretation"),
   ).toContainText("Reviewed Evidence");
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  // Pattern Engine continues only from Accepted Evidence and remains separate from Proof.
+  await logout(page);
+  await login(page, "assessor", assessorPassword);
+
+  await expect(page.getByText("فضای ارزیاب Pattern")).toBeVisible();
+  const patternWorkspace = page.getByTestId("assessor-pattern-workspace");
+  await expect(patternWorkspace).toContainText("EXPERIMENT_RESULT_OBSERVED");
+  await patternWorkspace.getByLabel(`انتخاب Evidence ${evidenceCaseId}`).check();
+  await patternWorkspace.getByRole("button", { name: "ساخت Evidence Set" }).click();
+  await expect(
+    patternWorkspace.getByTestId("pattern-evidence-set-created"),
+  ).toContainText("Evidence Set v1");
+
+  await patternWorkspace
+    .getByLabel(/رابطه Evidence/)
+    .selectOption("SUPPORTING");
+  await patternWorkspace
+    .getByLabel("Pattern status پیشنهادی")
+    .selectOption("REPEATED");
+  await patternWorkspace
+    .getByLabel("منطق Pattern Candidate")
+    .fill(
+      "Accepted Evidence is assembled with explicit lineage; this human proposal does not alter proof state.",
+    );
+  await patternWorkspace
+    .getByRole("button", { name: "ساخت Pattern Candidate" })
+    .click();
+  await expect(
+    patternWorkspace.getByTestId("pattern-candidate-created"),
+  ).toContainText("REPEATED");
+
+  const preReviewLineage = patternWorkspace.getByTestId(
+    "pattern-pre-review-lineage",
+  );
+  await expect(preReviewLineage).toContainText("METRIC_REASONING");
+  await expect(preReviewLineage).toContainText("SUPPORTING");
+  await expect(preReviewLineage).toContainText("EXPERIMENT_RESULT_OBSERVED");
+  await expect(preReviewLineage).toContainText("MISSION_RUNTIME");
+
+  await patternWorkspace
+    .getByLabel("Reviewed Pattern status")
+    .selectOption("REPEATED");
+  await patternWorkspace
+    .getByLabel("منطق Human Review Pattern")
+    .fill(
+      "Full accepted-Evidence lineage reviewed; supporting relationship is explicit and no downstream proof mutation is authorized.",
+    );
+  await patternWorkspace
+    .getByRole("button", { name: "ثبت Reviewed Behaviour Pattern" })
+    .click();
+  await expect(
+    patternWorkspace.getByTestId("reviewed-pattern-created"),
+  ).toContainText("REPEATED");
+
+  const reviewedPatternCard = patternWorkspace
+    .locator(".pattern-reviewed-card")
+    .filter({ hasText: "METRIC_REASONING" })
+    .first();
+  await expect(reviewedPatternCard).toContainText("REPEATED");
+  await reviewedPatternCard.getByRole("button", { name: "مشاهده Lineage" }).click();
+
+  const patternLineage = patternWorkspace.getByTestId("pattern-lineage");
+  await expect(patternLineage).toContainText("METRIC_REASONING");
+  await expect(patternLineage).toContainText("REPEATED");
+  await expect(patternLineage).toContainText("SUPPORTING");
+  await expect(patternLineage).toContainText("EXPERIMENT_RESULT_OBSERVED");
+  await expect(patternLineage).toContainText("MISSION_RUNTIME");
+  await expect(patternLineage).toContainText("Evidence Set v1");
+
+  await logout(page);
+  await login(page, "candidate", candidatePassword);
+  await expect(page.getByText("UNPROVEN").first()).toBeVisible();
+
+  const candidatePatternToken = await currentAccessToken(page);
+  const candidatePatternsResponse = await page.context().request.get(
+    "http://localhost:8000/api/v1/me/patterns",
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidatePatternsResponse.status()).toBe(200);
+  const candidatePatterns = (await candidatePatternsResponse.json()) as Array<
+    Record<string, unknown>
+  >;
+  const candidatePattern = candidatePatterns.find(
+    (item) => item.behaviour_code === "METRIC_REASONING",
+  );
+  expect(candidatePattern).toBeTruthy();
+  expect(candidatePattern?.pattern_status).toBe("REPEATED");
+  expect(candidatePattern).not.toHaveProperty("reviewed_by");
+  expect(candidatePattern).not.toHaveProperty("rationale");
+  expect(candidatePattern).not.toHaveProperty("evidence");
+  expect(candidatePattern).not.toHaveProperty("source_lineage");
+
+  const candidateLineageResponse = await page.context().request.get(
+    `http://localhost:8000/api/v1/patterns/${candidatePattern?.id}/lineage`,
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidateLineageResponse.status()).toBe(403);
+
+  // Reviewed Pattern is informative only; it must not promote proof/profile/gate state.
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });
