@@ -36,6 +36,12 @@ from app.flag_profile.domain import (
     profile_update_transition_allowed,
 )
 from app.flag_profile.models import CapabilityClaim, ProfileUpdateCase
+from app.gate_assessment.domain import (
+    GATE_DEFINITION_REGISTRY,
+    GateAssessmentState,
+    GateCode,
+    gate_transition_allowed,
+)
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
     LearningPhase,
@@ -2075,3 +2081,105 @@ def test_profile_review_request_migration_is_flag_profile_local() -> None:
     assert "patterns." not in migration_source
     assert "evidence." not in migration_source
     assert "curriculum." not in migration_source
+
+
+
+def test_gate_assessment_state_vocabulary_is_exact() -> None:
+    assert {state.value for state in GateAssessmentState} == {
+        "UNPROVEN",
+        "PASS",
+        "AT_RISK",
+        "REVIEW_REQUIRED",
+        "PASS_CONFIRMED",
+        "FAIL",
+        "REMEDIATION",
+        "REASSESSMENT",
+    }
+
+
+def test_gate_assessment_transition_graph_matches_final_contract() -> None:
+    assert gate_transition_allowed("UNPROVEN", "PASS")
+    assert gate_transition_allowed("PASS", "AT_RISK")
+    assert gate_transition_allowed("AT_RISK", "REVIEW_REQUIRED")
+    assert gate_transition_allowed("REVIEW_REQUIRED", "PASS_CONFIRMED")
+    assert gate_transition_allowed("REVIEW_REQUIRED", "FAIL")
+    assert gate_transition_allowed("PASS_CONFIRMED", "AT_RISK")
+    assert gate_transition_allowed("FAIL", "REMEDIATION")
+    assert gate_transition_allowed("REMEDIATION", "REASSESSMENT")
+    assert gate_transition_allowed("REASSESSMENT", "PASS")
+    assert gate_transition_allowed("REASSESSMENT", "FAIL")
+
+    assert not gate_transition_allowed("UNPROVEN", "FAIL")
+    assert not gate_transition_allowed("AT_RISK", "FAIL")
+    assert not gate_transition_allowed("REVIEW_REQUIRED", "PASS")
+    assert not gate_transition_allowed("FAIL", "PASS")
+    assert not gate_transition_allowed("PASS", "FAIL")
+
+
+def test_gate_definition_registry_contains_only_canonical_gates() -> None:
+    assert [item.code for item in GATE_DEFINITION_REGISTRY] == [
+        GateCode.A,
+        GateCode.B,
+        GateCode.C,
+        GateCode.D,
+        GateCode.E,
+    ]
+    assert [item.name for item in GATE_DEFINITION_REGISTRY] == [
+        "Foundation Readiness",
+        "Product Judgment Readiness",
+        "Real Project Readiness",
+        "Ownership Trial Readiness",
+        "Flag Board",
+    ]
+    assert GATE_DEFINITION_REGISTRY[0].outcomes == (
+        "ENTER PRODUCT CORE",
+        "NOT YET",
+    )
+    assert GATE_DEFINITION_REGISTRY[3].outcomes == (
+        "GRANT OUTCOME OWNERSHIP",
+        "REMEDIATE",
+    )
+    assert GATE_DEFINITION_REGISTRY[4].outcomes == (
+        "READY",
+        "NOT YET",
+        "DIFFERENT SCOPE",
+    )
+
+
+def test_gate_definition_registry_has_no_scoring_policy() -> None:
+    domain_source = Path("app/gate_assessment/domain.py").read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text()
+
+    forbidden = (
+        "overall_score",
+        "weighted_score",
+        "average_score",
+        "threshold_value",
+        "passing_score",
+        "auto_evaluator",
+    )
+    for value in forbidden:
+        assert value not in domain_source.lower()
+        assert value not in models_source.lower()
+
+
+def test_gate_definition_persistence_is_versioned_and_context_local() -> None:
+    models_source = Path("app/gate_assessment/models.py").read_text()
+    migration_source = Path(
+        "alembic/versions/0019_gate_definition_registry_foundation.py"
+    ).read_text()
+
+    assert "GateDefinitionVersion" in models_source
+    assert "GateDefinitionRequirement" in models_source
+    assert "GateDefinitionOutcome" in models_source
+    assert 'ForeignKey("gate_assessment.gate_definitions.id")' in models_source
+    assert (
+        'ForeignKey("gate_assessment.gate_definition_versions.id")'
+        in models_source
+    )
+
+    assert '"flag_profile.' not in migration_source
+    assert '"patterns.' not in migration_source
+    assert '"evidence.' not in migration_source
+    assert '"curriculum.' not in migration_source
+    assert "JSONB" not in models_source
