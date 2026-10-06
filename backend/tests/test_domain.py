@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import UUID
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
@@ -1030,4 +1031,12 @@ def test_pattern_candidate_rejects_duplicate_evidence_members() -> None:
     candidate = _pattern_candidate()
     candidate["evidence"].append(dict(candidate["evidence"][0]))
     assert not pattern_candidate_contract_valid(candidate)
+
+def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> None:
+    application_source = Path("app/patterns/application.py").read_text()
+    models_source = Path("app/patterns/models.py").read_text()
+
+    assert "app.evidence" not in application_source
+    assert "app.evidence" not in models_source
+    assert "evidence.evidence_" not in models_source
 
