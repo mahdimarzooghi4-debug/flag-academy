@@ -313,7 +313,8 @@ jobs:
           accepted_evidence_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases where status = 'ACCEPTED';")
           accepted_experiment_evidence=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases ec join evidence.evidence_interpretations ei on ei.evidence_case_id = ec.id and ei.status = 'ACTIVE' join evidence.evidence_links el on el.interpretation_id = ei.id where ec.status = 'ACCEPTED' and ec.observation_type = 'EXPERIMENT_RESULT_OBSERVED' and ei.behaviour_code = 'METRIC_REASONING' and el.target_type = 'CAPABILITY' and el.target_ref = 'METRICS_EXPERIMENTATION';")
           evidence_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'evidence.accepted.v1';")
-          evidence_profile_gate_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'profile.%' or event_type like 'gate.%';")
+          unaudited_profile_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events de where de.event_type like 'profile.%' and (de.event_type <> 'profile.claim_changed.v1' or not exists (select 1 from flag_profile.profile_update_cases puc join flag_profile.capability_claims cc on cc.source_profile_update_case_id = puc.id and cc.id = de.aggregate_id where puc.id::text = de.payload->>'profile_update_case_id' and puc.state = 'APPLIED' and puc.review_requested_by is not null and puc.review_requested_at is not null and puc.reviewed_by is not null and puc.reviewed_at is not null and puc.applied_by is not null and puc.applied_at is not null));")
+          gate_responsibility_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'gate.%' or event_type like 'responsibility.%' or event_type like 'capability.%';")
           evidence_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'evidence' and ccu.table_schema <> 'evidence';")
           duplicate_evidence_sources=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from (select source_observation_id from evidence.evidence_cases group by source_observation_id having count(*) > 1) duplicates;")
           evidence_replay_inbox_after=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events where consumer_name = 'evidence-observation-ingestor-v1';")
@@ -329,7 +330,22 @@ jobs:
           invalid_pattern_relationships=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from patterns.pattern_candidate_evidence where relationship not in ('SUPPORTING','CONTRADICTORY');")
           pattern_context_mismatches=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select (select count(*) from patterns.pattern_candidates pc join patterns.evidence_sets es on es.id = pc.evidence_set_id where pc.organization_context_id <> es.organization_context_id or pc.subject_person_id <> es.subject_person_id) + (select count(*) from patterns.behaviour_patterns bp join patterns.pattern_candidates pc on pc.id = bp.source_pattern_candidate_id join patterns.evidence_sets es on es.id = bp.evidence_set_id where bp.organization_context_id <> pc.organization_context_id or bp.subject_person_id <> pc.subject_person_id or bp.organization_context_id <> es.organization_context_id or bp.subject_person_id <> es.subject_person_id);")
           pattern_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'patterns' and ccu.table_schema <> 'patterns';")
-          pattern_downstream_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'profile.%' or event_type like 'gate.%' or event_type like 'capability.%' or event_type like 'responsibility.%';")
+          flag_profiles=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.flag_profiles;")
+          profile_update_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.profile_update_cases;")
+          applied_profile_update_cases=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.profile_update_cases where state = 'APPLIED' and review_requested_by is not null and review_requested_at is not null and review_request_idempotency_key is not null and reviewed_by is not null and reviewed_at is not null and review_idempotency_key is not null and applied_by is not null and applied_at is not null and apply_idempotency_key is not null;")
+          profile_update_patterns=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.profile_update_patterns;")
+          profile_update_evidence_rows=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.profile_update_pattern_evidence;")
+          capability_claims=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.capability_claims;")
+          capability_claim_patterns=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.capability_claim_patterns;")
+          profile_claim_changed_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'profile.claim_changed.v1';")
+          published_profile_claim_changed_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.outbox_events where event_type = 'profile.claim_changed.v1' and published_at is not null;")
+          audited_profile_claim_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events de join flag_profile.capability_claims cc on cc.id = de.aggregate_id join flag_profile.profile_update_cases puc on puc.id = cc.source_profile_update_case_id where de.event_type = 'profile.claim_changed.v1' and de.payload->>'profile_update_case_id' = puc.id::text and de.payload->>'subject_person_id' = cc.subject_person_id::text and de.payload->>'capability_id' = cc.capability_id::text and de.payload->>'track_code' = cc.track_code and de.payload #>> '{new_claim,state}' = cc.state and de.payload #>> '{new_claim,level}' = cc.level and de.payload #>> '{new_claim,proven_scope}' = cc.proven_scope and puc.state = 'APPLIED' and puc.review_requested_by is not null and puc.reviewed_by is not null and puc.applied_by is not null;")
+          profile_complete_lineage_rows=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.profile_update_pattern_evidence pue join flag_profile.profile_update_patterns pup on pup.id = pue.profile_update_pattern_id join flag_profile.profile_update_cases puc on puc.id = pup.profile_update_case_id join flag_profile.capability_claims cc on cc.source_profile_update_case_id = puc.id and cc.organization_context_id = puc.organization_context_id and cc.subject_person_id = puc.subject_person_id and cc.track_code = puc.track_code and cc.capability_id = puc.capability_id where pue.evidence_case_id is not null and pue.interpretation_id is not null and pue.source_observation_id is not null and pue.source_context <> '' and pue.source_reference <> '' and pue.observation_type <> '';")
+          invalid_profile_relationships=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select (select count(*) from flag_profile.profile_update_patterns where relationship not in ('SUPPORTING','CONTRADICTORY')) + (select count(*) from flag_profile.capability_claim_patterns where relationship not in ('SUPPORTING','CONTRADICTORY'));")
+          invalid_claim_states=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.capability_claims where state not in ('UNPROVEN','EMERGING','DEMONSTRATED','PROVEN');")
+          invalid_claim_levels=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from flag_profile.capability_claims where level not in ('L0','L1','L2','L3','L4');")
+          profile_context_mismatches=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select (select count(*) from flag_profile.profile_update_cases puc join flag_profile.flag_profiles fp on fp.id = puc.flag_profile_id where puc.organization_context_id <> fp.organization_context_id or puc.subject_person_id <> fp.subject_person_id or puc.track_code <> fp.track_code) + (select count(*) from flag_profile.capability_claims cc join flag_profile.flag_profiles fp on fp.id = cc.flag_profile_id where cc.organization_context_id <> fp.organization_context_id or cc.subject_person_id <> fp.subject_person_id or cc.track_code <> fp.track_code) + (select count(*) from flag_profile.capability_claims cc join flag_profile.profile_update_cases puc on puc.id = cc.source_profile_update_case_id where cc.organization_context_id <> puc.organization_context_id or cc.subject_person_id <> puc.subject_person_id or cc.track_code <> puc.track_code or cc.capability_id <> puc.capability_id or puc.state <> 'APPLIED');")
+          profile_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'flag_profile' and ccu.table_schema <> 'flag_profile';")
 
           test "$published" -ge 28
           test "$inbox" -ge 28
@@ -443,7 +459,8 @@ jobs:
           test "$accepted_evidence_cases" -ge 1
           test "$accepted_experiment_evidence" -ge 1
           test "$evidence_accepted_events" -ge 1
-          test "$evidence_profile_gate_events" -eq 0
+          test "$unaudited_profile_events" -eq 0
+          test "$gate_responsibility_events" -eq 0
           test "$evidence_cross_context_fks" -eq 0
           test "$duplicate_evidence_sources" -eq 0
           test "$evidence_replay_inbox_after" -ge "$((EVIDENCE_REPLAY_INBOX_BEFORE + 1))"
@@ -459,7 +476,24 @@ jobs:
           test "$invalid_pattern_relationships" -eq 0
           test "$pattern_context_mismatches" -eq 0
           test "$pattern_cross_context_fks" -eq 0
-          test "$pattern_downstream_events" -eq 0
+          test "$flag_profiles" -ge 1
+          test "$profile_update_cases" -ge 1
+          test "$applied_profile_update_cases" -ge 1
+          test "$profile_update_patterns" -ge 1
+          test "$profile_update_evidence_rows" -ge 1
+          test "$capability_claims" -ge 1
+          test "$capability_claim_patterns" -ge 1
+          test "$profile_claim_changed_events" -ge 1
+          test "$published_profile_claim_changed_events" -ge 1
+          test "$audited_profile_claim_events" -eq "$profile_claim_changed_events"
+          test "$profile_complete_lineage_rows" -eq "$profile_update_evidence_rows"
+          test "$invalid_profile_relationships" -eq 0
+          test "$invalid_claim_states" -eq 0
+          test "$invalid_claim_levels" -eq 0
+          test "$profile_context_mismatches" -eq 0
+          test "$profile_cross_context_fks" -eq 0
+          test "$unaudited_profile_events" -eq 0
+          test "$gate_responsibility_events" -eq 0
 
           mkdir -p stage-artifacts
           {
@@ -576,7 +610,8 @@ jobs:
             echo "accepted_evidence_cases=$accepted_evidence_cases"
             echo "accepted_experiment_evidence=$accepted_experiment_evidence"
             echo "evidence_accepted_events=$evidence_accepted_events"
-            echo "profile_gate_events_after_evidence=$evidence_profile_gate_events"
+            echo "unaudited_profile_events=$unaudited_profile_events"
+            echo "gate_responsibility_capability_events=$gate_responsibility_events"
             echo "evidence_cross_context_foreign_keys=$evidence_cross_context_fks"
             echo "duplicate_evidence_source_rows=$duplicate_evidence_sources"
             echo "evidence_replay_inbox_before=$EVIDENCE_REPLAY_INBOX_BEFORE"
@@ -593,10 +628,32 @@ jobs:
             echo "invalid_pattern_relationships=$invalid_pattern_relationships"
             echo "pattern_context_mismatches=$pattern_context_mismatches"
             echo "pattern_cross_context_foreign_keys=$pattern_cross_context_fks"
-            echo "pattern_downstream_mutation_events=$pattern_downstream_events"
+            echo "flag_profiles=$flag_profiles"
+            echo "profile_update_cases=$profile_update_cases"
+            echo "applied_profile_update_cases=$applied_profile_update_cases"
+            echo "profile_update_pattern_links=$profile_update_patterns"
+            echo "profile_update_evidence_lineage_rows=$profile_update_evidence_rows"
+            echo "capability_claims=$capability_claims"
+            echo "capability_claim_pattern_links=$capability_claim_patterns"
+            echo "profile_claim_changed_events=$profile_claim_changed_events"
+            echo "published_profile_claim_changed_events=$published_profile_claim_changed_events"
+            echo "audited_profile_claim_events=$audited_profile_claim_events"
+            echo "profile_complete_lineage_rows=$profile_complete_lineage_rows"
+            echo "invalid_profile_relationships=$invalid_profile_relationships"
+            echo "invalid_claim_states=$invalid_claim_states"
+            echo "invalid_claim_levels=$invalid_claim_levels"
+            echo "profile_context_mismatches=$profile_context_mismatches"
+            echo "profile_cross_context_foreign_keys=$profile_cross_context_fks"
             echo "pattern_pre_review_lineage=REQUIRED"
             echo "pattern_candidate_state_mutation=HUMAN_REVIEW_ONLY"
-            echo "pattern_profile_gate_claim_responsibility_mutation=FORBIDDEN"
+            echo "pattern_direct_profile_gate_claim_responsibility_mutation=FORBIDDEN"
+            echo "profile_update_path=REVIEW_REQUESTED+HUMAN_REVIEWED+EXPLICIT_APPLY"
+            echo "profile_review_request=IDEMPOTENT+ACTOR_AUDITED"
+            echo "profile_claim_event=HUMAN_GOVERNED+DOMAIN_EVENT+OUTBOX_ATOMIC"
+            echo "profile_candidate_projection=ALLOWLIST_FAIL_CLOSED"
+            echo "profile_gate_responsibility_mutation=FORBIDDEN"
+            echo "profile_claim_state_vocabulary=UNPROVEN+EMERGING+DEMONSTRATED+PROVEN"
+            echo "profile_claim_level_vocabulary=L0+L1+L2+L3+L4"
             echo "evidence_duplicate_delivery=SAME_EVENT_ID+NEW_EVENT_ID_REPLAYED"
             echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
             echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"
