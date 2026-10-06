@@ -230,6 +230,7 @@ Minimum Assessor/Governance API surface:
 - `GET /api/v1/profile-update-cases/{id}`
 - `GET /api/v1/profile-update-cases/{id}/lineage`
 - `POST /api/v1/profile-update-cases`
+- `POST /api/v1/profile-update-cases/{id}/request-review` — explicit `PROPOSED → REVIEW_REQUIRED` transition; it does not mutate CapabilityClaim.
 - `POST /api/v1/profile-update-cases/{id}/approve`
 - `POST /api/v1/profile-update-cases/{id}/reject` if rejection is represented by the existing final contract; if the current state machine cannot represent rejection without inventing a state, implementation must stop and resolve the contract rather than invent one.
 - `POST /api/v1/profile-update-cases/{id}/apply`

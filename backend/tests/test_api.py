@@ -302,3 +302,106 @@ def test_pattern_candidate_lineage_is_assessor_only_and_pre_review() -> None:
     assert "relationship" in evidence_props
     assert "source_lineage" in evidence_props
 
+
+def test_flag_profile_assessor_contract_is_exposed() -> None:
+    paths = app.openapi()["paths"]
+
+    expected = {
+        "/api/v1/profile-update-cases",
+        "/api/v1/profile-update-cases/{case_id}",
+        "/api/v1/profile-update-cases/{case_id}/lineage",
+        "/api/v1/profile-update-cases/{case_id}/request-review",
+        "/api/v1/profile-update-cases/{case_id}/approve",
+        "/api/v1/profile-update-cases/{case_id}/apply",
+        "/api/v1/people/{person_id}/flag-profile",
+        "/api/v1/profile/claims/{claim_id}/lineage",
+    }
+    assert expected.issubset(paths)
+    assert "post" in paths["/api/v1/profile-update-cases"]
+    assert "get" in paths["/api/v1/profile-update-cases"]
+    assert "post" in paths["/api/v1/profile-update-cases/{case_id}/request-review"]
+    assert "post" in paths["/api/v1/profile-update-cases/{case_id}/approve"]
+    assert "post" in paths["/api/v1/profile-update-cases/{case_id}/apply"]
+
+
+def test_flag_profile_http_contract_has_no_direct_patch() -> None:
+    paths = app.openapi()["paths"]
+    for path in (
+        "/api/v1/profile-update-cases",
+        "/api/v1/people/{person_id}/flag-profile",
+        "/api/v1/profile/claims/{claim_id}/lineage",
+    ):
+        assert "patch" not in paths[path]
+
+
+def test_profile_update_api_exposes_explicit_human_review_values() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+
+    create_props = schemas["ProfileUpdateCaseCreateRequest"]["properties"]
+    assert "proposed_claim_state" in create_props
+    assert "proposed_level" in create_props
+    assert "patterns" in create_props
+    assert "expected_version" in create_props
+    assert "idempotency_key" in create_props
+
+    approval_props = schemas["ProfileUpdateApprovalRequest"]["properties"]
+    assert "reviewed_claim_state" in approval_props
+    assert "reviewed_level" in approval_props
+    assert "reviewed_proven_scope" in approval_props
+    assert "reviewed_evidence_recency" in approval_props
+    assert "reviewed_confidence_in_claim" in approval_props
+    assert "reviewed_next_evidence_needed" in approval_props
+    assert "rationale" in approval_props
+    assert "expected_version" in approval_props
+    assert "idempotency_key" in approval_props
+
+
+def test_profile_update_lineage_contract_reaches_observation_and_source() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+
+    lineage_props = schemas["CapabilityClaimLineageResponse"]["properties"]
+    assert "claim" in lineage_props
+    assert "patterns" in lineage_props
+
+    pattern_props = schemas["ProfileUpdatePatternLineageResponse"]["properties"]
+    assert "relationship" in pattern_props
+    assert "evidence" in pattern_props
+
+    evidence_props = schemas["ProfileUpdateEvidenceLineageResponse"]["properties"]
+    for field in (
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+    ):
+        assert field in evidence_props
+
+
+def test_flag_profile_api_is_assessor_only_and_local_snapshot_based() -> None:
+    from pathlib import Path
+
+    source = Path("app/flag_profile/api.py").read_text()
+
+    assert 'require_role("ASSESSOR")' in source
+    assert "app.patterns.models" not in source
+    assert "app.evidence" not in source
+    assert "ProfileUpdatePatternEvidence" in source
+    assert "CapabilityClaimPattern" in source
+    assert "GateAssessment" not in source
+    assert "ResponsibilityRecommendation" not in source
+
+
+def test_flag_profile_read_contract_has_no_overall_score() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["CapabilityClaimResponse"]["properties"]
+
+    assert "state" in props
+    assert "level" in props
+    assert "proven_scope" in props
+    assert "evidence_recency" in props
+    assert "next_evidence_needed" in props
+    assert "score" not in props
+    assert "overall_score" not in props
