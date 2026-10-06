@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AssessorPatternWorkspace,
   type PatternCandidate,
@@ -7,6 +7,8 @@ import {
   type PatternEvidenceSet,
 } from "./PatternWorkspace";
 import type { EvidenceCase } from "./EvidenceWorkspace";
+
+afterEach(() => cleanup());
 
 const acceptedCase: EvidenceCase = {
   id: "90000000-0000-0000-0000-000000000001",
