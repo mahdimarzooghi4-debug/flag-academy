@@ -6,6 +6,6 @@ from app.journey import models as journey_models  # noqa: F401
 from app.learning import models as learning_models  # noqa: F401
 from app.mission_design import models as mission_design_models  # noqa: F401
 from app.mission_runtime import models as mission_runtime_models  # noqa: F401
-from app.platform import models as platform_models  # noqa: F401
 from app.patterns import models as pattern_models  # noqa: F401
+from app.platform import models as platform_models  # noqa: F401
 from app.read_models import models as read_model_models  # noqa: F401
