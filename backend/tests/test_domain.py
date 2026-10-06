@@ -52,6 +52,7 @@ from app.patterns.application import (
     AcceptedEvidenceSnapshot,
     _accepted_snapshot_matches_context,
     _require_create_expected_version,
+    _require_pattern_candidate_create_expected_version,
 )
 from app.patterns.domain import (
     PatternEvidenceRelationship,
@@ -1120,6 +1121,33 @@ def test_pattern_application_requires_accepted_active_interpretation_context() -
     )
 
 
+def test_pattern_candidate_creation_requires_expected_version_zero() -> None:
+    _require_pattern_candidate_create_expected_version(0)
+
+    with pytest.raises(AppError) as exc_info:
+        _require_pattern_candidate_create_expected_version(1)
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 0,
+    }
+
+
+def test_pattern_candidate_contract_preserves_explicit_contradiction() -> None:
+    candidate = _pattern_candidate()
+    candidate["evidence"].append(
+        {
+            "evidence_set_member_id": (
+                "90000000-0000-0000-0000-000000000004"
+            ),
+            "relationship": "CONTRADICTORY",
+        }
+    )
+    assert pattern_candidate_contract_valid(candidate)
+
+
 def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> None:
     application_source = Path("app/patterns/application.py").read_text()
     models_source = Path("app/patterns/models.py").read_text()
@@ -1127,4 +1155,5 @@ def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> No
     assert "app.evidence" not in application_source
     assert "app.evidence" not in models_source
     assert "evidence.evidence_" not in models_source
+    assert "pattern.updated.v1" not in application_source
 

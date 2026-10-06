@@ -9,8 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppError
-from app.patterns.domain import evidence_set_contract_valid
-from app.patterns.models import EvidenceSet, EvidenceSetMember
+from app.patterns.domain import evidence_set_contract_valid, pattern_candidate_contract_valid
+from app.patterns.models import (
+    EvidenceSet,
+    EvidenceSetMember,
+    PatternCandidate,
+    PatternCandidateEvidence,
+)
 from app.platform.events import new_event, record_event
 
 
@@ -263,3 +268,225 @@ async def create_evidence_set(
     )
     await db.commit()
     return evidence_set
+
+@dataclass(frozen=True)
+class PatternCandidateEvidenceInput:
+    evidence_set_member_id: UUID
+    relationship: str
+
+
+@dataclass(frozen=True)
+class CreatePatternCandidateCommand:
+    organization_context_id: UUID
+    subject_person_id: UUID
+    evidence_set_id: UUID
+    behaviour_code: str
+    behaviour_description: str
+    proposed_pattern_status: str
+    scope: str
+    rationale: str
+    evidence: tuple[PatternCandidateEvidenceInput, ...]
+    created_by: UUID
+    expected_version: int
+    idempotency_key: str
+    trace_id: str
+
+
+def _require_pattern_candidate_create_expected_version(expected_version: int) -> None:
+    if expected_version != 0:
+        raise AppError(
+            "VERSION_CONFLICT",
+            "Pattern candidate changed. Refresh and retry.",
+            status_code=409,
+            details={
+                "expected_version": expected_version,
+                "current_version": 0,
+            },
+        )
+
+
+async def create_pattern_candidate(
+    db: AsyncSession,
+    *,
+    command: CreatePatternCandidateCommand,
+) -> PatternCandidate:
+    idempotency_key = command.idempotency_key.strip()
+    if not idempotency_key:
+        raise AppError(
+            "PATTERN_IDEMPOTENCY_KEY_REQUIRED",
+            "Idempotency key is required.",
+            status_code=422,
+        )
+
+    existing = (
+        await db.execute(
+            select(PatternCandidate).where(
+                PatternCandidate.organization_context_id
+                == command.organization_context_id,
+                PatternCandidate.created_by == command.created_by,
+                PatternCandidate.idempotency_key == idempotency_key,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing_evidence = (
+            await db.execute(
+                select(
+                    PatternCandidateEvidence.evidence_set_member_id,
+                    PatternCandidateEvidence.relationship,
+                ).where(
+                    PatternCandidateEvidence.pattern_candidate_id == existing.id
+                )
+            )
+        ).all()
+        existing_relationships = {
+            (row.evidence_set_member_id, row.relationship) for row in existing_evidence
+        }
+        requested_relationships = {
+            (item.evidence_set_member_id, item.relationship) for item in command.evidence
+        }
+        if (
+            existing.subject_person_id != command.subject_person_id
+            or existing.evidence_set_id != command.evidence_set_id
+            or existing.behaviour_code != command.behaviour_code.strip()
+            or existing.behaviour_description != command.behaviour_description.strip()
+            or existing.proposed_pattern_status != command.proposed_pattern_status
+            or existing.scope != command.scope.strip()
+            or existing.rationale != command.rationale.strip()
+            or existing_relationships != requested_relationships
+            or len(existing_evidence) != len(command.evidence)
+        ):
+            raise AppError(
+                "PATTERN_IDEMPOTENCY_KEY_REUSED",
+                "Idempotency key was already used for a different Pattern candidate.",
+                status_code=409,
+            )
+        return existing
+
+    _require_pattern_candidate_create_expected_version(command.expected_version)
+
+    contract = {
+        "behaviour_code": command.behaviour_code,
+        "behaviour_description": command.behaviour_description,
+        "proposed_pattern_status": command.proposed_pattern_status,
+        "scope": command.scope,
+        "rationale": command.rationale,
+        "evidence": [
+            {
+                "evidence_set_member_id": str(item.evidence_set_member_id),
+                "relationship": item.relationship,
+            }
+            for item in command.evidence
+        ],
+    }
+    if not pattern_candidate_contract_valid(contract):
+        raise AppError(
+            "PATTERN_CANDIDATE_INVALID",
+            "Pattern candidate contract is invalid.",
+            status_code=422,
+        )
+
+    evidence_set = (
+        await db.execute(
+            select(EvidenceSet)
+            .where(EvidenceSet.id == command.evidence_set_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if evidence_set is None:
+        raise AppError(
+            "PATTERN_EVIDENCE_SET_NOT_FOUND",
+            "Evidence set not found.",
+            status_code=404,
+        )
+    if (
+        evidence_set.organization_context_id != command.organization_context_id
+        or evidence_set.subject_person_id != command.subject_person_id
+    ):
+        raise AppError(
+            "PATTERN_EVIDENCE_SET_CONTEXT_MISMATCH",
+            "Pattern candidate and Evidence set must have the same organization and subject.",
+            status_code=422,
+        )
+
+    requested_member_ids = tuple(
+        item.evidence_set_member_id for item in command.evidence
+    )
+    stored_member_ids = set(
+        (
+            await db.execute(
+                select(EvidenceSetMember.id).where(
+                    EvidenceSetMember.evidence_set_id == evidence_set.id,
+                    EvidenceSetMember.id.in_(requested_member_ids),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if stored_member_ids != set(requested_member_ids):
+        raise AppError(
+            "PATTERN_EVIDENCE_SET_MEMBER_INVALID",
+            "Pattern candidate evidence must belong to the selected Evidence set.",
+            status_code=422,
+        )
+
+    now = datetime.now(UTC)
+    candidate = PatternCandidate(
+        id=uuid4(),
+        version=1,
+        organization_context_id=command.organization_context_id,
+        subject_person_id=command.subject_person_id,
+        evidence_set_id=evidence_set.id,
+        behaviour_code=command.behaviour_code.strip(),
+        behaviour_description=command.behaviour_description.strip(),
+        proposed_pattern_status=command.proposed_pattern_status,
+        scope=command.scope.strip(),
+        rationale=command.rationale.strip(),
+        created_by=command.created_by,
+        idempotency_key=idempotency_key,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(candidate)
+    await db.flush()
+
+    for item in command.evidence:
+        db.add(
+            PatternCandidateEvidence(
+                id=uuid4(),
+                pattern_candidate_id=candidate.id,
+                evidence_set_member_id=item.evidence_set_member_id,
+                relationship=item.relationship,
+            )
+        )
+
+    record_event(
+        db,
+        new_event(
+            event_type="pattern.pattern_candidate_created.v1",
+            aggregate_type="PatternCandidate",
+            aggregate_id=candidate.id,
+            aggregate_version=candidate.version,
+            actor={"type": "PERSON", "id": str(command.created_by)},
+            organization_context_id=command.organization_context_id,
+            data_classification="CONFIDENTIAL",
+            payload={
+                "pattern_candidate_id": str(candidate.id),
+                "subject_person_id": str(candidate.subject_person_id),
+                "evidence_set_id": str(candidate.evidence_set_id),
+                "proposed_pattern_status": candidate.proposed_pattern_status,
+                "evidence": [
+                    {
+                        "evidence_set_member_id": str(item.evidence_set_member_id),
+                        "relationship": item.relationship,
+                    }
+                    for item in command.evidence
+                ],
+            },
+            trace_id=command.trace_id,
+        ),
+    )
+    await db.commit()
+    return candidate
+

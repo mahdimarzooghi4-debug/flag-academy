@@ -72,7 +72,15 @@ class EvidenceSetMember(Base):
 
 class PatternCandidate(Base):
     __tablename__ = "pattern_candidates"
-    __table_args__ = {"schema": "patterns"}
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id",
+            "created_by",
+            "idempotency_key",
+            name="uq_pattern_candidate_idempotency",
+        ),
+        {"schema": "patterns"},
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     version: Mapped[int] = mapped_column(BigInteger, default=1)
@@ -87,6 +95,7 @@ class PatternCandidate(Base):
     scope: Mapped[str] = mapped_column(String(255))
     rationale: Mapped[str] = mapped_column(Text)
     created_by: Mapped[UUID]
+    idempotency_key: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

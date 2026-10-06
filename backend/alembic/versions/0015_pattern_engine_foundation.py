@@ -98,11 +98,18 @@ def upgrade() -> None:
         sa.Column("scope", sa.String(255), nullable=False),
         sa.Column("rationale", sa.Text(), nullable=False),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("idempotency_key", sa.String(160), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["evidence_set_id"],
             ["patterns.evidence_sets.id"],
+        ),
+        sa.UniqueConstraint(
+            "organization_context_id",
+            "created_by",
+            "idempotency_key",
+            name="uq_pattern_candidate_idempotency",
         ),
         schema="patterns",
     )
