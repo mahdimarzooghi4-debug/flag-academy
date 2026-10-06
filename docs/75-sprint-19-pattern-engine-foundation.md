@@ -188,7 +188,9 @@ Duplicate accepted-Evidence event delivery must not duplicate Evidence Set membe
 - ResponsibilityRecommendation;
 - Parcham AI-generated Pattern proposal;
 - Pattern-driven replay scheduling;
-- Pattern-to-training-dataset curation.
+- implementation of Pattern-to-training-dataset curation / Automatic Dataset Builder in Sprint 19.
+
+Future Pattern-to-training ingestion is governed by DEC-625 through DEC-627: once Pattern/Learning data becomes approved and policy-eligible for Parcham AI, ingestion and Dataset creation must be event-driven and automatic rather than an Admin-managed manual batch workflow. Sprint 19 only preserves the governed lineage needed by that future pipeline.
 
 ## Release gates
 

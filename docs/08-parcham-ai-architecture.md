@@ -236,11 +236,37 @@ Parcham AI برای Model/Inference/Training به OpenAI، Anthropic، Foundatio
 
 ### چرخه ارزش انباشتی
 
-**Parcham Experience → Governed Data → Curated Dataset → Parcham Training → Evaluation → Model Version → Product Use → New Experience**
+**Parcham Experience → Governed Data → Approval/Governance Gate → Immediate AI Memory/Knowledge Ingestion + Automatic Dataset Delta → Versioned Dataset → Parcham Training → Offline Evaluation → Promotion Gate → Model Version → Product Use → New Experience**
 
 ارزش Parcham AI با گذشت زمان از انباشت داده، تجربه، مدل، Evaluation و Learning Memory خود پرچم افزایش می‌یابد.
 
-Self-learning به معنی تغییر خام و بی‌ردیابی مدل Production نیست؛ Training، Evaluation، Versioning و Promotion باید قابل Audit باشند.
+#### Automatic Dataset Creation
+
+ساخت Dataset یک عملیات دستی Admin نیست. هر داده یا Learning Signal که طبق Policy برای یادگیری Parcham AI مجاز و approved شد باید به‌صورت event-driven وارد Automatic Dataset Builder شود.
+
+Dataset Builder باید:
+- ورودی‌های approved را به‌صورت idempotent و deduplicated پردازش کند؛
+- source lineage، approval/gate reference، purpose، data classification و provenance را حفظ کند؛
+- Dataset Delta بسازد و از آن Dataset Version جدید تولید کند؛
+- Dataset artifact/version قبلی را overwrite نکند؛
+- digest و lineage نسخه را برای Training/Evaluation قابل Audit نگه دارد؛
+- برای ساخت Dataset جدید نیازمند انتخاب دستی رکوردها توسط Admin یا Assessor نباشد.
+
+قواعد دقیق curation، eligibility و filtering باید versioned و policy-governed باشند و در قرارداد مستقل تعریف شوند؛ این سند threshold یا الگوریتم عددی اختراع نمی‌کند.
+
+#### Immediate ingestion of approved governed data
+
+داده approved نباید تا اجرای یک Batch دستی یا ساخت دستی Dataset از هوش پرچم جدا بماند.
+
+پس از approval:
+1. Domain/Governance event معتبر منتشر می‌شود؛
+2. داده مجاز بدون human batch gate وارد Structured AI Memory / Knowledge Store می‌شود تا Runtime بتواند از دانش جدید مجاز استفاده کند؛
+3. همان جریان Automatic Dataset Builder را برای ساخت Dataset Delta تحریک می‌کند؛
+4. Dataset Version جدید می‌تواند Training و Offline Evaluation خودکار را trigger کند.
+
+«Immediate» در این قرارداد یعنی هیچ مرحله انسانی/Batch prerequisite بین approval و ingestion وجود ندارد. SLA عددی latency در تصمیم جداگانه تعیین خواهد شد.
+
+Self-learning به معنی تغییر خام و بی‌ردیابی مدل Production نیست. Immediate Memory/Knowledge ingestion از Model Weight Promotion جداست؛ Training، Evaluation، Versioning و Promotion باید قابل Audit باشند و Model Version جدید فقط پس از Promotion Gate تعریف‌شده وارد Production می‌شود.
 
 ---
 
@@ -333,5 +359,7 @@ Parcham AI نباید بر «حافظه مبهم» درباره فرد تکیه 
 6. Least-privilege access to organizational data
 7. Business Pack human validation
 8. Parcham-owned model, training and evaluation lifecycle
-9. Full Audit Trail for AI-generated evidence and recommendations
-10. AI must support growth and judgment, not replace responsibility
+9. Automatic, versioned Dataset Creation from approved governed data
+10. Immediate event-driven ingestion of newly approved governed data into AI Memory/Knowledge and Dataset Delta
+11. Full Audit Trail for AI-generated evidence, datasets, training/evaluation runs and recommendations
+12. AI must support growth and judgment, not replace responsibility
