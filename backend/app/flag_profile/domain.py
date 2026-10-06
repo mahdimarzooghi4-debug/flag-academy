@@ -27,3 +27,15 @@ class CapabilityLevel(StrEnum):
 class ClaimPatternRelationship(StrEnum):
     SUPPORTING = "SUPPORTING"
     CONTRADICTORY = "CONTRADICTORY"
+
+
+def profile_claim_state_valid(value: str) -> bool:
+    return value in {item.value for item in CapabilityClaimState}
+
+
+def capability_level_valid(value: str) -> bool:
+    return value in {item.value for item in CapabilityLevel}
+
+
+def claim_pattern_relationship_valid(value: str) -> bool:
+    return value in {item.value for item in ClaimPatternRelationship}

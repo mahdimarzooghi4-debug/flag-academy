@@ -12,6 +12,12 @@ from app.evidence.domain import (
     case_transition_allowed,
     interpretation_contract_valid,
 )
+from app.flag_profile.application import (
+    CreateProfileUpdateCaseCommand,
+    ProfileUpdatePatternInput,
+    _require_create_contract,
+    _require_profile_update_create_expected_version,
+)
 from app.flag_profile.domain import (
     CapabilityClaimState,
     CapabilityLevel,
@@ -1412,3 +1418,117 @@ def test_reviewed_pattern_contract_scopes_subject_and_organization() -> None:
     assert "PatternCandidate.organization_context_id" in loader_source
     assert "EvidenceSet.organization_context_id" in loader_source
     assert "PatternReview.resulting_pattern_id == pattern.id" in loader_source
+
+
+
+def _profile_update_command() -> CreateProfileUpdateCaseCommand:
+    return CreateProfileUpdateCaseCommand(
+        organization_context_id=UUID("00000000-0000-0000-0000-000000000001"),
+        subject_person_id=UUID("00000000-0000-0000-0000-000000000101"),
+        track_code="PRODUCT_MANAGER",
+        capability_id=UUID("10000000-0000-0000-0000-000000000003"),
+        patterns=(
+            ProfileUpdatePatternInput(
+                pattern_id=UUID("90000000-0000-0000-0000-000000000001"),
+                relationship="SUPPORTING",
+            ),
+            ProfileUpdatePatternInput(
+                pattern_id=UUID("90000000-0000-0000-0000-000000000002"),
+                relationship="CONTRADICTORY",
+            ),
+        ),
+        proposed_claim_state="DEMONSTRATED",
+        proposed_level="L2",
+        proposed_proven_scope="PROJECT",
+        proposed_evidence_recency="CURRENT",
+        proposed_confidence_in_claim="MODERATE",
+        proposed_next_evidence_needed="Authority-pressure evidence.",
+        rationale="Human proposal based on reviewed Patterns.",
+        created_by=UUID("00000000-0000-0000-0000-000000000104"),
+        expected_version=0,
+        idempotency_key="profile-update-create-1",
+        trace_id="trace-profile-update-create-1",
+    )
+
+
+def test_profile_update_creation_requires_expected_version_zero() -> None:
+    _require_profile_update_create_expected_version(0)
+
+    with pytest.raises(AppError) as exc_info:
+        _require_profile_update_create_expected_version(1)
+
+    assert exc_info.value.code == "VERSION_CONFLICT"
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.details == {
+        "expected_version": 1,
+        "current_version": 0,
+    }
+
+
+def test_profile_update_creation_validates_claim_vocabulary_without_inference() -> None:
+    command = _profile_update_command()
+    _require_create_contract(command)
+
+    with pytest.raises(AppError) as state_error:
+        _require_create_contract(replace(command, proposed_claim_state="PASS"))
+    assert state_error.value.code == "PROFILE_CLAIM_STATE_INVALID"
+
+    with pytest.raises(AppError) as level_error:
+        _require_create_contract(replace(command, proposed_level="L5"))
+    assert level_error.value.code == "PROFILE_CAPABILITY_LEVEL_INVALID"
+
+
+def test_profile_update_creation_preserves_explicit_pattern_relationships() -> None:
+    command = _profile_update_command()
+    _require_create_contract(command)
+    assert {item.relationship for item in command.patterns} == {
+        "SUPPORTING",
+        "CONTRADICTORY",
+    }
+
+    with pytest.raises(AppError) as duplicate_error:
+        _require_create_contract(
+            replace(
+                command,
+                patterns=(
+                    command.patterns[0],
+                    command.patterns[0],
+                ),
+            )
+        )
+    assert duplicate_error.value.code == "PROFILE_PATTERN_DUPLICATE"
+
+
+def test_profile_update_creation_does_not_infer_claim_or_import_pattern_models() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+
+    assert "app.patterns.models" not in source
+    assert "app.patterns.application" not in source
+    assert "from app.patterns.contracts import" in source
+
+    assert "proposed_claim_state=command.proposed_claim_state" in source
+    assert "proposed_level=command.proposed_level" in source
+    assert "proposed_proven_scope=command.proposed_proven_scope.strip()" in source
+    assert "threshold" not in source.lower()
+    assert "score" not in source.lower()
+
+
+def test_profile_update_creation_starts_proposed_and_does_not_apply_claim() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    create_source = source.split("async def create_profile_update_case", 1)[1]
+
+    assert "state=ProfileUpdateCaseState.PROPOSED.value" in create_source
+    assert "CapabilityClaim(" not in create_source
+    assert 'event_type="profile.claim_changed.v1"' not in create_source
+    assert "GateAssessment" not in create_source
+    assert "ResponsibilityRecommendation" not in create_source
+
+
+def test_profile_update_creation_scopes_pattern_reader_to_tenant_and_subject() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    create_source = source.split("async def create_profile_update_case", 1)[1]
+
+    assert "organization_context_id=command.organization_context_id" in create_source
+    assert "subject_person_id=command.subject_person_id" in create_source
+    assert 'code="PROFILE_PATTERN_NOT_FOUND"' not in create_source
+    assert '"PROFILE_PATTERN_NOT_FOUND"' in create_source
