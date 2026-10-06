@@ -42,6 +42,7 @@ import {
   AssessorProfileWorkspace,
   type CapabilityClaim,
   type PersonFlagProfile,
+  type ProfileCapabilityOption,
   type ProfileClaimState,
   type ProfileCapabilityLevel,
   type ProfilePatternRelationship,
@@ -54,6 +55,7 @@ function Loading({ text = "در حال بارگذاری..." }: { text?: string }
 }
 
 type RefetchResult<T> = { data?: T };
+type CapabilityCatalogOption = CapabilityOption & ProfileCapabilityOption;
 
 async function refreshProjectionUntil<T>(
   refetch: () => Promise<RefetchResult<T>>,
@@ -123,7 +125,7 @@ function AuthenticatedApp({
     queryFn: async () => {
       const { data, error } = await api.GET("/api/v1/capabilities");
       if (error || !data) throw new Error("دریافت Capabilityها ناموفق بود.");
-      return data as CapabilityOption[];
+      return data as CapabilityCatalogOption[];
     },
   });
 
