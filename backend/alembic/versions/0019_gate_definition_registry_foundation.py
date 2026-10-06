@@ -108,7 +108,6 @@ def upgrade() -> None:
         "gate_definitions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("code", sa.String(8), nullable=False, unique=True),
-        sa.Column("name", sa.String(255), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         schema="gate_assessment",
     )
@@ -121,6 +120,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("version_number", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(255), nullable=False),
         sa.Column("decision_question", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
@@ -182,7 +182,6 @@ def upgrade() -> None:
         "gate_definitions",
         sa.column("id", postgresql.UUID(as_uuid=True)),
         sa.column("code", sa.String),
-        sa.column("name", sa.String),
         sa.column("created_at", sa.DateTime(timezone=True)),
         schema="gate_assessment",
     )
@@ -191,6 +190,7 @@ def upgrade() -> None:
         sa.column("id", postgresql.UUID(as_uuid=True)),
         sa.column("gate_definition_id", postgresql.UUID(as_uuid=True)),
         sa.column("version_number", sa.Integer),
+        sa.column("name", sa.String),
         sa.column("decision_question", sa.Text),
         sa.column("created_at", sa.DateTime(timezone=True)),
         schema="gate_assessment",
@@ -227,7 +227,6 @@ def upgrade() -> None:
                 {
                     "id": definition_id,
                     "code": code,
-                    "name": name,
                     "created_at": created_at,
                 }
             ],
@@ -239,6 +238,7 @@ def upgrade() -> None:
                     "id": version_id,
                     "gate_definition_id": definition_id,
                     "version_number": 1,
+                    "name": name,
                     "decision_question": question,
                     "created_at": created_at,
                 }
@@ -274,9 +274,49 @@ def upgrade() -> None:
         )
 
 
+    op.execute(
+        sa.text(
+            """
+            CREATE OR REPLACE FUNCTION gate_assessment.reject_gate_definition_mutation()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $
+            BEGIN
+                RAISE EXCEPTION
+                    'gate definition registry rows are immutable; create a new version instead';
+            END;
+            $;
+            """
+        )
+    )
+    immutable_tables = (
+        "gate_definitions",
+        "gate_definition_versions",
+        "gate_definition_requirements",
+        "gate_definition_outcomes",
+    )
+    for table_name in immutable_tables:
+        op.execute(
+            sa.text(
+                f"""
+                CREATE TRIGGER trg_{table_name}_immutable
+                BEFORE UPDATE OR DELETE ON gate_assessment.{table_name}
+                FOR EACH ROW
+                EXECUTE FUNCTION gate_assessment.reject_gate_definition_mutation()
+                """
+            )
+        )
+
+
 def downgrade() -> None:
     op.drop_table("gate_definition_outcomes", schema="gate_assessment")
     op.drop_table("gate_definition_requirements", schema="gate_assessment")
     op.drop_table("gate_definition_versions", schema="gate_assessment")
     op.drop_table("gate_definitions", schema="gate_assessment")
+    op.execute(
+        sa.text(
+            "DROP FUNCTION IF EXISTS "
+            "gate_assessment.reject_gate_definition_mutation()"
+        )
+    )
     op.execute(sa.text('DROP SCHEMA IF EXISTS "gate_assessment"'))
