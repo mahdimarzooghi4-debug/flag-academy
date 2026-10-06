@@ -130,3 +130,41 @@ def test_evidence_engine_contract_is_exposed() -> None:
     response_props = schemas["CandidateResponseCreate"]["properties"]
     assert "expected_version" in response_props
     assert "idempotency_key" in response_props
+
+def test_pattern_read_contract_exposes_full_lineage() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/patterns" in paths
+    assert "/api/v1/patterns/{pattern_id}/lineage" in paths
+    assert "get" in paths["/api/v1/patterns"]
+    assert "get" in paths["/api/v1/patterns/{pattern_id}/lineage"]
+
+    schemas = app.openapi()["components"]["schemas"]
+    lineage_props = schemas["ReviewedPatternLineageResponse"]["properties"]
+    assert "candidate" in lineage_props
+    assert "evidence_set" in lineage_props
+    assert "review" in lineage_props
+    assert "evidence" in lineage_props
+
+    evidence_props = schemas["PatternEvidenceLineageResponse"]["properties"]
+    assert "relationship" in evidence_props
+    assert "evidence_case_id" in evidence_props
+    assert "interpretation_id" in evidence_props
+    assert "interpretation_version" in evidence_props
+    assert "target_links" in evidence_props
+    assert "source_lineage" in evidence_props
+
+    source_props = schemas["PatternSourceLineageResponse"]["properties"]
+    assert "source_observation_id" in source_props
+    assert "source_context" in source_props
+    assert "source_reference" in source_props
+    assert "observation_type" in source_props
+
+
+def test_pattern_read_api_keeps_evidence_boundary_snapshot_only() -> None:
+    from pathlib import Path
+
+    source = Path("app/patterns/api.py").read_text()
+    assert "app.evidence" not in source
+    assert "EvidenceCase" not in source
+    assert "EvidenceInterpretation" not in source
+

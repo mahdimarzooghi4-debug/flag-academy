@@ -17,6 +17,7 @@ from app.learning.api import router as learning_router
 from app.mission_design.api import router as mission_design_router
 from app.mission_runtime.api import router as mission_runtime_router
 from app.observability import configure_observability
+from app.patterns.api import router as patterns_router
 from app.read_models.api import router as read_models_router
 
 settings = get_settings()
@@ -37,6 +38,7 @@ app.include_router(academy_router)
 app.include_router(learning_router)
 app.include_router(mission_design_router)
 app.include_router(mission_runtime_router)
+app.include_router(patterns_router)
 app.include_router(read_models_router)
 configure_observability(app)
 
