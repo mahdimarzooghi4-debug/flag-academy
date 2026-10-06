@@ -22,6 +22,7 @@ from app.flag_profile.application import (
     _require_profile_update_create_expected_version,
     _require_profile_update_expected_version,
 )
+from app.flag_profile.models import ProfileUpdateCase
 from app.flag_profile.domain import (
     CapabilityClaimState,
     CapabilityLevel,
