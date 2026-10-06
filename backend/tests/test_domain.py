@@ -42,6 +42,12 @@ from app.mission_runtime.domain import (
     resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
+from app.patterns.domain import (
+    PatternEvidenceRelationship,
+    PatternStatus,
+    evidence_set_contract_valid,
+    pattern_candidate_contract_valid,
+)
 from app.platform.events import new_event
 
 
@@ -919,3 +925,109 @@ def test_evidence_interpretation_rejects_unknown_target_type() -> None:
         ],
     }
     assert not interpretation_contract_valid(interpretation)
+
+PATTERN_ORG_ID = "00000000-0000-0000-0000-000000000001"
+PATTERN_SUBJECT_ID = "00000000-0000-0000-0000-000000000101"
+PATTERN_EVIDENCE_ID = "90000000-0000-0000-0000-000000000001"
+PATTERN_INTERPRETATION_ID = "90000000-0000-0000-0000-000000000002"
+PATTERN_MEMBER_ID = "90000000-0000-0000-0000-000000000003"
+
+
+def _pattern_evidence_set() -> dict:
+    return {
+        "organization_context_id": PATTERN_ORG_ID,
+        "subject_person_id": PATTERN_SUBJECT_ID,
+        "members": [
+            {
+                "evidence_case_id": PATTERN_EVIDENCE_ID,
+                "interpretation_id": PATTERN_INTERPRETATION_ID,
+                "interpretation_version": 1,
+                "behaviour_code": "METRIC_REASONING",
+                "signal": "POSITIVE",
+                "scope": "RECOVERY_EXPERIMENT",
+                "confidence": "HIGH",
+                "context_difficulty": "HIGH",
+                "prompt_contamination": "NONE",
+                "source_independence_group": "MISSION_INSTANCE:mission-1",
+                "accepted_at": "2026-10-06T07:00:00Z",
+                "target_links": [
+                    {
+                        "target_type": "CAPABILITY",
+                        "target_ref": "METRICS_EXPERIMENTATION",
+                        "signal": "POSITIVE",
+                        "scope": "RECOVERY_EXPERIMENT",
+                        "relevance": "HIGH",
+                        "confidence": "HIGH",
+                    }
+                ],
+                "source_lineage": {
+                    "source_observation_id": "observation-1",
+                    "source_context": "MISSION_RUNTIME",
+                    "source_reference": "MISSION_INSTANCE:mission-1",
+                    "observation_type": "EXPERIMENT_RESULT_OBSERVED",
+                },
+            }
+        ],
+    }
+
+
+def _pattern_candidate() -> dict:
+    return {
+        "behaviour_code": "METRIC_REASONING",
+        "behaviour_description": "Uses experiment measurements to reason about outcomes.",
+        "proposed_pattern_status": "EMERGING",
+        "scope": "RECOVERY_EXPERIMENT",
+        "rationale": "Accepted evidence supports a reviewable emerging pattern.",
+        "evidence": [
+            {
+                "evidence_set_member_id": PATTERN_MEMBER_ID,
+                "relationship": "SUPPORTING",
+            }
+        ],
+    }
+
+
+def test_pattern_status_vocabulary_matches_final_decision() -> None:
+    assert {item.value for item in PatternStatus} == {
+        "EMERGING",
+        "REPEATED",
+        "STABLE",
+        "CONTRADICTED",
+        "REGRESSED",
+        "RECOVERING",
+    }
+    assert {item.value for item in PatternEvidenceRelationship} == {
+        "SUPPORTING",
+        "CONTRADICTORY",
+    }
+
+
+def test_pattern_evidence_set_contract_preserves_reviewed_lineage() -> None:
+    assert evidence_set_contract_valid(_pattern_evidence_set())
+
+    duplicate = _pattern_evidence_set()
+    duplicate["members"].append(dict(duplicate["members"][0]))
+    assert not evidence_set_contract_valid(duplicate)
+
+    missing_lineage = _pattern_evidence_set()
+    del missing_lineage["members"][0]["source_lineage"]["source_reference"]
+    assert not evidence_set_contract_valid(missing_lineage)
+
+
+def test_pattern_candidate_requires_allowed_status_and_supporting_evidence() -> None:
+    assert pattern_candidate_contract_valid(_pattern_candidate())
+
+    unknown_status = _pattern_candidate()
+    unknown_status["proposed_pattern_status"] = "PROVEN"
+    assert not pattern_candidate_contract_valid(unknown_status)
+
+    contradictory_only = _pattern_candidate()
+    contradictory_only["evidence"][0]["relationship"] = "CONTRADICTORY"
+    assert not pattern_candidate_contract_valid(contradictory_only)
+
+
+def test_pattern_candidate_rejects_duplicate_evidence_members() -> None:
+    candidate = _pattern_candidate()
+    candidate["evidence"].append(dict(candidate["evidence"][0]))
+    assert not pattern_candidate_contract_valid(candidate)
+
