@@ -355,6 +355,13 @@ async def create_profile_update_case(
             command.proposed_next_evidence_needed.strip()
         ),
         rationale=command.rationale.strip(),
+        reviewed_claim_state=None,
+        reviewed_level=None,
+        reviewed_proven_scope=None,
+        reviewed_evidence_recency=None,
+        reviewed_confidence_in_claim=None,
+        reviewed_next_evidence_needed=None,
+        review_rationale=None,
         created_by=command.created_by,
         reviewed_by=None,
         reviewed_at=None,
@@ -681,3 +688,178 @@ async def load_profile_update_case_pre_review(
         rationale=update_case.rationale,
         patterns=tuple(patterns),
     )
+
+
+
+@dataclass(frozen=True)
+class ApproveProfileUpdateCaseCommand:
+    organization_context_id: UUID
+    profile_update_case_id: UUID
+    reviewer_id: UUID
+    reviewed_claim_state: str
+    reviewed_level: str
+    reviewed_proven_scope: str
+    reviewed_evidence_recency: str
+    reviewed_confidence_in_claim: str
+    reviewed_next_evidence_needed: str
+    rationale: str
+    expected_version: int
+    idempotency_key: str
+    trace_id: str
+
+
+def _require_profile_update_approval_contract(
+    command: ApproveProfileUpdateCaseCommand,
+) -> None:
+    if not profile_claim_state_valid(command.reviewed_claim_state):
+        raise AppError(
+            "PROFILE_CLAIM_STATE_INVALID",
+            "Reviewed Capability Claim state is invalid.",
+            status_code=422,
+        )
+    if not capability_level_valid(command.reviewed_level):
+        raise AppError(
+            "PROFILE_CAPABILITY_LEVEL_INVALID",
+            "Reviewed Capability level is invalid.",
+            status_code=422,
+        )
+
+    required_text = (
+        ("reviewed_proven_scope", command.reviewed_proven_scope),
+        ("reviewed_evidence_recency", command.reviewed_evidence_recency),
+        ("reviewed_confidence_in_claim", command.reviewed_confidence_in_claim),
+        (
+            "reviewed_next_evidence_needed",
+            command.reviewed_next_evidence_needed,
+        ),
+        ("rationale", command.rationale),
+    )
+    missing = [name for name, value in required_text if not value.strip()]
+    if missing:
+        raise AppError(
+            "PROFILE_UPDATE_REVIEW_INVALID",
+            "Profile update Human Review has required fields missing.",
+            status_code=422,
+            details={"fields": missing},
+        )
+
+
+def _approval_retry_matches(
+    update_case: ProfileUpdateCase,
+    *,
+    command: ApproveProfileUpdateCaseCommand,
+    idempotency_key: str,
+) -> bool:
+    return (
+        update_case.state == ProfileUpdateCaseState.APPROVED.value
+        and update_case.review_idempotency_key == idempotency_key
+        and update_case.reviewed_by == command.reviewer_id
+        and update_case.reviewed_claim_state == command.reviewed_claim_state
+        and update_case.reviewed_level == command.reviewed_level
+        and update_case.reviewed_proven_scope
+        == command.reviewed_proven_scope.strip()
+        and update_case.reviewed_evidence_recency
+        == command.reviewed_evidence_recency.strip()
+        and update_case.reviewed_confidence_in_claim
+        == command.reviewed_confidence_in_claim.strip()
+        and update_case.reviewed_next_evidence_needed
+        == command.reviewed_next_evidence_needed.strip()
+        and update_case.review_rationale == command.rationale.strip()
+    )
+
+
+async def approve_profile_update_case(
+    db: AsyncSession,
+    *,
+    command: ApproveProfileUpdateCaseCommand,
+) -> ProfileUpdateCase:
+    idempotency_key = command.idempotency_key.strip()
+    if not idempotency_key:
+        raise AppError(
+            "PROFILE_IDEMPOTENCY_KEY_REQUIRED",
+            "Idempotency key is required.",
+            status_code=422,
+        )
+
+    update_case = (
+        await db.execute(
+            select(ProfileUpdateCase)
+            .where(
+                ProfileUpdateCase.id == command.profile_update_case_id,
+                ProfileUpdateCase.organization_context_id
+                == command.organization_context_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if update_case is None:
+        raise AppError(
+            "PROFILE_UPDATE_CASE_NOT_FOUND",
+            "Profile update case not found.",
+            status_code=404,
+        )
+
+    if update_case.review_idempotency_key is not None:
+        if _approval_retry_matches(
+            update_case,
+            command=command,
+            idempotency_key=idempotency_key,
+        ):
+            return update_case
+        if update_case.review_idempotency_key == idempotency_key:
+            raise AppError(
+                "PROFILE_IDEMPOTENCY_KEY_REUSED",
+                "Idempotency key was already used for a different Profile review.",
+                status_code=409,
+            )
+
+    _require_profile_update_expected_version(
+        current_version=update_case.version,
+        expected_version=command.expected_version,
+    )
+    if not profile_update_transition_allowed(
+        update_case.state,
+        ProfileUpdateCaseState.APPROVED.value,
+    ):
+        raise AppError(
+            "PROFILE_UPDATE_STATE_CONFLICT",
+            "Profile update case cannot be approved from its current state.",
+            status_code=409,
+            details={
+                "current_state": update_case.state,
+                "target_state": ProfileUpdateCaseState.APPROVED.value,
+            },
+        )
+
+    _require_profile_update_approval_contract(command)
+
+    # Approval is forbidden unless the complete snapshotted lineage is reviewable.
+    await load_profile_update_case_pre_review(
+        db,
+        organization_context_id=command.organization_context_id,
+        profile_update_case_id=update_case.id,
+    )
+
+    now = datetime.now(UTC)
+    update_case.reviewed_claim_state = command.reviewed_claim_state
+    update_case.reviewed_level = command.reviewed_level
+    update_case.reviewed_proven_scope = command.reviewed_proven_scope.strip()
+    update_case.reviewed_evidence_recency = (
+        command.reviewed_evidence_recency.strip()
+    )
+    update_case.reviewed_confidence_in_claim = (
+        command.reviewed_confidence_in_claim.strip()
+    )
+    update_case.reviewed_next_evidence_needed = (
+        command.reviewed_next_evidence_needed.strip()
+    )
+    update_case.review_rationale = command.rationale.strip()
+    update_case.reviewed_by = command.reviewer_id
+    update_case.reviewed_at = now
+    update_case.review_idempotency_key = idempotency_key
+    update_case.state = ProfileUpdateCaseState.APPROVED.value
+    update_case.version += 1
+    update_case.updated_at = now
+
+    await db.commit()
+    return update_case

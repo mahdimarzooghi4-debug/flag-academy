@@ -78,6 +78,22 @@ class ProfileUpdateCase(Base):
     proposed_next_evidence_needed: Mapped[str] = mapped_column(Text)
     rationale: Mapped[str] = mapped_column(Text)
 
+    reviewed_claim_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    reviewed_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    reviewed_proven_scope: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    reviewed_evidence_recency: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    reviewed_confidence_in_claim: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    reviewed_next_evidence_needed: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
+    review_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_by: Mapped[UUID]
     reviewed_by: Mapped[UUID | None] = mapped_column(nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(

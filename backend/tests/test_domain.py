@@ -13,9 +13,12 @@ from app.evidence.domain import (
     interpretation_contract_valid,
 )
 from app.flag_profile.application import (
+    ApproveProfileUpdateCaseCommand,
     CreateProfileUpdateCaseCommand,
     ProfileUpdatePatternInput,
+    _approval_retry_matches,
     _require_create_contract,
+    _require_profile_update_approval_contract,
     _require_profile_update_create_expected_version,
     _require_profile_update_expected_version,
 )
@@ -1621,3 +1624,173 @@ def test_profile_update_pre_review_does_not_expose_gate_or_responsibility_state(
     assert "ResponsibilityRecommendation" not in pre_review
     assert "gate_state" not in pre_review
     assert "responsibility_state" not in pre_review
+
+
+
+def _profile_approval_command() -> ApproveProfileUpdateCaseCommand:
+    return ApproveProfileUpdateCaseCommand(
+        organization_context_id=UUID("00000000-0000-0000-0000-000000000001"),
+        profile_update_case_id=UUID(
+            "91000000-0000-0000-0000-000000000001"
+        ),
+        reviewer_id=UUID("00000000-0000-0000-0000-000000000105"),
+        reviewed_claim_state="DEMONSTRATED",
+        reviewed_level="L2",
+        reviewed_proven_scope="PROJECT",
+        reviewed_evidence_recency="CURRENT",
+        reviewed_confidence_in_claim="MODERATE",
+        reviewed_next_evidence_needed="Authority-pressure evidence.",
+        rationale="Canonical Pattern lineage reviewed and accepted.",
+        expected_version=2,
+        idempotency_key="profile-update-review-1",
+        trace_id="trace-profile-update-review-1",
+    )
+
+
+def test_profile_update_approval_contract_requires_human_reviewed_values() -> None:
+    command = _profile_approval_command()
+    _require_profile_update_approval_contract(command)
+
+    with pytest.raises(AppError) as state_error:
+        _require_profile_update_approval_contract(
+            replace(command, reviewed_claim_state="PASS")
+        )
+    assert state_error.value.code == "PROFILE_CLAIM_STATE_INVALID"
+
+    with pytest.raises(AppError) as level_error:
+        _require_profile_update_approval_contract(
+            replace(command, reviewed_level="L5")
+        )
+    assert level_error.value.code == "PROFILE_CAPABILITY_LEVEL_INVALID"
+
+    with pytest.raises(AppError) as rationale_error:
+        _require_profile_update_approval_contract(
+            replace(command, rationale=" ")
+        )
+    assert rationale_error.value.code == "PROFILE_UPDATE_REVIEW_INVALID"
+
+
+def test_profile_update_approval_preserves_proposed_and_reviewed_values_separately() -> None:
+    models_source = Path("app/flag_profile/models.py").read_text()
+    application_source = Path("app/flag_profile/application.py").read_text()
+
+    for field in (
+        "reviewed_claim_state",
+        "reviewed_level",
+        "reviewed_proven_scope",
+        "reviewed_evidence_recency",
+        "reviewed_confidence_in_claim",
+        "reviewed_next_evidence_needed",
+        "review_rationale",
+    ):
+        assert field in models_source
+
+    approval_source = application_source.split(
+        "async def approve_profile_update_case",
+        1,
+    )[1]
+    assert "update_case.reviewed_claim_state = command.reviewed_claim_state" in approval_source
+    assert "update_case.reviewed_level = command.reviewed_level" in approval_source
+    assert "update_case.proposed_claim_state =" not in approval_source
+    assert "update_case.proposed_level =" not in approval_source
+
+
+def test_profile_update_approval_is_tenant_scoped_and_lineage_gated() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    approval = source.split(
+        "async def approve_profile_update_case",
+        1,
+    )[1]
+    lookup = approval.split("select(ProfileUpdateCase)", 1)[1].split(
+        ".with_for_update()",
+        1,
+    )[0]
+
+    assert "ProfileUpdateCase.id == command.profile_update_case_id" in lookup
+    assert "ProfileUpdateCase.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup
+    assert "load_profile_update_case_pre_review(" in approval
+    assert "ProfileUpdateCaseState.APPROVED.value" in approval
+    assert "update_case.version += 1" in approval
+
+
+def test_profile_update_approval_does_not_apply_claim_or_emit_claim_changed() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    approval = source.split(
+        "async def approve_profile_update_case",
+        1,
+    )[1]
+
+    assert "CapabilityClaim(" not in approval
+    assert 'event_type="profile.claim_changed.v1"' not in approval
+    assert "CapabilityClaimPattern(" not in approval
+    assert "GateAssessment" not in approval
+    assert "ResponsibilityRecommendation" not in approval
+
+
+def test_profile_update_approval_exact_retry_contract() -> None:
+    command = _profile_approval_command()
+    update_case = ProfileUpdateCase(
+        id=command.profile_update_case_id,
+        version=3,
+        flag_profile_id=UUID("91000000-0000-0000-0000-000000000002"),
+        organization_context_id=command.organization_context_id,
+        subject_person_id=UUID("00000000-0000-0000-0000-000000000101"),
+        track_code="PRODUCT_MANAGER",
+        capability_id=UUID("10000000-0000-0000-0000-000000000003"),
+        state="APPROVED",
+        current_claim_id=None,
+        current_claim_version=None,
+        current_claim_state=None,
+        current_level=None,
+        current_proven_scope=None,
+        current_evidence_recency=None,
+        current_confidence_in_claim=None,
+        current_next_evidence_needed=None,
+        proposed_claim_state="DEMONSTRATED",
+        proposed_level="L2",
+        proposed_proven_scope="PROJECT",
+        proposed_evidence_recency="CURRENT",
+        proposed_confidence_in_claim="MODERATE",
+        proposed_next_evidence_needed="Authority-pressure evidence.",
+        rationale="Proposal.",
+        reviewed_claim_state=command.reviewed_claim_state,
+        reviewed_level=command.reviewed_level,
+        reviewed_proven_scope=command.reviewed_proven_scope,
+        reviewed_evidence_recency=command.reviewed_evidence_recency,
+        reviewed_confidence_in_claim=command.reviewed_confidence_in_claim,
+        reviewed_next_evidence_needed=command.reviewed_next_evidence_needed,
+        review_rationale=command.rationale,
+        created_by=UUID("00000000-0000-0000-0000-000000000104"),
+        reviewed_by=command.reviewer_id,
+        reviewed_at=datetime(2026, 10, 6, 12, 0, tzinfo=UTC),
+        applied_by=None,
+        applied_at=None,
+        creation_idempotency_key="profile-update-create-1",
+        review_idempotency_key=command.idempotency_key,
+        apply_idempotency_key=None,
+        created_at=datetime(2026, 10, 6, 11, 0, tzinfo=UTC),
+        updated_at=datetime(2026, 10, 6, 12, 0, tzinfo=UTC),
+    )
+
+    assert _approval_retry_matches(
+        update_case,
+        command=command,
+        idempotency_key=command.idempotency_key,
+    )
+    assert not _approval_retry_matches(
+        update_case,
+        command=replace(command, rationale="Different review."),
+        idempotency_key=command.idempotency_key,
+    )
+
+
+def test_profile_review_migration_is_flag_profile_local() -> None:
+    migration_source = Path(
+        "alembic/versions/0017_profile_update_human_review_fields.py"
+    ).read_text()
+
+    assert 'schema="flag_profile"' in migration_source
+    assert "patterns." not in migration_source
+    assert "evidence." not in migration_source
+    assert "curriculum." not in migration_source
