@@ -16,6 +16,12 @@ class EvidenceSet(Base):
             "version_number",
             name="uq_pattern_evidence_set_key_version",
         ),
+        UniqueConstraint(
+            "organization_context_id",
+            "created_by",
+            "idempotency_key",
+            name="uq_pattern_evidence_set_idempotency",
+        ),
         {"schema": "patterns"},
     )
 
@@ -25,6 +31,7 @@ class EvidenceSet(Base):
     organization_context_id: Mapped[UUID]
     subject_person_id: Mapped[UUID]
     created_by: Mapped[UUID]
+    idempotency_key: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
