@@ -202,6 +202,14 @@ class ReviewedPatternLineageResponse(BaseModel):
     evidence: list[PatternEvidenceLineageResponse]
 
 
+class PatternCandidateReviewLineageResponse(BaseModel):
+    organization_context_id: UUID
+    subject_person_id: UUID
+    candidate: PatternCandidateLineageResponse
+    evidence_set: EvidenceSetLineageResponse
+    evidence: list[PatternEvidenceLineageResponse]
+
+
 def _source_lineage_response(value: dict) -> PatternSourceLineageResponse:
     try:
         return PatternSourceLineageResponse(
@@ -240,6 +248,119 @@ async def _load_pattern(
             status_code=404,
         )
     return pattern
+
+
+async def _load_pattern_candidate(
+    db: AsyncSession,
+    *,
+    actor: ActorContext,
+    candidate_id: UUID,
+) -> PatternCandidate:
+    candidate = (
+        await db.execute(
+            select(PatternCandidate).where(
+                PatternCandidate.id == candidate_id,
+                PatternCandidate.organization_context_id
+                == actor.organization_context_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if candidate is None:
+        raise AppError(
+            "PATTERN_CANDIDATE_NOT_FOUND",
+            "Pattern candidate not found.",
+            status_code=404,
+        )
+    return candidate
+
+
+async def _candidate_review_lineage_response(
+    db: AsyncSession,
+    candidate: PatternCandidate,
+) -> PatternCandidateReviewLineageResponse:
+    evidence_set = (
+        await db.execute(
+            select(EvidenceSet).where(
+                EvidenceSet.id == candidate.evidence_set_id,
+                EvidenceSet.organization_context_id
+                == candidate.organization_context_id,
+                EvidenceSet.subject_person_id == candidate.subject_person_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if evidence_set is None:
+        raise AppError(
+            "PATTERN_LINEAGE_INCOMPLETE",
+            "Pattern candidate Evidence Set lineage is incomplete.",
+            status_code=409,
+        )
+
+    rows = (
+        await db.execute(
+            select(PatternCandidateEvidence, EvidenceSetMember)
+            .join(
+                EvidenceSetMember,
+                EvidenceSetMember.id
+                == PatternCandidateEvidence.evidence_set_member_id,
+            )
+            .where(
+                PatternCandidateEvidence.pattern_candidate_id == candidate.id,
+                EvidenceSetMember.evidence_set_id == evidence_set.id,
+            )
+            .order_by(EvidenceSetMember.created_at, EvidenceSetMember.id)
+        )
+    ).all()
+    if not rows:
+        raise AppError(
+            "PATTERN_LINEAGE_INCOMPLETE",
+            "Pattern candidate has no Evidence lineage.",
+            status_code=409,
+        )
+
+    evidence = [
+        PatternEvidenceLineageResponse(
+            relationship=relation.relationship,
+            evidence_set_member_id=member.id,
+            evidence_case_id=member.evidence_case_id,
+            interpretation_id=member.interpretation_id,
+            interpretation_version=member.interpretation_version,
+            behaviour_code=member.behaviour_code,
+            signal=member.signal,
+            scope=member.scope,
+            confidence=member.confidence,
+            context_difficulty=member.context_difficulty,
+            prompt_contamination=member.prompt_contamination,
+            source_independence_group=member.source_independence_group,
+            accepted_at=member.accepted_at,
+            target_links=member.target_links,
+            source_lineage=_source_lineage_response(member.source_lineage),
+        )
+        for relation, member in rows
+    ]
+
+    return PatternCandidateReviewLineageResponse(
+        organization_context_id=candidate.organization_context_id,
+        subject_person_id=candidate.subject_person_id,
+        candidate=PatternCandidateLineageResponse(
+            id=candidate.id,
+            version=candidate.version,
+            proposed_pattern_status=candidate.proposed_pattern_status,
+            behaviour_code=candidate.behaviour_code,
+            behaviour_description=candidate.behaviour_description,
+            scope=candidate.scope,
+            rationale=candidate.rationale,
+            created_by=candidate.created_by,
+            created_at=candidate.created_at,
+        ),
+        evidence_set=EvidenceSetLineageResponse(
+            id=evidence_set.id,
+            evidence_set_key=evidence_set.evidence_set_key,
+            version_number=evidence_set.version_number,
+            created_by=evidence_set.created_by,
+            created_at=evidence_set.created_at,
+        ),
+        evidence=evidence,
+    )
 
 
 async def _lineage_response(
@@ -489,6 +610,23 @@ async def create_pattern_candidate_api(
         ),
     )
     return await _pattern_candidate_response(db, candidate)
+
+
+@router.get(
+    "/pattern-candidates/{candidate_id}/lineage",
+    response_model=PatternCandidateReviewLineageResponse,
+)
+async def get_pattern_candidate_review_lineage(
+    candidate_id: UUID,
+    actor: Annotated[ActorContext, Depends(require_role("ASSESSOR"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> PatternCandidateReviewLineageResponse:
+    candidate = await _load_pattern_candidate(
+        db,
+        actor=actor,
+        candidate_id=candidate_id,
+    )
+    return await _candidate_review_lineage_response(db, candidate)
 
 
 @router.post(

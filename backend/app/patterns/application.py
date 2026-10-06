@@ -395,7 +395,11 @@ async def create_pattern_candidate(
     evidence_set = (
         await db.execute(
             select(EvidenceSet)
-            .where(EvidenceSet.id == command.evidence_set_id)
+            .where(
+                EvidenceSet.id == command.evidence_set_id,
+                EvidenceSet.organization_context_id
+                == command.organization_context_id,
+            )
             .with_for_update()
         )
     ).scalar_one_or_none()
@@ -405,10 +409,7 @@ async def create_pattern_candidate(
             "Evidence set not found.",
             status_code=404,
         )
-    if (
-        evidence_set.organization_context_id != command.organization_context_id
-        or evidence_set.subject_person_id != command.subject_person_id
-    ):
+    if evidence_set.subject_person_id != command.subject_person_id:
         raise AppError(
             "PATTERN_EVIDENCE_SET_CONTEXT_MISMATCH",
             "Pattern candidate and Evidence set must have the same organization and subject.",

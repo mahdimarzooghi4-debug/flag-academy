@@ -229,9 +229,11 @@ def test_pattern_command_contract_is_exposed() -> None:
     paths = app.openapi()["paths"]
     assert "/api/v1/pattern-evidence-sets" in paths
     assert "/api/v1/pattern-candidates" in paths
+    assert "/api/v1/pattern-candidates/{candidate_id}/lineage" in paths
     assert "/api/v1/pattern-candidates/{candidate_id}/review" in paths
     assert "post" in paths["/api/v1/pattern-evidence-sets"]
     assert "post" in paths["/api/v1/pattern-candidates"]
+    assert "get" in paths["/api/v1/pattern-candidates/{candidate_id}/lineage"]
     assert "post" in paths["/api/v1/pattern-candidates/{candidate_id}/review"]
 
     schemas = app.openapi()["components"]["schemas"]
@@ -256,15 +258,47 @@ def test_pattern_command_contract_is_exposed() -> None:
     assert "idempotency_key" in review_props
 
 
-def test_pattern_command_api_uses_evidence_reader_adapter_boundary() -> None:
+def test_pattern_command_api_uses_evidence_owned_contract_boundary() -> None:
     from pathlib import Path
 
     api_source = Path("app/patterns/api.py").read_text()
     adapter_source = Path("app/patterns/evidence_reader.py").read_text()
     application_source = Path("app/patterns/application.py").read_text()
+    contract_source = Path("app/evidence/contracts.py").read_text()
 
     assert "SqlAcceptedEvidenceReader" in api_source
     assert "from app.evidence" not in api_source
-    assert "from app.evidence" in adapter_source
+    assert "from app.evidence.models" not in adapter_source
+    assert "from app.evidence.contracts import" in adapter_source
+    assert "from app.evidence.models" in contract_source
     assert "from app.evidence" not in application_source
+
+
+def test_pattern_candidate_lineage_is_assessor_only_and_pre_review() -> None:
+    from pathlib import Path
+
+    source = Path("app/patterns/api.py").read_text()
+    segment = source.split(
+        '@router.get(\n    "/pattern-candidates/{candidate_id}/lineage"',
+        1,
+    )[1].split(
+        '@router.post(\n    "/pattern-candidates/{candidate_id}/review"',
+        1,
+    )[0]
+
+    assert 'require_role("ASSESSOR")' in segment
+    assert "_candidate_review_lineage_response" in segment
+
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["PatternCandidateReviewLineageResponse"]["properties"]
+    assert set(props) == {
+        "organization_context_id",
+        "subject_person_id",
+        "candidate",
+        "evidence_set",
+        "evidence",
+    }
+    evidence_props = schemas["PatternEvidenceLineageResponse"]["properties"]
+    assert "relationship" in evidence_props
+    assert "source_lineage" in evidence_props
 

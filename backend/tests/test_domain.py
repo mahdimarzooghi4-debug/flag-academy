@@ -1248,3 +1248,22 @@ def test_pattern_application_keeps_evidence_boundary_event_contract_only() -> No
     assert "evidence.evidence_" not in models_source
     assert 'event_type="pattern.updated.v1"' in application_source
 
+
+
+def test_pattern_candidate_evidence_set_lookup_is_tenant_scoped_before_lock() -> None:
+    source = Path("app/patterns/application.py").read_text()
+    candidate_source = source.split(
+        "async def create_pattern_candidate",
+        1,
+    )[1].split(
+        "@dataclass(frozen=True)\nclass ReviewPatternCandidateCommand",
+        1,
+    )[0]
+    lookup = candidate_source.split("select(EvidenceSet)", 1)[1].split(
+        ".with_for_update()",
+        1,
+    )[0]
+
+    assert "EvidenceSet.id == command.evidence_set_id" in lookup
+    assert "EvidenceSet.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup
