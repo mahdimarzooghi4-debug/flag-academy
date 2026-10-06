@@ -2183,3 +2183,48 @@ def test_gate_definition_persistence_is_versioned_and_context_local() -> None:
     assert '"evidence.' not in migration_source
     assert '"curriculum.' not in migration_source
     assert "JSONB" not in models_source
+
+
+def test_gate_definition_name_is_part_of_the_versioned_definition() -> None:
+    models_source = Path("app/gate_assessment/models.py").read_text()
+    migration_source = Path(
+        "alembic/versions/0019_gate_definition_registry_foundation.py"
+    ).read_text()
+
+    definition_model = models_source.split(
+        "class GateDefinition(Base):", 1
+    )[1].split("class GateDefinitionVersion(Base):", 1)[0]
+    version_model = models_source.split(
+        "class GateDefinitionVersion(Base):", 1
+    )[1].split("class GateDefinitionRequirement(Base):", 1)[0]
+    assert "name: Mapped[str]" not in definition_model
+    assert "name: Mapped[str]" in version_model
+
+    definition_table = migration_source.split(
+        'op.create_table(\n        "gate_definitions"', 1
+    )[1].split(
+        'op.create_table(\n        "gate_definition_versions"', 1
+    )[0]
+    version_table = migration_source.split(
+        'op.create_table(\n        "gate_definition_versions"', 1
+    )[1].split(
+        'op.create_table(\n        "gate_definition_requirements"', 1
+    )[0]
+    assert 'sa.Column("name"' not in definition_table
+    assert 'sa.Column("name"' in version_table
+
+
+def test_gate_definition_registry_rows_are_database_immutable() -> None:
+    migration_source = Path(
+        "alembic/versions/0019_gate_definition_registry_foundation.py"
+    ).read_text()
+
+    assert "reject_gate_definition_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    for table_name in (
+        "gate_definitions",
+        "gate_definition_versions",
+        "gate_definition_requirements",
+        "gate_definition_outcomes",
+    ):
+        assert f'"{table_name}"' in migration_source
