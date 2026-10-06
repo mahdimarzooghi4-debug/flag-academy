@@ -54,7 +54,6 @@ from app.mission_runtime.domain import (
     resource_allocation_transition_valid,
     runtime_transition_allowed,
 )
-from app.patterns.contracts import _source_contract
 from app.patterns.application import (
     AcceptedEvidenceSnapshot,
     _accepted_snapshot_matches_context,
@@ -64,6 +63,7 @@ from app.patterns.application import (
     _require_pattern_review_expected_version,
     _reviewed_pattern_status_valid,
 )
+from app.patterns.contracts import _source_contract
 from app.patterns.domain import (
     PatternEvidenceRelationship,
     PatternStatus,
