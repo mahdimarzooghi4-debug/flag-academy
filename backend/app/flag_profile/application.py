@@ -365,11 +365,14 @@ async def create_profile_update_case(
         reviewed_next_evidence_needed=None,
         review_rationale=None,
         created_by=command.created_by,
+        review_requested_by=None,
+        review_requested_at=None,
         reviewed_by=None,
         reviewed_at=None,
         applied_by=None,
         applied_at=None,
         creation_idempotency_key=idempotency_key,
+        review_request_idempotency_key=None,
         review_idempotency_key=None,
         apply_idempotency_key=None,
         created_at=now,
@@ -432,8 +435,29 @@ async def create_profile_update_case(
 class RequestProfileUpdateReviewCommand:
     organization_context_id: UUID
     profile_update_case_id: UUID
+    requested_by: UUID
     expected_version: int
+    idempotency_key: str
     trace_id: str
+
+
+def _review_request_retry_matches(
+    update_case: ProfileUpdateCase,
+    *,
+    command: RequestProfileUpdateReviewCommand,
+    idempotency_key: str,
+) -> bool:
+    return (
+        update_case.review_request_idempotency_key == idempotency_key
+        and update_case.review_requested_by == command.requested_by
+        and update_case.review_requested_at is not None
+        and update_case.state
+        in {
+            ProfileUpdateCaseState.REVIEW_REQUIRED.value,
+            ProfileUpdateCaseState.APPROVED.value,
+            ProfileUpdateCaseState.APPLIED.value,
+        }
+    )
 
 
 def _require_profile_update_expected_version(
@@ -458,6 +482,14 @@ async def request_profile_update_review(
     *,
     command: RequestProfileUpdateReviewCommand,
 ) -> ProfileUpdateCase:
+    idempotency_key = command.idempotency_key.strip()
+    if not idempotency_key:
+        raise AppError(
+            "PROFILE_IDEMPOTENCY_KEY_REQUIRED",
+            "Idempotency key is required.",
+            status_code=422,
+        )
+
     update_case = (
         await db.execute(
             select(ProfileUpdateCase)
@@ -475,6 +507,20 @@ async def request_profile_update_review(
             "Profile update case not found.",
             status_code=404,
         )
+
+    if update_case.review_request_idempotency_key is not None:
+        if _review_request_retry_matches(
+            update_case,
+            command=command,
+            idempotency_key=idempotency_key,
+        ):
+            return update_case
+        if update_case.review_request_idempotency_key == idempotency_key:
+            raise AppError(
+                "PROFILE_IDEMPOTENCY_KEY_REUSED",
+                "Idempotency key was already used for a different Profile review request.",
+                status_code=409,
+            )
 
     _require_profile_update_expected_version(
         current_version=update_case.version,
@@ -495,9 +541,13 @@ async def request_profile_update_review(
             },
         )
 
+    now = datetime.now(UTC)
     update_case.state = ProfileUpdateCaseState.REVIEW_REQUIRED.value
     update_case.version += 1
-    update_case.updated_at = datetime.now(UTC)
+    update_case.review_requested_by = command.requested_by
+    update_case.review_requested_at = now
+    update_case.review_request_idempotency_key = idempotency_key
+    update_case.updated_at = now
     await db.commit()
     return update_case
 

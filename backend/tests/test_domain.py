@@ -25,6 +25,7 @@ from app.flag_profile.application import (
     _require_profile_update_approval_contract,
     _require_profile_update_create_expected_version,
     _require_profile_update_expected_version,
+    _review_request_retry_matches,
 )
 from app.flag_profile.domain import (
     CapabilityClaimState,
@@ -2009,3 +2010,67 @@ def test_profile_apply_is_tenant_scoped_before_lock() -> None:
     assert "ProfileUpdateCase.id == command.profile_update_case_id" in lookup
     assert "ProfileUpdateCase.organization_context_id" in lookup
     assert "command.organization_context_id" in lookup
+
+
+
+def test_profile_update_review_request_exact_retry_is_audited() -> None:
+    command = RequestProfileUpdateReviewCommand(
+        organization_context_id=UUID("00000000-0000-0000-0000-000000000001"),
+        profile_update_case_id=UUID(
+            "91000000-0000-0000-0000-000000000001"
+        ),
+        requested_by=UUID("00000000-0000-0000-0000-000000000104"),
+        expected_version=1,
+        idempotency_key="profile-review-request-1",
+        trace_id="trace-profile-review-request-1",
+    )
+    update_case = ProfileUpdateCase(
+        state="REVIEW_REQUIRED",
+        review_requested_by=command.requested_by,
+        review_requested_at=datetime(2026, 10, 6, 12, 0, tzinfo=UTC),
+        review_request_idempotency_key=command.idempotency_key,
+    )
+
+    assert _review_request_retry_matches(
+        update_case,
+        command=command,
+        idempotency_key=command.idempotency_key,
+    )
+    assert not _review_request_retry_matches(
+        update_case,
+        command=replace(
+            command,
+            requested_by=UUID("00000000-0000-0000-0000-000000000105"),
+        ),
+        idempotency_key=command.idempotency_key,
+    )
+
+
+def test_profile_update_review_request_persists_actor_and_idempotency() -> None:
+    source = Path("app/flag_profile/application.py").read_text()
+    segment = source.split(
+        "async def request_profile_update_review",
+        1,
+    )[1].split(
+        "@dataclass(frozen=True)\nclass ProfileUpdateEvidenceLineage",
+        1,
+    )[0]
+
+    assert "command.idempotency_key.strip()" in segment
+    assert "update_case.review_requested_by = command.requested_by" in segment
+    assert "update_case.review_requested_at = now" in segment
+    assert (
+        "update_case.review_request_idempotency_key = idempotency_key"
+        in segment
+    )
+
+
+def test_profile_review_request_migration_is_flag_profile_local() -> None:
+    migration_source = Path(
+        "alembic/versions/0018_profile_update_review_request_audit.py"
+    ).read_text()
+
+    assert 'schema="flag_profile"' in migration_source
+    assert "patterns." not in migration_source
+    assert "evidence." not in migration_source
+    assert "curriculum." not in migration_source

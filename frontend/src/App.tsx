@@ -832,7 +832,10 @@ function AuthenticatedApp({
         "/api/v1/profile-update-cases/{case_id}/request-review",
         {
           params: { path: { case_id: caseId } },
-          body: { expected_version: expectedVersion },
+          body: {
+            expected_version: expectedVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
         },
       );
       if (error || !data) throw new Error("ورود Profile Update به Human Review ناموفق بود.");

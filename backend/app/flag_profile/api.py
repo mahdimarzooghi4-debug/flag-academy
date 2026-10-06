@@ -62,6 +62,7 @@ class ProfileUpdateCaseCreateRequest(BaseModel):
 
 class ProfileUpdateReviewRequest(BaseModel):
     expected_version: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=1, max_length=160)
 
 
 class ProfileUpdateApprovalRequest(BaseModel):
@@ -544,7 +545,9 @@ async def request_profile_update_case_review_api(
         command=RequestProfileUpdateReviewCommand(
             organization_context_id=actor.organization_context_id,
             profile_update_case_id=case_id,
+            requested_by=actor.person_id,
             expected_version=body.expected_version,
+            idempotency_key=body.idempotency_key,
             trace_id=actor.trace_id,
         ),
     )

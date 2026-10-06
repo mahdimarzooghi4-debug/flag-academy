@@ -95,6 +95,10 @@ class ProfileUpdateCase(Base):
     review_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_by: Mapped[UUID]
+    review_requested_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    review_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     reviewed_by: Mapped[UUID | None] = mapped_column(nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -105,6 +109,9 @@ class ProfileUpdateCase(Base):
     )
 
     creation_idempotency_key: Mapped[str] = mapped_column(String(160))
+    review_request_idempotency_key: Mapped[str | None] = mapped_column(
+        String(160), nullable=True
+    )
     review_idempotency_key: Mapped[str | None] = mapped_column(
         String(160), nullable=True
     )

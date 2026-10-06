@@ -489,3 +489,14 @@ def test_candidate_flag_profile_has_no_overall_score_or_gate_state() -> None:
     assert "responsibility_state" not in claim_props
     assert "score" not in track_props
     assert "overall_score" not in track_props
+
+
+
+def test_profile_review_request_requires_idempotency_key() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["ProfileUpdateReviewRequest"]["properties"]
+    required = set(schemas["ProfileUpdateReviewRequest"]["required"])
+
+    assert "expected_version" in props
+    assert "idempotency_key" in props
+    assert {"expected_version", "idempotency_key"}.issubset(required)
