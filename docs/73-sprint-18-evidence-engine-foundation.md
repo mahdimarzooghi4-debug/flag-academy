@@ -1,7 +1,8 @@
 # 73 — Sprint 18: Evidence Engine Foundation
 
-**Status:** IN PROGRESS  
-**Date:** 2026-10-05
+**Status:** ACCEPTED  
+**Date:** 2026-10-05  
+**Stage Acceptance:** [docs/74-sprint-18-stage-acceptance.md](74-sprint-18-stage-acceptance.md)
 
 ## Goal
 
