@@ -44,6 +44,7 @@ const acceptedCase: EvidenceCase = {
   created_at: "2026-10-06T07:00:00Z",
   updated_at: "2026-10-06T07:20:00Z",
   accepted_at: "2026-10-06T07:20:00Z",
+  rejected_at: null,
 };
 
 describe("AssessorPatternWorkspace", () => {
