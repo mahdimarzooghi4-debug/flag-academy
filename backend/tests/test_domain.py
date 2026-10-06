@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
+from app.errors import AppError
 from app.evidence.domain import (
     EvidenceCaseStatus,
     case_transition_allowed,
