@@ -38,12 +38,24 @@ import {
   type PatternSummary,
   type ReviewedPatternLineage,
 } from "./components/PatternWorkspace";
+import {
+  AssessorProfileWorkspace,
+  type CapabilityClaim,
+  type PersonFlagProfile,
+  type ProfileCapabilityOption,
+  type ProfileClaimState,
+  type ProfileCapabilityLevel,
+  type ProfilePatternRelationship,
+  type ProfileUpdateCase,
+  type ProfileUpdateLineage,
+} from "./components/ProfileWorkspace";
 
 function Loading({ text = "در حال بارگذاری..." }: { text?: string }) {
   return <div className="center-state">{text}</div>;
 }
 
 type RefetchResult<T> = { data?: T };
+type CapabilityCatalogOption = CapabilityOption & ProfileCapabilityOption;
 
 async function refreshProjectionUntil<T>(
   refetch: () => Promise<RefetchResult<T>>,
@@ -109,11 +121,11 @@ function AuthenticatedApp({
 
   const capabilities = useQuery({
     queryKey: ["capabilities"],
-    enabled: isAdmin,
+    enabled: isAdmin || isAssessor,
     queryFn: async () => {
       const { data, error } = await api.GET("/api/v1/capabilities");
       if (error || !data) throw new Error("دریافت Capabilityها ناموفق بود.");
-      return data as CapabilityOption[];
+      return data as CapabilityCatalogOption[];
     },
   });
 
@@ -195,6 +207,16 @@ function AuthenticatedApp({
       const { data, error } = await api.GET("/api/v1/patterns");
       if (error || !data) throw new Error("دریافت Reviewed Patternها ناموفق بود.");
       return data as PatternSummary[];
+    },
+  });
+
+  const assessorProfileCases = useQuery({
+    queryKey: ["assessor-profile-update-cases"],
+    enabled: isAssessor,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/profile-update-cases");
+      if (error || !data) throw new Error("دریافت Profile Update Caseها ناموفق بود.");
+      return data as ProfileUpdateCase[];
     },
   });
 
@@ -753,6 +775,176 @@ function AuthenticatedApp({
     return data as ReviewedPatternLineage;
   };
 
+  const createProfileUpdate = useMutation({
+    mutationFn: async (input: {
+      subjectPersonId: string;
+      trackCode: string;
+      capabilityId: string;
+      patterns: Array<{
+        patternId: string;
+        relationship: ProfilePatternRelationship;
+      }>;
+      proposedClaimState: ProfileClaimState;
+      proposedLevel: ProfileCapabilityLevel;
+      proposedProvenScope: string;
+      proposedEvidenceRecency: string;
+      proposedConfidenceInClaim: string;
+      proposedNextEvidenceNeeded: string;
+      rationale: string;
+    }) => {
+      const { data, error } = await api.POST("/api/v1/profile-update-cases", {
+        body: {
+          subject_person_id: input.subjectPersonId,
+          track_code: input.trackCode,
+          capability_id: input.capabilityId,
+          patterns: input.patterns.map((item) => ({
+            pattern_id: item.patternId,
+            relationship: item.relationship,
+          })),
+          proposed_claim_state: input.proposedClaimState,
+          proposed_level: input.proposedLevel,
+          proposed_proven_scope: input.proposedProvenScope,
+          proposed_evidence_recency: input.proposedEvidenceRecency,
+          proposed_confidence_in_claim: input.proposedConfidenceInClaim,
+          proposed_next_evidence_needed: input.proposedNextEvidenceNeeded,
+          rationale: input.rationale,
+          expected_version: 0,
+          idempotency_key: crypto.randomUUID(),
+        },
+      });
+      if (error || !data) throw new Error("ساخت Profile Update Proposal ناموفق بود.");
+      return data as ProfileUpdateCase;
+    },
+    onSuccess: async () => {
+      await assessorProfileCases.refetch();
+    },
+  });
+
+  const requestProfileUpdateReview = useMutation({
+    mutationFn: async ({
+      caseId,
+      expectedVersion,
+    }: {
+      caseId: string;
+      expectedVersion: number;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/profile-update-cases/{case_id}/request-review",
+        {
+          params: { path: { case_id: caseId } },
+          body: {
+            expected_version: expectedVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("ورود Profile Update به Human Review ناموفق بود.");
+      return data as ProfileUpdateCase;
+    },
+    onSuccess: async () => {
+      await assessorProfileCases.refetch();
+    },
+  });
+
+  const approveProfileUpdate = useMutation({
+    mutationFn: async ({
+      caseId,
+      expectedVersion,
+      reviewedClaimState,
+      reviewedLevel,
+      reviewedProvenScope,
+      reviewedEvidenceRecency,
+      reviewedConfidenceInClaim,
+      reviewedNextEvidenceNeeded,
+      rationale,
+    }: {
+      caseId: string;
+      expectedVersion: number;
+      reviewedClaimState: ProfileClaimState;
+      reviewedLevel: ProfileCapabilityLevel;
+      reviewedProvenScope: string;
+      reviewedEvidenceRecency: string;
+      reviewedConfidenceInClaim: string;
+      reviewedNextEvidenceNeeded: string;
+      rationale: string;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/profile-update-cases/{case_id}/approve",
+        {
+          params: { path: { case_id: caseId } },
+          body: {
+            reviewed_claim_state: reviewedClaimState,
+            reviewed_level: reviewedLevel,
+            reviewed_proven_scope: reviewedProvenScope,
+            reviewed_evidence_recency: reviewedEvidenceRecency,
+            reviewed_confidence_in_claim: reviewedConfidenceInClaim,
+            reviewed_next_evidence_needed: reviewedNextEvidenceNeeded,
+            rationale,
+            expected_version: expectedVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("Human Approval Profile ناموفق بود.");
+      return data as ProfileUpdateCase;
+    },
+    onSuccess: async () => {
+      await assessorProfileCases.refetch();
+    },
+  });
+
+  const applyProfileUpdate = useMutation({
+    mutationFn: async ({
+      caseId,
+      expectedVersion,
+    }: {
+      caseId: string;
+      expectedVersion: number;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/profile-update-cases/{case_id}/apply",
+        {
+          params: { path: { case_id: caseId } },
+          body: {
+            expected_version: expectedVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("Apply Capability Claim ناموفق بود.");
+      return data as CapabilityClaim;
+    },
+    onSuccess: async () => {
+      await assessorProfileCases.refetch();
+    },
+  });
+
+  const loadProfileUpdateLineage = async (
+    caseId: string,
+  ): Promise<ProfileUpdateLineage> => {
+    const { data, error } = await api.GET(
+      "/api/v1/profile-update-cases/{case_id}/lineage",
+      {
+        params: { path: { case_id: caseId } },
+      },
+    );
+    if (error || !data) throw new Error("دریافت Profile Update Lineage ناموفق بود.");
+    return data as ProfileUpdateLineage;
+  };
+
+  const loadFlagProfile = async (
+    subjectPersonId: string,
+  ): Promise<PersonFlagProfile> => {
+    const { data, error } = await api.GET(
+      "/api/v1/people/{person_id}/flag-profile",
+      {
+        params: { path: { person_id: subjectPersonId } },
+      },
+    );
+    if (error || !data) throw new Error("دریافت Current Flag Profile ناموفق بود.");
+    return data as PersonFlagProfile;
+  };
+
   const respondEvidenceContext = useMutation({
     mutationFn: async ({
       caseId,
@@ -819,6 +1011,7 @@ function AuthenticatedApp({
     missionInstances.isLoading ||
     assessorEvidence.isLoading ||
     assessorPatterns.isLoading ||
+    assessorProfileCases.isLoading ||
     candidateEvidence.isLoading
   ) return <Loading />;
   const error =
@@ -833,6 +1026,7 @@ function AuthenticatedApp({
     missionInstances.error ||
     assessorEvidence.error ||
     assessorPatterns.error ||
+    assessorProfileCases.error ||
     candidateEvidence.error ||
     createMission.error ||
     validateMission.error ||
@@ -854,6 +1048,10 @@ function AuthenticatedApp({
     createPatternEvidenceSet.error ||
     createPatternCandidate.error ||
     reviewPatternCandidate.error ||
+    createProfileUpdate.error ||
+    requestProfileUpdateReview.error ||
+    approveProfileUpdate.error ||
+    applyProfileUpdate.error ||
     respondEvidenceContext.error;
   if (error) return <div className="center-state error">{error.message}</div>;
 
@@ -1120,7 +1318,9 @@ function AuthenticatedApp({
       !isInstructor &&
       isAssessor &&
       assessorEvidence.data &&
-      assessorPatterns.data ? (
+      assessorPatterns.data &&
+      assessorProfileCases.data &&
+      capabilities.data ? (
         <>
           <AssessorEvidenceWorkspace
             cases={assessorEvidence.data}
@@ -1183,6 +1383,47 @@ function AuthenticatedApp({
               })
             }
             onLoadLineage={loadPatternLineage}
+          />
+          <AssessorProfileWorkspace
+            cases={assessorProfileCases.data}
+            patterns={assessorPatterns.data}
+            capabilities={capabilities.data}
+            busy={
+              createProfileUpdate.isPending ||
+              requestProfileUpdateReview.isPending ||
+              approveProfileUpdate.isPending ||
+              applyProfileUpdate.isPending
+            }
+            onCreate={async (input) =>
+              createProfileUpdate.mutateAsync(input)
+            }
+            onRequestReview={async (caseId, expectedVersion) =>
+              requestProfileUpdateReview.mutateAsync({
+                caseId,
+                expectedVersion,
+              })
+            }
+            onLoadLineage={loadProfileUpdateLineage}
+            onApprove={async (caseId, expectedVersion, input) =>
+              approveProfileUpdate.mutateAsync({
+                caseId,
+                expectedVersion,
+                reviewedClaimState: input.reviewedClaimState,
+                reviewedLevel: input.reviewedLevel,
+                reviewedProvenScope: input.reviewedProvenScope,
+                reviewedEvidenceRecency: input.reviewedEvidenceRecency,
+                reviewedConfidenceInClaim: input.reviewedConfidenceInClaim,
+                reviewedNextEvidenceNeeded: input.reviewedNextEvidenceNeeded,
+                rationale: input.rationale,
+              })
+            }
+            onApply={async (caseId, expectedVersion) =>
+              applyProfileUpdate.mutateAsync({
+                caseId,
+                expectedVersion,
+              })
+            }
+            onLoadFlagProfile={loadFlagProfile}
           />
         </>
       ) : null}

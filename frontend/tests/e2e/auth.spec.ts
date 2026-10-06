@@ -754,6 +754,216 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   await expect(patternLineage).toContainText("MISSION_RUNTIME");
   await expect(patternLineage).toContainText("Evidence Set v1");
 
+  // Flag Profile continues from the reviewed Pattern through an explicit human-governed flow.
+  const assessorProfileToken = await currentAccessToken(page);
+  const reviewedPatternsResponse = await page.context().request.get(
+    "http://localhost:8000/api/v1/patterns",
+    {
+      headers: {
+        Authorization: `Bearer ${assessorProfileToken}`,
+      },
+    },
+  );
+  expect(reviewedPatternsResponse.status()).toBe(200);
+  const reviewedPatterns = (await reviewedPatternsResponse.json()) as Array<{
+    id: string;
+    subject_person_id: string;
+    behaviour_code: string;
+    pattern_status: string;
+  }>;
+  const reviewedMetricPattern = reviewedPatterns.find(
+    (item) =>
+      item.behaviour_code === "METRIC_REASONING" &&
+      item.pattern_status === "REPEATED",
+  );
+  expect(reviewedMetricPattern).toBeTruthy();
+  if (!reviewedMetricPattern) throw new Error("Reviewed metric Pattern is missing");
+
+  const profileWorkspace = page.getByTestId("assessor-profile-workspace");
+  await expect(profileWorkspace).toBeVisible();
+  await profileWorkspace
+    .getByLabel(`انتخاب Pattern ${reviewedMetricPattern.id}`)
+    .check();
+  await profileWorkspace
+    .getByLabel(`رابطه Pattern ${reviewedMetricPattern.id}`)
+    .selectOption("SUPPORTING");
+  await profileWorkspace
+    .getByLabel("Track code Profile")
+    .fill("PRODUCT_MANAGER");
+  const selectedCapabilityId = await profileWorkspace
+    .getByLabel("Capability برای Profile")
+    .inputValue();
+  expect(selectedCapabilityId).not.toBe("");
+  await profileWorkspace
+    .getByLabel("Proposed Claim State")
+    .selectOption("DEMONSTRATED");
+  await profileWorkspace
+    .getByLabel("Proposed Capability Level")
+    .selectOption("L2");
+  await profileWorkspace
+    .getByLabel("Proposed Proven Scope")
+    .fill("PROJECT");
+  await profileWorkspace
+    .getByLabel("Proposed Evidence Recency")
+    .fill("CURRENT");
+  await profileWorkspace
+    .getByLabel("Proposed Claim Confidence")
+    .fill("MODERATE");
+  await profileWorkspace
+    .getByLabel("Proposed Next Evidence Needed")
+    .fill("Authority-pressure evidence from a later independent context.");
+  await profileWorkspace
+    .getByLabel("منطق Profile Proposal")
+    .fill(
+      "Reviewed Pattern is sufficient for a human Profile proposal only; no automatic proof or gate mutation is authorized.",
+    );
+  await profileWorkspace
+    .getByRole("button", { name: "ساخت Profile Update Proposal" })
+    .click();
+
+  const proposedProfileCase = profileWorkspace.getByTestId(
+    "profile-update-proposed",
+  );
+  await expect(proposedProfileCase).toContainText("PROPOSED");
+  await expect(proposedProfileCase).toContainText("v1");
+  await expect(
+    profileWorkspace.getByTestId("profile-pre-review-lineage"),
+  ).toHaveCount(0);
+
+  await profileWorkspace
+    .getByRole("button", { name: "ارسال برای Human Review" })
+    .click();
+
+  const profilePreReviewLineage = profileWorkspace.getByTestId(
+    "profile-pre-review-lineage",
+  );
+  await expect(profilePreReviewLineage).toContainText("METRIC_REASONING");
+  await expect(profilePreReviewLineage).toContainText("SUPPORTING");
+  await expect(profilePreReviewLineage).toContainText(
+    "EXPERIMENT_RESULT_OBSERVED",
+  );
+  await expect(profilePreReviewLineage).toContainText("MISSION_RUNTIME");
+  await expect(profilePreReviewLineage).toContainText(
+    "MISSION_INSTANCE:",
+  );
+  await expect(profilePreReviewLineage).toContainText("Independence");
+
+  await expect(
+    profileWorkspace.getByLabel("Reviewed Claim State"),
+  ).toHaveValue("DEMONSTRATED");
+  await expect(
+    profileWorkspace.getByLabel("Reviewed Capability Level"),
+  ).toHaveValue("L2");
+  await profileWorkspace
+    .getByLabel("منطق Human Review Profile")
+    .fill(
+      "Canonical Pattern, Evidence, Interpretation, Observation and Source lineage reviewed; reviewed Claim values are an explicit human decision.",
+    );
+
+  await profileWorkspace
+    .getByRole("button", { name: "تأیید Human Review Profile" })
+    .click();
+  await expect(profileWorkspace).toContainText("APPROVED · v3");
+
+  await profileWorkspace
+    .getByRole("button", { name: "Apply Current Capability Claim" })
+    .click();
+
+  await expect(
+    profileWorkspace.getByTestId("profile-claim-applied"),
+  ).toContainText("DEMONSTRATED");
+  await expect(
+    profileWorkspace.getByTestId("profile-claim-applied"),
+  ).toContainText("L2");
+  await expect(
+    profileWorkspace.getByTestId("current-capability-claim"),
+  ).toContainText("DEMONSTRATED · L2 · PROJECT");
+  await expect(
+    profileWorkspace.getByTestId("current-capability-claim"),
+  ).toContainText("Authority-pressure evidence");
+
+  const assessorFlagProfileResponse = await page.context().request.get(
+    `http://localhost:8000/api/v1/people/${reviewedMetricPattern.subject_person_id}/flag-profile`,
+    {
+      headers: {
+        Authorization: `Bearer ${assessorProfileToken}`,
+      },
+    },
+  );
+  expect(assessorFlagProfileResponse.status()).toBe(200);
+  const assessorFlagProfile = (await assessorFlagProfileResponse.json()) as {
+    profiles: Array<{
+      track_code: string;
+      claims: Array<{
+        id: string;
+        capability_id: string;
+        state: string;
+        level: string;
+        proven_scope: string;
+        patterns: Array<{
+          pattern_id: string;
+          pattern_version: number;
+          relationship: string;
+        }>;
+      }>;
+    }>;
+  };
+  const assessorTrack = assessorFlagProfile.profiles.find(
+    (item) => item.track_code === "PRODUCT_MANAGER",
+  );
+  expect(assessorTrack).toBeTruthy();
+  const appliedAssessorClaim = assessorTrack?.claims.find(
+    (item) => item.capability_id === selectedCapabilityId,
+  );
+  expect(appliedAssessorClaim).toBeTruthy();
+  expect(appliedAssessorClaim?.state).toBe("DEMONSTRATED");
+  expect(appliedAssessorClaim?.level).toBe("L2");
+  expect(appliedAssessorClaim?.proven_scope).toBe("PROJECT");
+  expect(appliedAssessorClaim?.patterns).toContainEqual(
+    expect.objectContaining({
+      pattern_id: reviewedMetricPattern.id,
+      relationship: "SUPPORTING",
+    }),
+  );
+  if (!appliedAssessorClaim) throw new Error("Applied assessor Claim is missing");
+
+  const assessorClaimLineageResponse = await page.context().request.get(
+    `http://localhost:8000/api/v1/profile/claims/${appliedAssessorClaim.id}/lineage`,
+    {
+      headers: {
+        Authorization: `Bearer ${assessorProfileToken}`,
+      },
+    },
+  );
+  expect(assessorClaimLineageResponse.status()).toBe(200);
+  const assessorClaimLineage = (await assessorClaimLineageResponse.json()) as {
+    source_profile_update_case_state: string;
+    patterns: Array<{
+      pattern_id: string;
+      relationship: string;
+      evidence: Array<{
+        interpretation_id: string;
+        source_observation_id: string;
+        source_context: string;
+        source_reference: string;
+        observation_type: string;
+      }>;
+    }>;
+  };
+  expect(assessorClaimLineage.source_profile_update_case_state).toBe("APPLIED");
+  expect(assessorClaimLineage.patterns[0]?.pattern_id).toBe(
+    reviewedMetricPattern.id,
+  );
+  expect(assessorClaimLineage.patterns[0]?.relationship).toBe("SUPPORTING");
+  expect(assessorClaimLineage.patterns[0]?.evidence[0]?.interpretation_id).toBeTruthy();
+  expect(assessorClaimLineage.patterns[0]?.evidence[0]?.source_observation_id).toBeTruthy();
+  expect(assessorClaimLineage.patterns[0]?.evidence[0]?.source_context).toBe(
+    "MISSION_RUNTIME",
+  );
+  expect(assessorClaimLineage.patterns[0]?.evidence[0]?.observation_type).toBe(
+    "EXPERIMENT_RESULT_OBSERVED",
+  );
+
   await logout(page);
   await login(page, "candidate", candidatePassword);
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
@@ -791,6 +1001,76 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   );
   expect(candidateLineageResponse.status()).toBe(403);
 
-  // Reviewed Pattern is informative only; it must not promote proof/profile/gate state.
+  const candidateProfileResponse = await page.context().request.get(
+    "http://localhost:8000/api/v1/me/flag-profile",
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidateProfileResponse.status()).toBe(200);
+  const candidateFlagProfile = (await candidateProfileResponse.json()) as {
+    profiles: Array<{
+      track_code: string;
+      claims: Array<Record<string, unknown>>;
+    }>;
+  };
+  const candidateTrack = candidateFlagProfile.profiles.find(
+    (item) => item.track_code === "PRODUCT_MANAGER",
+  );
+  expect(candidateTrack).toBeTruthy();
+  const candidateClaim = candidateTrack?.claims.find(
+    (item) => item.capability_id === selectedCapabilityId,
+  );
+  expect(candidateClaim).toBeTruthy();
+  expect(candidateClaim).toMatchObject({
+    capability_id: selectedCapabilityId,
+    state: "DEMONSTRATED",
+    level: "L2",
+    proven_scope: "PROJECT",
+    evidence_recency: "CURRENT",
+    next_evidence_needed:
+      "Authority-pressure evidence from a later independent context.",
+  });
+  expect(Object.keys(candidateClaim ?? {}).sort()).toEqual(
+    [
+      "capability_id",
+      "evidence_recency",
+      "level",
+      "next_evidence_needed",
+      "proven_scope",
+      "state",
+      "updated_at",
+    ].sort(),
+  );
+  expect(candidateClaim).not.toHaveProperty("id");
+  expect(candidateClaim).not.toHaveProperty("reviewed_by");
+  expect(candidateClaim).not.toHaveProperty("confidence_in_claim");
+  expect(candidateClaim).not.toHaveProperty("source_profile_update_case_id");
+  expect(candidateClaim).not.toHaveProperty("patterns");
+  expect(candidateClaim).not.toHaveProperty("lineage");
+
+  const candidateAssessorProfileResponse = await page.context().request.get(
+    `http://localhost:8000/api/v1/people/${reviewedMetricPattern.subject_person_id}/flag-profile`,
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidateAssessorProfileResponse.status()).toBe(403);
+
+  const candidateClaimLineageResponse = await page.context().request.get(
+    `http://localhost:8000/api/v1/profile/claims/${appliedAssessorClaim.id}/lineage`,
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidateClaimLineageResponse.status()).toBe(403);
+
+  // Profile Claim is human-applied, while Gate/Responsibility/proof remain separate.
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });
