@@ -7,6 +7,7 @@ import pytest
 
 from app.curriculum.domain import CAPABILITY_CODES, LearningState, ProofState
 from app.errors import AppError
+from app.patterns.contracts import _source_contract
 from app.evidence.domain import (
     EvidenceCaseStatus,
     case_transition_allowed,
@@ -1342,3 +1343,72 @@ def test_capability_claim_persistence_has_no_gate_or_responsibility_state() -> N
     assert "ResponsibilityRecommendation" not in models_source
     assert "gate_state" not in models_source
     assert "responsibility_state" not in models_source
+
+
+
+def test_reviewed_pattern_public_contract_rejects_incomplete_source_lineage() -> None:
+    source = _source_contract(
+        {
+            "source_observation_id": "90000000-0000-0000-0000-000000000001",
+            "source_context": "MISSION_RUNTIME",
+            "source_reference": "MISSION_INSTANCE:mission-1",
+            "observation_type": "EXPERIMENT_RESULT_OBSERVED",
+        }
+    )
+    assert source.source_observation_id == UUID(
+        "90000000-0000-0000-0000-000000000001"
+    )
+    assert source.source_context == "MISSION_RUNTIME"
+
+    with pytest.raises(AppError) as exc_info:
+        _source_contract(
+            {
+                "source_context": "MISSION_RUNTIME",
+                "source_reference": "MISSION_INSTANCE:mission-1",
+                "observation_type": "EXPERIMENT_RESULT_OBSERVED",
+            }
+        )
+
+    assert exc_info.value.code == "PATTERN_LINEAGE_INCOMPLETE"
+    assert exc_info.value.status_code == 409
+
+
+def test_reviewed_pattern_contract_is_pattern_owned_and_minimal() -> None:
+    contract_source = Path("app/patterns/contracts.py").read_text()
+
+    assert "from app.patterns.models import" in contract_source
+    assert "ReviewedPatternSnapshotContract" in contract_source
+    assert "ReviewedPatternEvidenceContract" in contract_source
+    assert "source_observation_id" in contract_source
+    assert "target_links" in contract_source
+
+    snapshot_block = contract_source.split(
+        "class ReviewedPatternSnapshotContract",
+        1,
+    )[1].split("def _source_contract", 1)[0]
+    assert "rationale" not in snapshot_block
+    assert "reviewed_by" not in snapshot_block
+    assert "idempotency_key" not in snapshot_block
+
+
+def test_flag_profile_consumes_pattern_public_contract_only() -> None:
+    reader_source = Path("app/flag_profile/pattern_reader.py").read_text()
+
+    assert "from app.patterns.contracts import" in reader_source
+    assert "app.patterns.models" not in reader_source
+    assert "app.patterns.application" not in reader_source
+    assert "app.patterns.api" not in reader_source
+
+
+def test_reviewed_pattern_contract_scopes_subject_and_organization() -> None:
+    contract_source = Path("app/patterns/contracts.py").read_text()
+    loader_source = contract_source.split(
+        "async def load_reviewed_pattern_snapshots",
+        1,
+    )[1]
+
+    assert "BehaviourPattern.organization_context_id == organization_context_id" in loader_source
+    assert "BehaviourPattern.subject_person_id == subject_person_id" in loader_source
+    assert "PatternCandidate.organization_context_id" in loader_source
+    assert "EvidenceSet.organization_context_id" in loader_source
+    assert "PatternReview.resulting_pattern_id == pattern.id" in loader_source
