@@ -1,4 +1,4 @@
-from app.patterns import domain
+import app.patterns.domain as pattern_domain
 
 
 ORG_ID = "00000000-0000-0000-0000-000000000001"
@@ -63,7 +63,7 @@ def _pattern_candidate() -> dict:
 
 
 def test_pattern_status_vocabulary_matches_final_decision() -> None:
-    assert {item.value for item in domain.PatternStatus} == {
+    assert {item.value for item in pattern_domain.PatternStatus} == {
         "EMERGING",
         "REPEATED",
         "STABLE",
@@ -71,37 +71,37 @@ def test_pattern_status_vocabulary_matches_final_decision() -> None:
         "REGRESSED",
         "RECOVERING",
     }
-    assert {item.value for item in domain.PatternEvidenceRelationship} == {
+    assert {item.value for item in pattern_domain.PatternEvidenceRelationship} == {
         "SUPPORTING",
         "CONTRADICTORY",
     }
 
 
 def test_evidence_set_contract_preserves_reviewed_evidence_lineage() -> None:
-    assert domain.evidence_set_contract_valid(_evidence_set())
+    assert pattern_domain.evidence_set_contract_valid(_evidence_set())
 
     duplicate = _evidence_set()
     duplicate["members"].append(dict(duplicate["members"][0]))
-    assert not domain.evidence_set_contract_valid(duplicate)
+    assert not pattern_domain.evidence_set_contract_valid(duplicate)
 
     missing_lineage = _evidence_set()
     del missing_lineage["members"][0]["source_lineage"]["source_reference"]
-    assert not domain.evidence_set_contract_valid(missing_lineage)
+    assert not pattern_domain.evidence_set_contract_valid(missing_lineage)
 
 
 def test_pattern_candidate_requires_allowed_status_and_supporting_evidence() -> None:
-    assert domain.pattern_candidate_contract_valid(_pattern_candidate())
+    assert pattern_domain.pattern_candidate_contract_valid(_pattern_candidate())
 
     unknown_status = _pattern_candidate()
     unknown_status["proposed_pattern_status"] = "PROVEN"
-    assert not domain.pattern_candidate_contract_valid(unknown_status)
+    assert not pattern_domain.pattern_candidate_contract_valid(unknown_status)
 
     contradictory_only = _pattern_candidate()
     contradictory_only["evidence"][0]["relationship"] = "CONTRADICTORY"
-    assert not domain.pattern_candidate_contract_valid(contradictory_only)
+    assert not pattern_domain.pattern_candidate_contract_valid(contradictory_only)
 
 
 def test_pattern_candidate_rejects_duplicate_evidence_members() -> None:
     candidate = _pattern_candidate()
     candidate["evidence"].append(dict(candidate["evidence"][0]))
-    assert not domain.pattern_candidate_contract_valid(candidate)
+    assert not pattern_domain.pattern_candidate_contract_valid(candidate)
