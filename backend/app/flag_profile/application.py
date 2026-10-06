@@ -1119,6 +1119,30 @@ async def apply_profile_update_case(
         }
     )
 
+    reviewed_claim_state = update_case.reviewed_claim_state
+    reviewed_level = update_case.reviewed_level
+    reviewed_proven_scope = update_case.reviewed_proven_scope
+    reviewed_evidence_recency = update_case.reviewed_evidence_recency
+    reviewed_confidence_in_claim = update_case.reviewed_confidence_in_claim
+    reviewed_next_evidence_needed = update_case.reviewed_next_evidence_needed
+    reviewed_at = update_case.reviewed_at
+    reviewed_by = update_case.reviewed_by
+    if (
+        reviewed_claim_state is None
+        or reviewed_level is None
+        or reviewed_proven_scope is None
+        or reviewed_evidence_recency is None
+        or reviewed_confidence_in_claim is None
+        or reviewed_next_evidence_needed is None
+        or reviewed_at is None
+        or reviewed_by is None
+    ):
+        raise AppError(
+            "PROFILE_UPDATE_REVIEW_INCOMPLETE",
+            "Approved Profile update is missing Human Review values.",
+            status_code=409,
+        )
+
     now = datetime.now(UTC)
     if current_claim is None:
         claim = CapabilityClaim(
@@ -1129,14 +1153,14 @@ async def apply_profile_update_case(
             subject_person_id=update_case.subject_person_id,
             track_code=update_case.track_code,
             capability_id=update_case.capability_id,
-            state=update_case.reviewed_claim_state,
-            level=update_case.reviewed_level,
-            proven_scope=update_case.reviewed_proven_scope,
-            evidence_recency=update_case.reviewed_evidence_recency,
-            confidence_in_claim=update_case.reviewed_confidence_in_claim,
-            reviewed_at=update_case.reviewed_at,
-            reviewed_by=update_case.reviewed_by,
-            next_evidence_needed=update_case.reviewed_next_evidence_needed,
+            state=reviewed_claim_state,
+            level=reviewed_level,
+            proven_scope=reviewed_proven_scope,
+            evidence_recency=reviewed_evidence_recency,
+            confidence_in_claim=reviewed_confidence_in_claim,
+            reviewed_at=reviewed_at,
+            reviewed_by=reviewed_by,
+            next_evidence_needed=reviewed_next_evidence_needed,
             source_profile_update_case_id=update_case.id,
             created_at=now,
             updated_at=now,
@@ -1146,14 +1170,14 @@ async def apply_profile_update_case(
     else:
         claim = current_claim
         claim.version += 1
-        claim.state = update_case.reviewed_claim_state
-        claim.level = update_case.reviewed_level
-        claim.proven_scope = update_case.reviewed_proven_scope
-        claim.evidence_recency = update_case.reviewed_evidence_recency
-        claim.confidence_in_claim = update_case.reviewed_confidence_in_claim
-        claim.reviewed_at = update_case.reviewed_at
-        claim.reviewed_by = update_case.reviewed_by
-        claim.next_evidence_needed = update_case.reviewed_next_evidence_needed
+        claim.state = reviewed_claim_state
+        claim.level = reviewed_level
+        claim.proven_scope = reviewed_proven_scope
+        claim.evidence_recency = reviewed_evidence_recency
+        claim.confidence_in_claim = reviewed_confidence_in_claim
+        claim.reviewed_at = reviewed_at
+        claim.reviewed_by = reviewed_by
+        claim.next_evidence_needed = reviewed_next_evidence_needed
         claim.source_profile_update_case_id = update_case.id
         claim.updated_at = now
 
