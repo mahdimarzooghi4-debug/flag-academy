@@ -450,6 +450,7 @@ async def complete_training_run(
         )
 
     artifact: AIModelArtifact | None = None
+    artifact_values: tuple[str, str, str, int] | None = None
     failure_code: str | None = None
     if outcome == TrainingRunState.SUCCEEDED.value:
         if command.failure_code is not None:
@@ -477,16 +478,12 @@ async def complete_training_run(
                 status_code=422,
                 details={"field": "byte_size"},
             )
-        artifact = AIModelArtifact(
-            id=uuid4(),
-            training_run_id=run.id,
-            artifact_format=artifact_format,
-            artifact_reference=artifact_reference,
-            content_sha256=content_sha256,
-            byte_size=command.byte_size,
-            created_at=datetime.now(UTC),
+        artifact_values = (
+            artifact_format,
+            artifact_reference,
+            content_sha256,
+            command.byte_size,
         )
-        db.add(artifact)
     else:
         failure_code = _required_text(
             command.failure_code or "",
@@ -516,6 +513,23 @@ async def complete_training_run(
         failure_code=failure_code,
     )
     db.add(state)
+    await db.flush()
+
+    if artifact_values is not None:
+        artifact_format, artifact_reference, content_sha256, byte_size = (
+            artifact_values
+        )
+        artifact = AIModelArtifact(
+            id=uuid4(),
+            training_run_id=run.id,
+            artifact_format=artifact_format,
+            artifact_reference=artifact_reference,
+            content_sha256=content_sha256,
+            byte_size=byte_size,
+            created_at=datetime.now(UTC),
+        )
+        db.add(artifact)
+        await db.flush()
 
     event_type = (
         "ai.training_run_succeeded.v1"
