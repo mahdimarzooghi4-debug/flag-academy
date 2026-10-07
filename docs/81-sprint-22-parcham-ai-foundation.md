@@ -201,9 +201,11 @@ Completion evidence: CI run `37625122783` succeeded on implementation HEAD
 Completion evidence: CI run `37631605456` succeeded on implementation HEAD
 `6033cb8dd45b3bb456d1fe413ed37ec12035cbf4`.
 
-### P22-07 — Admin Read Models / UI
-- lineage and governance visibility;
-- no secret/provider credential surface.
+### P22-07 — Admin Read Models / UI — ACTIVE
+- Academy Admin read-only AI governance endpoint;
+- Dataset → Training → Model → Evaluation → Human Promotion lineage visibility;
+- Persian RTL governance workspace integrated with the existing Admin UI;
+- no mutation controls and no secret/provider credential surface.
 
 ### P22-08 — Stage Acceptance + Code Review
 

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.academy.api import router as academy_router
+from app.ai_control_plane.api import router as ai_control_plane_router
 from app.config import get_settings
 from app.curriculum.api import router as curriculum_router
 from app.db import engine
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(identity_router)
+app.include_router(ai_control_plane_router)
 app.include_router(evidence_router)
 app.include_router(flag_profile_router)
 app.include_router(gate_assessment_router)
