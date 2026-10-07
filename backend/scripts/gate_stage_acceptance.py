@@ -64,14 +64,9 @@ async def _verify_runtime() -> dict[str, str | int]:
 
         invalid_states = (
             await db.execute(
-                text(
-                    """
-                    select count(*)
-                    from gate_assessment.gate_assessments
-                    where state <> all(:states)
-                    """
-                ),
-                {"states": list(expected_states)},
+                select(func.count())
+                .select_from(GateAssessment)
+                .where(GateAssessment.state.not_in(expected_states))
             )
         ).scalar_one()
         assert int(invalid_states) == 0
@@ -111,8 +106,14 @@ async def _verify_runtime() -> dict[str, str | int]:
             GateAssessmentState.PASS_CONFIRMED.value,
             GateAssessmentState.FAIL.value,
         }
-        assert review.gate_assessment_version == decision.prior_assessment_version
-        assert decision.resulting_assessment_version == decision.prior_assessment_version + 1
+        assert (
+            review.gate_assessment_version
+            == decision.prior_assessment_version
+        )
+        assert (
+            decision.resulting_assessment_version
+            == decision.prior_assessment_version + 1
+        )
         assert decision.gate_profile_snapshot_id == snapshot.id
         assert decision.gate_profile_snapshot_version == snapshot.snapshot_version
         assert decision.gate_definition_version_id == review.gate_definition_version_id
@@ -445,15 +446,21 @@ async def _verify_runtime() -> dict[str, str | int]:
         "gate_state_vocabulary": "+".join(expected_states),
         "gate_code_vocabulary": "+".join(expected_codes),
         "gate_snapshot_immutability": "DB_TRIGGER_ENFORCED",
-        "gate_snapshot_lineage": "CLAIM+PATTERN+EVIDENCE+INTERPRETATION+OBSERVATION+SOURCE",
+        "gate_snapshot_lineage": (
+            "CLAIM+PATTERN+EVIDENCE+INTERPRETATION+OBSERVATION+SOURCE"
+        ),
         "gate_open_review_idempotent_replay": "PASS",
         "gate_decision_idempotent_replay": "PASS",
-        "gate_human_decision_only": "PASS_CONFIRMED_OR_FAIL+PERSON+RATIONALE",
+        "gate_human_decision_only": (
+            "PASS_CONFIRMED_OR_FAIL+PERSON+RATIONALE"
+        ),
         "gate_missing_evidence_auto_fail": "FORBIDDEN",
         "gate_event_delivery": "DOMAIN_EVENT+OUTBOX+PUBLISHED",
         "gate_ai_system_direct_decision": "FORBIDDEN",
         "gate_capability_claim_mutation": "FORBIDDEN",
-        "gate_responsibility_flagboard_appointment_mutation": "FORBIDDEN",
+        "gate_responsibility_flagboard_appointment_mutation": (
+            "FORBIDDEN"
+        ),
     }
     return evidence
 
