@@ -302,3 +302,115 @@ class GateReviewDecision(Base):
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     decision_idempotency_key: Mapped[str] = mapped_column(String(160))
     trace_id: Mapped[str] = mapped_column(String(255))
+
+
+
+class GateRemediation(Base):
+    __tablename__ = "gate_remediations"
+    __table_args__ = (
+        UniqueConstraint(
+            "gate_assessment_id",
+            "failure_assessment_version",
+            name="uq_gate_remediation_failure_version",
+        ),
+        UniqueConstraint(
+            "organization_context_id",
+            "started_by",
+            "start_idempotency_key",
+            name="uq_gate_remediation_start_idempotency",
+        ),
+        {"schema": "gate_assessment"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    gate_assessment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_assessments.id")
+    )
+    organization_context_id: Mapped[UUID]
+    subject_person_id: Mapped[UUID]
+    failure_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    remediation_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    started_by: Mapped[UUID]
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    start_idempotency_key: Mapped[str] = mapped_column(String(160))
+    trace_id: Mapped[str] = mapped_column(String(255))
+
+
+class GateReassessment(Base):
+    __tablename__ = "gate_reassessments"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id",
+            "opened_by",
+            "open_idempotency_key",
+            name="uq_gate_reassessment_open_idempotency",
+        ),
+        {"schema": "gate_assessment"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    gate_assessment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_assessments.id")
+    )
+    gate_remediation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_remediations.id"),
+        unique=True,
+    )
+    gate_profile_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_profile_snapshots.id"),
+        unique=True,
+    )
+    gate_definition_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_definition_versions.id")
+    )
+    organization_context_id: Mapped[UUID]
+    subject_person_id: Mapped[UUID]
+    prior_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    reassessment_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    opened_by: Mapped[UUID]
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    open_idempotency_key: Mapped[str] = mapped_column(String(160))
+    trace_id: Mapped[str] = mapped_column(String(255))
+
+
+class GateReassessmentDecision(Base):
+    __tablename__ = "gate_reassessment_decisions"
+    __table_args__ = (
+        CheckConstraint(
+            "decision_state IN ('PASS', 'FAIL')",
+            name="ck_gate_reassessment_decision_state",
+        ),
+        UniqueConstraint(
+            "organization_context_id",
+            "reviewer_id",
+            "decision_idempotency_key",
+            name="uq_gate_reassessment_decision_idempotency",
+        ),
+        {"schema": "gate_assessment"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    gate_reassessment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_reassessments.id"),
+        unique=True,
+    )
+    gate_assessment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_assessments.id")
+    )
+    gate_profile_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_profile_snapshots.id")
+    )
+    gate_profile_snapshot_version: Mapped[int] = mapped_column(BigInteger)
+    gate_definition_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_definition_versions.id")
+    )
+    organization_context_id: Mapped[UUID]
+    subject_person_id: Mapped[UUID]
+    prior_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    resulting_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    decision_state: Mapped[str] = mapped_column(String(32))
+    reviewer_id: Mapped[UUID]
+    rationale: Mapped[str] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    decision_idempotency_key: Mapped[str] = mapped_column(String(160))
+    trace_id: Mapped[str] = mapped_column(String(255))
