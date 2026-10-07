@@ -109,6 +109,7 @@ def test_ai_dataset_version_preserves_governed_provenance() -> None:
         "source_reference",
         "source_version",
         "approval_reference",
+        "approval_event_id",
         "data_classification",
         "source_payload_digest",
         "provenance_digest",
@@ -309,6 +310,9 @@ def _approved_input(
         source_version="7",
         source_payload_digest="a" * 64,
         approval_reference=approval_reference,
+        approval_event_id=UUID(
+            "40000000-0000-0000-0000-000000000001"
+        ),
         data_classification="CONFIDENTIAL",
         approved_by_type="PERSON",
         approved_by_reference=approved_by_reference,
@@ -366,6 +370,7 @@ def test_ai_dataset_builder_input_has_no_raw_payload_or_manual_record_list() -> 
         "source_version",
         "source_payload_digest",
         "approval_reference",
+        "approval_event_id",
         "data_classification",
         "approved_by_type",
         "approved_by_reference",
@@ -425,6 +430,7 @@ def test_ai_dataset_builder_is_multi_replica_serialized_and_caller_transactional
     assert "pg_advisory_xact_lock" in ingest_source
     assert "await db.commit()" not in ingest_source
     assert 'event_type="ai.dataset_version_created.v1"' in ingest_source
+    assert "causation_id=normalized.approval_event_id" in ingest_source
     assert "record_event(" in ingest_source
 
 
@@ -541,6 +547,7 @@ async def test_ai_dataset_consumer_accepts_only_explicit_learning_approval_event
     command = calls[0]
     assert command.organization_context_id == organization_context_id
     assert command.approval_reference == "approval-001"
+    assert command.approval_event_id == envelope.event_id
     assert command.approved_by_type == "PERSON"
     assert command.approved_by_reference == "reviewer-001"
     assert command.approved_at == envelope.occurred_at
