@@ -143,54 +143,11 @@ class AIDatasetItem(Base):
             name="uq_ai_dataset_item_learning_approval",
         ),
         CheckConstraint(
-            "provenance_digest ~ '^[0-9a-f]{64}
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    dataset_version_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.dataset_versions.id")
-    )
-    learning_source_approval_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.learning_source_approvals.id")
-    )
-    position: Mapped[int] = mapped_column(Integer)
-    source_type: Mapped[str] = mapped_column(String(160))
-    source_reference: Mapped[str] = mapped_column(String(255))
-    source_version: Mapped[str | None] = mapped_column(
-        String(160),
-        nullable=True,
-    )
-    approval_reference: Mapped[str] = mapped_column(String(255))
-    data_classification: Mapped[str] = mapped_column(String(64))
-    source_payload_digest: Mapped[str] = mapped_column(String(64))
-    provenance_digest: Mapped[str] = mapped_column(String(64))
-
-
-",
+            "provenance_digest ~ '^[0-9a-f]{64}$'",
             name="ck_ai_dataset_item_provenance_sha256",
         ),
         CheckConstraint(
-            "source_payload_digest ~ '^[0-9a-f]{64}
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    dataset_version_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.dataset_versions.id")
-    )
-    learning_source_approval_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.learning_source_approvals.id"),
-        unique=True,
-    )
-    position: Mapped[int] = mapped_column(Integer)
-    source_type: Mapped[str] = mapped_column(String(160))
-    source_reference: Mapped[str] = mapped_column(String(255))
-    source_version: Mapped[str | None] = mapped_column(
-        String(160),
-        nullable=True,
-    )
-    approval_reference: Mapped[str] = mapped_column(String(255))
-    data_classification: Mapped[str] = mapped_column(String(64))
-    source_payload_digest: Mapped[str] = mapped_column(String(64))
-    provenance_digest: Mapped[str] = mapped_column(String(64))
-
-
-",
+            "source_payload_digest ~ '^[0-9a-f]{64}$'",
             name="ck_ai_dataset_item_payload_sha256",
         ),
         {"schema": "ai_control_plane"},
@@ -201,8 +158,7 @@ class AIDatasetItem(Base):
         ForeignKey("ai_control_plane.dataset_versions.id")
     )
     learning_source_approval_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.learning_source_approvals.id"),
-        unique=True,
+        ForeignKey("ai_control_plane.learning_source_approvals.id")
     )
     position: Mapped[int] = mapped_column(Integer)
     source_type: Mapped[str] = mapped_column(String(160))
