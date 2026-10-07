@@ -35,6 +35,7 @@ class ApprovedLearningInput:
     source_version: str | None
     source_payload_digest: str
     approval_reference: str
+    approval_event_id: UUID
     data_classification: str
     approved_by_type: str
     approved_by_reference: str
@@ -128,6 +129,7 @@ def _normalize(command: ApprovedLearningInput) -> ApprovedLearningInput:
             command.approval_reference,
             "approval_reference",
         ),
+        approval_event_id=command.approval_event_id,
         data_classification=_required_text(
             command.data_classification,
             "data_classification",
@@ -345,6 +347,7 @@ async def ingest_approved_learning_input(
         source_version=normalized.source_version,
         source_payload_digest=normalized.source_payload_digest,
         approval_reference=normalized.approval_reference,
+        approval_event_id=normalized.approval_event_id,
         data_classification=normalized.data_classification,
         provenance_digest=provenance_digest,
         approved_by_type=normalized.approved_by_type,
@@ -434,6 +437,7 @@ async def ingest_approved_learning_input(
                 "provenance_digest": provenance_digest,
             },
             trace_id=normalized.trace_id,
+            causation_id=normalized.approval_event_id,
         ),
     )
     return DatasetBuildResult(
