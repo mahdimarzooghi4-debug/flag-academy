@@ -2622,7 +2622,10 @@ def test_gate_open_review_snapshots_full_public_lineage_before_single_commit() -
     )[1].split(
         "async def open_gate_review", 1
     )[0]
-    open_source = source.split("async def open_gate_review", 1)[1]
+    open_source = source.split("async def open_gate_review", 1)[1].split(
+        "@dataclass(frozen=True)\nclass CompleteGateReviewCommand",
+        1,
+    )[0]
 
     for value in (
         "source_flag_profile_version=source.flag_profile_version",
@@ -2641,7 +2644,10 @@ def test_gate_open_review_snapshots_full_public_lineage_before_single_commit() -
 
 def test_gate_open_review_has_no_pass_fail_or_event_side_effect() -> None:
     source = Path("app/gate_assessment/application.py").read_text()
-    open_source = source.split("async def open_gate_review", 1)[1]
+    open_source = source.split("async def open_gate_review", 1)[1].split(
+        "@dataclass(frozen=True)\nclass CompleteGateReviewCommand",
+        1,
+    )[0]
 
     assert "PASS_CONFIRMED" not in open_source
     assert "GateAssessmentState.FAIL" not in open_source
