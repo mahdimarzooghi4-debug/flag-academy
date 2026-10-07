@@ -16,6 +16,25 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.execute(
+        sa.text(
+            """
+            DO $
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                      FROM ai_control_plane.model_versions
+                     LIMIT 1
+                ) THEN
+                    RAISE EXCEPTION
+                        'cannot add artifact attestation to existing Model Versions';
+                END IF;
+            END
+            $;
+            """
+        )
+    )
+
     op.add_column(
         "model_versions",
         sa.Column("attestation_sha256", sa.String(64), nullable=False),
