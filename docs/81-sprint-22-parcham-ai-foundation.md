@@ -175,16 +175,21 @@ Initial decision vocabulary:
 - artifact creation only after success;
 - no external trainer endpoint.
 
-### P22-04 — Model Registry + Artifact Attestation
+### P22-04 — Model Registry + Artifact Attestation — COMPLETE
 - immutable artifact identity;
 - SHA-256 attestation;
 - Model Version lineage;
 - no arbitrary external model registration.
 
-### P22-05 — Offline Evaluation
-- exact Model Version + Evaluation Dataset Version;
-- evaluation evidence;
-- no auto-pass policy.
+### P22-05 — Offline Evaluation — COMPLETE
+- exact Model Version + independent Evaluation Dataset Version;
+- tenant-scoped idempotent lifecycle;
+- immutable live-attested evaluation evidence;
+- DB-enforced Training/Evaluation Dataset Version separation;
+- no auto-pass policy, auto-promotion, or runtime activation.
+
+Completion evidence: CI run `37625122783` succeeded on implementation HEAD
+`4c1af52e6fdfd0a28a2e13e2ab1bcd3764cbaf95`.
 
 ### P22-06 — Human Promotion Governance
 - explicit Human decision;

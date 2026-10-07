@@ -1,6 +1,6 @@
 # P22-05 — Offline Evaluation
 
-**Status:** IMPLEMENTED — acceptance requires green CI on this record  
+**Status:** COMPLETE  
 **Date:** 2026-10-07  
 **Sprint:** 22 — Parcham AI Foundation  
 **PR:** #20 — Draft/Open/Unmerged
@@ -146,7 +146,9 @@ Gate/Profile/Responsibility/Appointment mutation, or deployment.
 
 ## Result
 
-When full CI is green on this implementation, **P22-05 — Offline Evaluation is
-COMPLETE**.
+Full CI run `37625122783` succeeded on implementation HEAD
+`4c1af52e6fdfd0a28a2e13e2ab1bcd3764cbaf95`.
+
+**P22-05 — Offline Evaluation is COMPLETE.**
 
 The next planned slice is **P22-06 — Human Promotion Governance**.
