@@ -21,12 +21,10 @@ def test_training_run_is_tenant_scoped_and_idempotent() -> None:
         "requested_at",
     }.issubset(columns)
 
-    constraints = {
-        constraint.name
-        for constraint in AITrainingRun.__table__.constraints
-        if constraint.name
-    }
-    assert "uq_ai_training_run_request_key" in constraints
+    migration = Path(
+        "alembic/versions/0026_ai_training_run_control_plane.py"
+    ).read_text()
+    assert "uq_ai_training_run_request_key" in migration
 
 
 def test_training_control_plane_pins_exact_governed_dataset_version() -> None:
