@@ -285,6 +285,9 @@ class AIModelVersion(Base):
     )
     model_family: Mapped[str] = mapped_column(String(255))
     semantic_version: Mapped[str] = mapped_column(String(160))
+    attestation_sha256: Mapped[str] = mapped_column(String(64))
+    attestation_byte_size: Mapped[int] = mapped_column(BigInteger)
+    attested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
