@@ -1,6 +1,6 @@
 # P22-06 — Human Promotion Governance
 
-**Status:** IMPLEMENTED — acceptance requires green CI on this record  
+**Status:** COMPLETE  
 **Date:** 2026-10-07  
 **Sprint:** 22 — Parcham AI Foundation  
 **PR:** #20 — Draft/Open/Unmerged
@@ -149,7 +149,9 @@ mutation, Flag Board decision, or Appointment action.
 
 ## Result
 
-When full CI is green on this implementation, **P22-06 — Human Promotion Governance is
-COMPLETE**.
+Full CI run `37631605456` succeeded on implementation HEAD
+`6033cb8dd45b3bb456d1fe413ed37ec12035cbf4`.
+
+**P22-06 — Human Promotion Governance is COMPLETE.**
 
 The next planned slice is **P22-07 — Admin Read Models / UI**.

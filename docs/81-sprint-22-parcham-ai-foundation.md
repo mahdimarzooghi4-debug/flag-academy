@@ -191,11 +191,15 @@ Initial decision vocabulary:
 Completion evidence: CI run `37625122783` succeeded on implementation HEAD
 `4c1af52e6fdfd0a28a2e13e2ab1bcd3764cbaf95`.
 
-### P22-06 — Human Promotion Governance — ACTIVE
+### P22-06 — Human Promotion Governance — COMPLETE
 - explicit Human-only decision command;
 - rationale + exact Model Version + exact successful Evaluation Run;
 - immutable authorization record with idempotent retry;
+- DB-enforced successful Evaluation + immutable Result lineage;
 - no automatic Production activation.
+
+Completion evidence: CI run `37631605456` succeeded on implementation HEAD
+`6033cb8dd45b3bb456d1fe413ed37ec12035cbf4`.
 
 ### P22-07 — Admin Read Models / UI
 - lineage and governance visibility;
