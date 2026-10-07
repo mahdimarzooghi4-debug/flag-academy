@@ -546,7 +546,7 @@ async def open_gate_reassessment(
         gate_assessment_id=assessment.id,
     )
     now = datetime.now(UTC)
-    snapshot = _persist_profile_snapshot(
+    snapshot = await _persist_profile_snapshot(
         db,
         gate_assessment=assessment,
         source=current_profile,
