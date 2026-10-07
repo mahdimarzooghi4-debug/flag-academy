@@ -2525,7 +2525,9 @@ def test_gate_persistence_foundation_adds_no_review_command_event_or_api() -> No
     migration_source = Path(
         "alembic/versions/0020_gate_assessment_persistence_foundation.py"
     ).read_text()
-    models_source = Path("app/gate_assessment/models.py").read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text().split(
+        "class GateReview(Base):", 1
+    )[0]
 
     for forbidden in (
         "GateReview",
@@ -2538,3 +2540,157 @@ def test_gate_persistence_foundation_adds_no_review_command_event_or_api() -> No
     ):
         assert forbidden not in migration_source
         assert forbidden not in models_source
+
+
+def test_gate_review_opening_persistence_is_auditable_and_immutable() -> None:
+    from app.gate_assessment.models import GateReview
+
+    columns = set(GateReview.__table__.c.keys())
+    assert {
+        "gate_assessment_id",
+        "gate_profile_snapshot_id",
+        "gate_definition_version_id",
+        "organization_context_id",
+        "subject_person_id",
+        "gate_assessment_version",
+        "opened_by",
+        "opened_at",
+        "open_idempotency_key",
+        "trace_id",
+    }.issubset(columns)
+
+    migration_source = Path(
+        "alembic/versions/0021_gate_review_opening_audit.py"
+    ).read_text()
+    assert "reject_gate_review_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    assert "uq_gate_review_open_idempotency" in migration_source
+    assert "uq_gate_review_assessment_version" in migration_source
+
+
+def test_gate_review_opening_has_only_intra_context_foreign_keys() -> None:
+    from app.gate_assessment.models import GateReview
+
+    targets = {fk.target_fullname for fk in GateReview.__table__.foreign_keys}
+    assert targets == {
+        "gate_assessment.gate_assessments.id",
+        "gate_assessment.gate_profile_snapshots.id",
+        "gate_assessment.gate_definition_versions.id",
+    }
+
+
+def test_gate_open_review_uses_only_flag_profile_public_contract() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    reader_source = Path("app/gate_assessment/profile_reader.py").read_text()
+
+    assert "from app.flag_profile.contracts import" in source
+    assert "app.flag_profile.models" not in source
+    assert "app.flag_profile.application" not in source
+    assert "lock_profile=True" in reader_source
+
+
+def test_flag_profile_public_contract_can_pin_profile_for_gate_snapshot() -> None:
+    source = Path("app/flag_profile/contracts.py").read_text()
+    load_source = source.split(
+        "async def load_current_flag_profile_snapshot", 1
+    )[1]
+
+    assert "lock_profile: bool = False" in load_source
+    assert "if lock_profile:" in load_source
+    assert "profile_query = profile_query.with_for_update()" in load_source
+
+
+def test_gate_open_review_is_tenant_scoped_versioned_and_transition_guarded() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    open_source = source.split("async def open_gate_review", 1)[1]
+    lookup = open_source.split("select(GateAssessment)", 1)[1].split(
+        ".with_for_update()", 1
+    )[0]
+
+    assert "GateAssessment.id == command.gate_assessment_id" in lookup
+    assert "GateAssessment.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup
+    assert "_require_expected_version(" in open_source
+    assert "gate_transition_allowed(" in open_source
+    assert "GateAssessmentState.REVIEW_REQUIRED.value" in open_source
+
+
+def test_gate_open_review_snapshots_full_public_lineage_before_single_commit() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    persist_source = source.split(
+        "def _persist_profile_snapshot", 1
+    )[1].split(
+        "async def open_gate_review", 1
+    )[0]
+    open_source = source.split("async def open_gate_review", 1)[1]
+
+    for value in (
+        "source_flag_profile_version=source.flag_profile_version",
+        "source_claim_version=claim.claim_version",
+        "source_pattern_version=pattern.pattern_version",
+        "interpretation_version=evidence.interpretation_version",
+        "source_observation_id=evidence.source_observation_id",
+        "source_reference=evidence.source_reference",
+    ):
+        assert value in persist_source
+
+    assert open_source.count("await db.commit()") == 1
+    assert "_persist_profile_snapshot(" in open_source
+    assert "db.add(review)" in open_source
+
+
+def test_gate_open_review_has_no_pass_fail_or_event_side_effect() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    open_source = source.split("async def open_gate_review", 1)[1]
+
+    assert "PASS_CONFIRMED" not in open_source
+    assert "GateAssessmentState.FAIL" not in open_source
+    assert "gate.review_completed.v1" not in open_source
+    assert "profile.snapshot_created.v1" not in open_source
+    assert "record_event(" not in open_source
+    assert "CapabilityClaim" not in open_source
+    assert "ResponsibilityRecommendation" not in open_source
+
+
+def test_gate_open_review_retry_requires_same_assessment_actor_and_track() -> None:
+    from app.gate_assessment.application import (
+        OpenGateReviewCommand,
+        _open_review_retry_matches,
+    )
+    from app.gate_assessment.models import GateProfileSnapshot, GateReview
+
+    assessment_id = UUID("a2000000-0000-0000-0000-000000000001")
+    actor_id = UUID("00000000-0000-0000-0000-000000000106")
+    command = OpenGateReviewCommand(
+        organization_context_id=UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        gate_assessment_id=assessment_id,
+        track_code="PRODUCT_MANAGER",
+        opened_by=actor_id,
+        expected_version=4,
+        idempotency_key="gate-open-review-1",
+        trace_id="trace-gate-open-review-1",
+    )
+    review = GateReview(
+        gate_assessment_id=assessment_id,
+        opened_by=actor_id,
+    )
+    snapshot = GateProfileSnapshot(
+        gate_assessment_id=assessment_id,
+        source_track_code="PRODUCT_MANAGER",
+    )
+
+    assert _open_review_retry_matches(
+        review,
+        snapshot,
+        command=command,
+        track_code="PRODUCT_MANAGER",
+    )
+    snapshot.source_track_code = "OTHER_TRACK"
+    assert not _open_review_retry_matches(
+        review,
+        snapshot,
+        command=command,
+        track_code="PRODUCT_MANAGER",
+    )
