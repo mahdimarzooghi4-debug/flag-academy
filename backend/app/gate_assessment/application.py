@@ -215,7 +215,7 @@ async def _next_snapshot_version(
     return int(current or 0) + 1
 
 
-def _persist_profile_snapshot(
+async def _persist_profile_snapshot(
     db: AsyncSession,
     *,
     gate_assessment: GateAssessment,
@@ -236,6 +236,7 @@ def _persist_profile_snapshot(
         captured_at=captured_at,
     )
     db.add(snapshot)
+    await db.flush()
 
     for claim in source.claims:
         claim_row = GateProfileSnapshotClaim(
@@ -254,6 +255,7 @@ def _persist_profile_snapshot(
             source_profile_update_case_id=claim.source_profile_update_case_id,
         )
         db.add(claim_row)
+        await db.flush()
 
         for pattern in claim.patterns:
             pattern_row = GateSnapshotPatternRef(
@@ -268,6 +270,7 @@ def _persist_profile_snapshot(
                 reviewed_at=pattern.reviewed_at,
             )
             db.add(pattern_row)
+            await db.flush()
 
             for evidence in pattern.evidence:
                 db.add(
@@ -371,7 +374,7 @@ async def open_gate_review(
         gate_assessment_id=assessment.id,
     )
     now = datetime.now(UTC)
-    profile_snapshot = _persist_profile_snapshot(
+    profile_snapshot = await _persist_profile_snapshot(
         db,
         gate_assessment=assessment,
         source=current_profile,
