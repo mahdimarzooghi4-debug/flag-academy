@@ -18,9 +18,18 @@ from app.db import Base
 
 class AIDataset(Base):
     __tablename__ = "datasets"
-    __table_args__ = {"schema": "ai_control_plane"}
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id",
+            "name",
+            "purpose",
+            name="uq_ai_dataset_scope_name_purpose",
+        ),
+        {"schema": "ai_control_plane"},
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_context_id: Mapped[UUID]
     name: Mapped[str] = mapped_column(String(255))
     purpose: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -50,10 +59,64 @@ class AIDatasetVersion(Base):
     dataset_id: Mapped[UUID] = mapped_column(
         ForeignKey("ai_control_plane.datasets.id")
     )
+    parent_dataset_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("ai_control_plane.dataset_versions.id"),
+        nullable=True,
+    )
     version_number: Mapped[int] = mapped_column(BigInteger)
     source_policy_key: Mapped[str] = mapped_column(String(160))
     source_policy_version: Mapped[str] = mapped_column(String(160))
     dataset_digest: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AILearningSourceApproval(Base):
+    __tablename__ = "learning_source_approvals"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id",
+            "approval_reference",
+            name="uq_ai_learning_approval_reference",
+        ),
+        UniqueConstraint(
+            "dataset_id",
+            "provenance_digest",
+            name="uq_ai_learning_approval_provenance",
+        ),
+        CheckConstraint(
+            "source_payload_digest ~ '^[0-9a-f]{64}$'",
+            name="ck_ai_learning_approval_payload_sha256",
+        ),
+        CheckConstraint(
+            "provenance_digest ~ '^[0-9a-f]{64}$'",
+            name="ck_ai_learning_approval_provenance_sha256",
+        ),
+        CheckConstraint(
+            "approved_by_type IN ('PERSON', 'SYSTEM')",
+            name="ck_ai_learning_approval_actor_type",
+        ),
+        {"schema": "ai_control_plane"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    dataset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("ai_control_plane.datasets.id")
+    )
+    source_policy_key: Mapped[str] = mapped_column(String(160))
+    source_policy_version: Mapped[str] = mapped_column(String(160))
+    source_type: Mapped[str] = mapped_column(String(160))
+    source_reference: Mapped[str] = mapped_column(String(255))
+    source_version: Mapped[str | None] = mapped_column(
+        String(160),
+        nullable=True,
+    )
+    source_payload_digest: Mapped[str] = mapped_column(String(64))
+    approval_reference: Mapped[str] = mapped_column(String(255))
+    data_classification: Mapped[str] = mapped_column(String(64))
+    provenance_digest: Mapped[str] = mapped_column(String(64))
+    approved_by_type: Mapped[str] = mapped_column(String(16))
+    approved_by_reference: Mapped[str] = mapped_column(String(255))
+    approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -81,6 +144,10 @@ class AIDatasetItem(Base):
     dataset_version_id: Mapped[UUID] = mapped_column(
         ForeignKey("ai_control_plane.dataset_versions.id")
     )
+    learning_source_approval_id: Mapped[UUID] = mapped_column(
+        ForeignKey("ai_control_plane.learning_source_approvals.id"),
+        unique=True,
+    )
     position: Mapped[int] = mapped_column(Integer)
     source_type: Mapped[str] = mapped_column(String(160))
     source_reference: Mapped[str] = mapped_column(String(255))
@@ -90,6 +157,7 @@ class AIDatasetItem(Base):
     )
     approval_reference: Mapped[str] = mapped_column(String(255))
     data_classification: Mapped[str] = mapped_column(String(64))
+    source_payload_digest: Mapped[str] = mapped_column(String(64))
     provenance_digest: Mapped[str] = mapped_column(String(64))
 
 
