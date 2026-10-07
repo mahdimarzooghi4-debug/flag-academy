@@ -63,7 +63,7 @@ def test_admin_ai_governance_read_model_is_tenant_scoped() -> None:
 
 
 def test_admin_ai_governance_endpoint_requires_academy_admin() -> None:
-    source = Path("app/ai_control_plane/api.py").read_text()
+    source = Path("app/ai_governance_api.py").read_text()
 
     assert 'require_role("ACADEMY_ADMIN")' in source
     assert "@router.get" in source
