@@ -3,6 +3,9 @@ name: Stage Acceptance
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [edited, synchronize]
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +15,12 @@ concurrency:
 jobs:
   ephemeral-stage:
     name: Ephemeral Stage Acceptance
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(
+        github.event.pull_request.body,
+        '<!-- stage-acceptance: requested -->'
+      )
     runs-on: ubuntu-latest
     environment: stage
     env:
@@ -31,6 +40,8 @@ jobs:
       E2E_BASE_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -129,6 +140,10 @@ jobs:
       - name: Run browser acceptance with live OIDC
         working-directory: frontend
         run: npm run e2e
+
+      - name: Verify Gate Assessment stage invariants
+        working-directory: backend
+        run: python scripts/gate_stage_acceptance.py | tee ../gate-stage-acceptance.txt
 
       - name: Replay sealed observation delivery for evidence idempotency
         working-directory: backend
@@ -497,7 +512,7 @@ jobs:
 
           mkdir -p stage-artifacts
           {
-            echo "commit=$GITHUB_SHA"
+            echo "commit=$(git rev-parse HEAD)"
             echo "published_outbox_events=$published"
             echo "processed_inbox_events=$inbox"
             echo "candidate_home_rows=$candidate_home"
@@ -654,6 +669,7 @@ jobs:
             echo "profile_gate_responsibility_mutation=FORBIDDEN"
             echo "profile_claim_state_vocabulary=UNPROVEN+EMERGING+DEMONSTRATED+PROVEN"
             echo "profile_claim_level_vocabulary=L0+L1+L2+L3+L4"
+            cat gate-stage-acceptance.txt
             echo "evidence_duplicate_delivery=SAME_EVENT_ID+NEW_EVENT_ID_REPLAYED"
             echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
             echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"
