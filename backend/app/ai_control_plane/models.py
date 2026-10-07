@@ -294,6 +294,11 @@ class AIModelVersion(Base):
 class AIEvaluationRun(Base):
     __tablename__ = "evaluation_runs"
     __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id",
+            "request_key",
+            name="uq_ai_evaluation_run_request_key",
+        ),
         CheckConstraint(
             "requested_by_type IN ('PERSON', 'SYSTEM')",
             name="ck_ai_evaluation_requested_by_type",
@@ -302,6 +307,9 @@ class AIEvaluationRun(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_context_id: Mapped[UUID]
+    request_key: Mapped[str] = mapped_column(String(160))
+    data_classification: Mapped[str] = mapped_column(String(64))
     model_version_id: Mapped[UUID] = mapped_column(
         ForeignKey("ai_control_plane.model_versions.id")
     )
@@ -347,8 +355,45 @@ class AIEvaluationResult(Base):
     __tablename__ = "evaluation_results"
     __table_args__ = (
         CheckConstraint(
-            "metrics_digest ~ '^[0-9a-f]{64}$'",
+            "metrics_digest ~ '^[0-9a-f]{64}
+
+class AIModelPromotionDecision(Base):
+    __tablename__ = "model_promotion_decisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "evaluation_run_id",
+            "target_environment",
+            name="uq_ai_model_promotion_eval_target",
+        ),
+        CheckConstraint(
+            "decision IN ('APPROVED', 'REJECTED')",
+            name="ck_ai_model_promotion_decision",
+        ),
+        {"schema": "ai_control_plane"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    model_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("ai_control_plane.model_versions.id")
+    )
+    evaluation_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("ai_control_plane.evaluation_runs.id")
+    )
+    reviewer_id: Mapped[UUID]
+    rationale: Mapped[str] = mapped_column(Text)
+    decision: Mapped[str] = mapped_column(String(32))
+    target_environment: Mapped[str] = mapped_column(String(64))
+    prior_active_model_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("ai_control_plane.model_versions.id"),
+        nullable=True,
+    )
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+",
             name="ck_ai_evaluation_metrics_sha256",
+        ),
+        CheckConstraint(
+            "metrics_byte_size >= 0",
+            name="ck_ai_evaluation_metrics_byte_size",
         ),
         {"schema": "ai_control_plane"},
     )
@@ -360,6 +405,8 @@ class AIEvaluationResult(Base):
     )
     metrics_artifact_reference: Mapped[str] = mapped_column(String(512))
     metrics_digest: Mapped[str] = mapped_column(String(64))
+    metrics_byte_size: Mapped[int] = mapped_column(BigInteger)
+    attested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
