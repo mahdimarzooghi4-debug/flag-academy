@@ -1055,10 +1055,7 @@ function AuthenticatedApp({
       return data as GateDecisionResult;
     },
     onSuccess: async () => {
-      await Promise.all([
-        assessorGateAssessments.refetch(),
-        candidateGates.refetch(),
-      ]);
+      await assessorGateAssessments.refetch();
     },
   });
 
