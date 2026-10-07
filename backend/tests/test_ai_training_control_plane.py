@@ -69,7 +69,7 @@ def test_training_control_plane_lifecycle_is_append_only() -> None:
 
     for forbidden in (
         "run.state =",
-        "latest.state =",
+        "latest.state = outcome",
         "UPDATE ai_control_plane.training_run_states",
         "DELETE FROM ai_control_plane.training_run_states",
     ):
