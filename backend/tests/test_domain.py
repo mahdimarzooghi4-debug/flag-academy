@@ -2814,3 +2814,200 @@ def test_gate_pre_decision_read_model_preserves_full_evidence_lineage() -> None:
         "relationship",
         "evidence",
     }.issubset(pattern_fields)
+
+
+def test_gate_human_decision_persistence_is_append_only_and_exact() -> None:
+    from app.gate_assessment.models import GateReviewDecision
+
+    columns = set(GateReviewDecision.__table__.c.keys())
+    assert {
+        "gate_review_id",
+        "gate_assessment_id",
+        "gate_profile_snapshot_id",
+        "gate_profile_snapshot_version",
+        "gate_definition_version_id",
+        "organization_context_id",
+        "subject_person_id",
+        "prior_assessment_version",
+        "resulting_assessment_version",
+        "decision_state",
+        "reviewer_id",
+        "rationale",
+        "decided_at",
+        "decision_idempotency_key",
+        "trace_id",
+    }.issubset(columns)
+
+    migration_source = Path(
+        "alembic/versions/0022_gate_human_decision_audit.py"
+    ).read_text()
+    assert "decision_state IN ('PASS_CONFIRMED', 'FAIL')" in migration_source
+    assert "reject_gate_decision_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    assert "uq_gate_review_decision_idempotency" in migration_source
+
+
+def test_gate_human_decision_foreign_keys_are_context_local() -> None:
+    from app.gate_assessment.models import GateReviewDecision
+
+    targets = {
+        fk.target_fullname for fk in GateReviewDecision.__table__.foreign_keys
+    }
+    assert targets == {
+        "gate_assessment.gate_reviews.id",
+        "gate_assessment.gate_assessments.id",
+        "gate_assessment.gate_profile_snapshots.id",
+        "gate_assessment.gate_definition_versions.id",
+    }
+
+
+def test_gate_human_decision_accepts_only_pass_confirmed_or_fail() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    decision_source = source.split(
+        "def _require_gate_decision_contract", 1
+    )[1].split(
+        "async def _decision_by_idempotency_key", 1
+    )[0]
+
+    assert "GateAssessmentState.PASS_CONFIRMED.value" in decision_source
+    assert "GateAssessmentState.FAIL.value" in decision_source
+    assert "Human Gate decision must be PASS_CONFIRMED or FAIL." in decision_source
+    assert "GATE_DECISION_RATIONALE_REQUIRED" in decision_source
+
+
+def test_gate_human_decision_is_tenant_scoped_and_row_locked() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+    lookup = complete_source.split("select(GateAssessment)", 1)[1].split(
+        ".with_for_update()", 1
+    )[0]
+
+    assert "GateReview.organization_context_id" in complete_source
+    assert "command.organization_context_id" in complete_source
+    assert "GateAssessment.organization_context_id" in lookup
+    assert "GateAssessment.subject_person_id == review.subject_person_id" in lookup
+    assert (
+        "GateAssessment.gate_definition_version_id"
+        in lookup
+    )
+
+
+def test_gate_human_decision_requires_exact_pinned_versions() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    assert "_require_expected_version(" in complete_source
+    assert "review.gate_assessment_version != command.expected_version" in complete_source
+    assert (
+        "review.gate_definition_version_id"
+        in complete_source
+        and "command.expected_gate_definition_version_id" in complete_source
+    )
+    assert "snapshot.id != command.expected_profile_snapshot_id" in complete_source
+    assert (
+        "snapshot.snapshot_version"
+        in complete_source
+        and "command.expected_profile_snapshot_version" in complete_source
+    )
+    assert "load_assessor_pre_decision_read(" in complete_source
+
+
+def test_gate_human_decision_event_and_outbox_are_atomic() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    event_index = complete_source.index("record_event(")
+    commit_index = complete_source.index("await db.commit()")
+    assert event_index < commit_index
+    assert complete_source.count("await db.commit()") == 1
+
+    event_source = source.split(
+        "def _new_gate_review_completed_event", 1
+    )[1].split(
+        "async def complete_gate_review", 1
+    )[0]
+    assert 'event_type="gate.review_completed.v1"' in event_source
+    assert 'aggregate_type="GateAssessment"' in event_source
+    assert 'actor={"type": "PERSON"' in event_source
+    assert '"profile_snapshot_id"' in event_source
+    assert '"profile_snapshot_version"' in event_source
+    assert '"gate_definition_version_id"' in event_source
+    assert '"decision_state"' in event_source
+
+
+def test_gate_human_decision_has_no_ai_system_or_cross_context_mutation() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    assert "app.flag_profile" not in complete_source
+    assert "CapabilityClaim" not in complete_source
+    assert "ResponsibilityRecommendation" not in complete_source
+    assert "FlagBoard" not in complete_source
+    assert "Appointment" not in complete_source
+    assert '"type": "SYSTEM"' not in complete_source
+    assert '"type": "AI"' not in complete_source
+
+
+def test_gate_human_decision_never_converts_missing_evidence_to_fail() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    assert "evidence_gaps" not in complete_source
+    assert "insufficient" not in complete_source.lower()
+    assert "decision_state = GateAssessmentState.FAIL" not in complete_source
+    assert "assessment.state = decision_state" in complete_source
+
+
+def test_gate_human_decision_exact_retry_contract() -> None:
+    from app.gate_assessment.application import (
+        CompleteGateReviewCommand,
+        _gate_decision_retry_matches,
+    )
+    from app.gate_assessment.models import GateReviewDecision
+
+    review_id = UUID("a3000000-0000-0000-0000-000000000001")
+    reviewer_id = UUID("00000000-0000-0000-0000-000000000106")
+    definition_version_id = UUID("a3000000-0000-0000-0000-000000000002")
+    snapshot_id = UUID("a3000000-0000-0000-0000-000000000003")
+    command = CompleteGateReviewCommand(
+        organization_context_id=UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        gate_review_id=review_id,
+        reviewer_id=reviewer_id,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        expected_version=5,
+        expected_gate_definition_version_id=definition_version_id,
+        expected_profile_snapshot_id=snapshot_id,
+        expected_profile_snapshot_version=2,
+        idempotency_key="gate-decision-1",
+        trace_id="trace-gate-decision-1",
+    )
+    decision = GateReviewDecision(
+        gate_review_id=review_id,
+        reviewer_id=reviewer_id,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        prior_assessment_version=5,
+        gate_definition_version_id=definition_version_id,
+        gate_profile_snapshot_id=snapshot_id,
+        gate_profile_snapshot_version=2,
+        decision_idempotency_key="gate-decision-1",
+    )
+
+    assert _gate_decision_retry_matches(
+        decision,
+        command=command,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        idempotency_key="gate-decision-1",
+    )
+    decision.decision_state = "FAIL"
+    assert not _gate_decision_retry_matches(
+        decision,
+        command=command,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        idempotency_key="gate-decision-1",
+    )
