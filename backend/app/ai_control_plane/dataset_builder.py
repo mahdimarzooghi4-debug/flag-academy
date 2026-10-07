@@ -198,7 +198,7 @@ def _dataset_lock_key(
     purpose: str,
 ) -> int:
     identity = (
-        f"{organization_context_id}:{dataset_name}:{purpose}".encode("utf-8")
+        f"{organization_context_id}:{dataset_name}:{purpose}".encode()
     )
     raw = hashlib.sha256(identity).digest()[:8]
     return int.from_bytes(raw, byteorder="big", signed=True)
