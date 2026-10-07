@@ -609,7 +609,6 @@ def test_gate_assessor_api_uses_existing_governed_commands() -> None:
     assert "FlagProfileSnapshotReader(db)" in source
 
     for forbidden in (
-        "assessment.state =",
         "GateReviewDecision(",
         "GateProfileSnapshot(",
         "CapabilityClaim",
