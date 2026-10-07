@@ -3329,3 +3329,52 @@ def test_gate_snapshot_persistence_flushes_each_lineage_parent_before_children()
     assert snapshot_add < snapshot_flush < claim_add
     assert claim_add < claim_flush < pattern_add
     assert pattern_add < pattern_flush < evidence_add
+
+
+def test_gate_stage_acceptance_is_wired_after_live_oidc() -> None:
+    workflow = Path("../.github/workflows/stage.yml").read_text()
+
+    browser_index = workflow.index(
+        "- name: Run browser acceptance with live OIDC"
+    )
+    gate_index = workflow.index(
+        "- name: Verify Gate Assessment stage invariants"
+    )
+    assert browser_index < gate_index
+    assert "python scripts/gate_stage_acceptance.py" in workflow
+    assert "cat gate-stage-acceptance.txt" in workflow
+    assert "<!-- stage-acceptance: requested -->" in workflow
+    assert "types: [edited, synchronize]" in workflow
+
+
+def test_gate_stage_acceptance_proves_sprint_21_invariants() -> None:
+    source = Path("scripts/gate_stage_acceptance.py").read_text()
+
+    for required in (
+        "GateAssessmentState",
+        "GateCode",
+        "gate_profile_snapshots",
+        "gate_snapshot_pattern_refs",
+        "gate_snapshot_evidence_refs",
+        "gate.review_completed.v1",
+        "gate_snapshot_immutable_triggers",
+        "gate_cross_context_foreign_keys",
+        "gate_nonhuman_review_events",
+        "gate_claim_mutations_after_review",
+        "gate_downstream_decision_events",
+        "gate_pass_with_evidence_gap",
+        "open_gate_review(",
+        "complete_gate_review(",
+        "counts_after == counts_before",
+    ):
+        assert required in source
+
+    for forbidden in (
+        "overall_score",
+        "weighted_score",
+        "readiness_score",
+        "threshold_value",
+        "auto_fail",
+        "automatic_fail",
+    ):
+        assert forbidden not in source
