@@ -29,6 +29,10 @@ import {
   type MissionCreateInput,
 } from "./components/AcademyStudio";
 import {
+  AIGovernanceWorkspace,
+  type AIGovernanceData,
+} from "./components/AIGovernanceWorkspace";
+import {
   AssessorPatternWorkspace,
   type PatternCandidate,
   type PatternCandidateReviewLineage,
@@ -165,6 +169,16 @@ function AuthenticatedApp({
       const { data, error } = await api.GET("/api/v1/studio/mission-assignments");
       if (error || !data) throw new Error("دریافت Mission Assignmentها ناموفق بود.");
       return data as MissionAssignmentSummary[];
+    },
+  });
+
+  const aiGovernance = useQuery({
+    queryKey: ["admin-ai-governance"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/admin/ai/governance");
+      if (error || !data) throw new Error("دریافت نمای حاکمیت AI ناموفق بود.");
+      return data as AIGovernanceData;
     },
   });
 
@@ -1132,6 +1146,7 @@ function AuthenticatedApp({
   ) return <Loading />;
   const error =
     me.error ||
+    aiGovernance.error ||
     candidate.error ||
     instructor.error ||
     capabilities.error ||
@@ -1210,6 +1225,9 @@ function AuthenticatedApp({
             assignMission.isPending
           }
         />
+      ) : null}
+      {isAdmin && aiGovernance.data ? (
+        <AIGovernanceWorkspace data={aiGovernance.data} />
       ) : null}
       {!isAdmin &&
       isCandidate &&

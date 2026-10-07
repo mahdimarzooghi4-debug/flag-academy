@@ -1,4 +1,5 @@
 from app.academy import models as academy_models  # noqa: F401
+from app.ai_control_plane import models as ai_control_plane_models  # noqa: F401
 from app.curriculum import models as curriculum_models  # noqa: F401
 from app.evidence import models as evidence_models  # noqa: F401
 from app.flag_profile import models as flag_profile_models  # noqa: F401
