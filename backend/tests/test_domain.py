@@ -3017,3 +3017,200 @@ def test_gate_human_decision_exact_retry_contract() -> None:
         rationale="Pinned evidence supports the accountable decision.",
         idempotency_key="gate-decision-1",
     )
+
+
+def test_gate_recovery_history_is_append_only_and_relational() -> None:
+    from app.gate_assessment.models import (
+        GateReassessment,
+        GateReassessmentDecision,
+        GateRemediation,
+    )
+
+    assert GateRemediation.__table__.schema == "gate_assessment"
+    assert GateReassessment.__table__.schema == "gate_assessment"
+    assert GateReassessmentDecision.__table__.schema == "gate_assessment"
+
+    targets = {
+        fk.target_fullname
+        for table in (
+            GateRemediation.__table__,
+            GateReassessment.__table__,
+            GateReassessmentDecision.__table__,
+        )
+        for fk in table.foreign_keys
+    }
+    assert targets
+    assert all(target.startswith("gate_assessment.") for target in targets)
+
+    migration_source = Path(
+        "alembic/versions/0023_gate_remediation_reassessment.py"
+    ).read_text()
+    assert "reject_recovery_history_mutation" in migration_source
+    assert migration_source.count("BEFORE UPDATE OR DELETE") == 1
+    for table_name in (
+        "gate_remediations",
+        "gate_reassessments",
+        "gate_reassessment_decisions",
+    ):
+        assert f'"{table_name}"' in migration_source
+
+
+def test_gate_remediation_requires_human_backed_fail_state() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    failure_source = source.split(
+        "async def _failure_is_human_decision", 1
+    )[1].split(
+        "async def _remediation_by_key", 1
+    )[0]
+    start_source = source.split(
+        "async def start_gate_remediation", 1
+    )[1].split(
+        "async def _reassessment_by_key", 1
+    )[0]
+
+    assert "GateReviewDecision" in failure_source
+    assert "GateReassessmentDecision" in failure_source
+    assert "GateAssessmentState.FAIL.value" in failure_source
+    assert "GateAssessmentState.REMEDIATION.value" in start_source
+    assert "_failure_is_human_decision(" in start_source
+    assert "GATE_FAILURE_DECISION_NOT_FOUND" in start_source
+    assert ".with_for_update()" in start_source
+    assert "_require_expected_version(" in start_source
+
+
+def test_gate_reassessment_pins_new_current_profile_snapshot() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    open_source = source.split(
+        "async def open_gate_reassessment", 1
+    )[1].split(
+        "async def _require_snapshot_lineage_complete", 1
+    )[0]
+
+    assert "reader: CurrentFlagProfileReader" in open_source
+    assert "current_profile = await reader.load(" in open_source
+    assert "_require_profile_scope(" in open_source
+    assert "_next_snapshot_version(" in open_source
+    assert "_persist_profile_snapshot(" in open_source
+    assert "GateAssessmentState.REASSESSMENT.value" in open_source
+    assert "GateRemediation.remediation_assessment_version" in open_source
+    assert "GateProfileSnapshot" not in open_source.split(
+        "snapshot = _persist_profile_snapshot(", 1
+    )[0].split("current_profile = await reader.load(", 1)[0]
+
+
+def test_gate_reassessment_decision_is_human_only_pass_or_fail() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    contract_source = source.split(
+        "def _require_reassessment_decision_contract", 1
+    )[1].split(
+        "def _reassessment_decision_retry_matches", 1
+    )[0]
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+
+    assert "GateAssessmentState.PASS.value" in contract_source
+    assert "GateAssessmentState.FAIL.value" in contract_source
+    assert "PASS_CONFIRMED" not in contract_source
+    assert "Human reassessment decision must be PASS or FAIL." in contract_source
+    assert "GATE_DECISION_RATIONALE_REQUIRED" in contract_source
+    assert "reviewer_id=command.reviewer_id" in complete_source
+    assert "assessment.state = decision_state" in complete_source
+    assert "gate_transition_allowed(assessment.state, decision_state)" in complete_source
+
+
+def test_gate_reassessment_decision_requires_exact_pinned_versions() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+
+    assert "_require_expected_version(" in complete_source
+    assert (
+        "reassessment.reassessment_assessment_version"
+        in complete_source
+    )
+    assert "command.expected_gate_definition_version_id" in complete_source
+    assert "command.expected_profile_snapshot_id" in complete_source
+    assert "command.expected_profile_snapshot_version" in complete_source
+    assert "_require_snapshot_lineage_complete(" in complete_source
+    assert ".with_for_update()" in complete_source
+
+
+def test_gate_reassessment_decision_event_is_atomic_and_person_actor() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    event_source = source.split(
+        "def _new_reassessment_completed_event", 1
+    )[1].split(
+        "async def complete_gate_reassessment", 1
+    )[0]
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+
+    assert 'event_type="gate.review_completed.v1"' in event_source
+    assert '"review_kind": "REASSESSMENT"' in event_source
+    assert 'actor={"type": "PERSON"' in event_source
+    assert '"profile_snapshot_id"' in event_source
+    assert '"profile_snapshot_version"' in event_source
+    assert '"decision_state"' in event_source
+
+    assert complete_source.count("await db.commit()") == 1
+    assert complete_source.index("record_event(") < complete_source.index(
+        "await db.commit()"
+    )
+
+
+def test_gate_recovery_never_auto_recovers_or_mutates_other_contexts() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    lowered = source.lower()
+
+    for forbidden in (
+        "overall_score",
+        "weighted_score",
+        "readiness_score",
+        "threshold_value",
+        "auto_recover",
+        "automatic_recovery",
+    ):
+        assert forbidden not in lowered
+
+    for forbidden in (
+        "CapabilityClaim",
+        "ResponsibilityRecommendation",
+        "FlagBoard",
+        "Appointment",
+        "app.flag_profile.models",
+        "app.patterns",
+        "app.evidence",
+    ):
+        assert forbidden not in source
+
+    assert '"type": "SYSTEM"' not in source
+    assert '"type": "AI"' not in source
+
+
+def test_gate_recovery_does_not_rewrite_prior_review_decisions() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+
+    assert "GateReviewDecision." in source
+    assert "GateReassessmentDecision." in source
+    assert "GateReviewDecision(" not in source
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+    assert "GateReassessmentDecision(" in complete_source
+
+    migration_source = Path(
+        "alembic/versions/0023_gate_remediation_reassessment.py"
+    ).read_text()
+    assert "gate_review_decisions" not in migration_source
+    assert "gate_reviews" not in migration_source
+
+
+def test_gate_reassessment_decision_db_allows_only_pass_or_fail() -> None:
+    migration_source = Path(
+        "alembic/versions/0023_gate_remediation_reassessment.py"
+    ).read_text()
+    assert "decision_state IN ('PASS', 'FAIL')" in migration_source
+    assert "PASS_CONFIRMED" not in migration_source
