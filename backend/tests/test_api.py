@@ -546,6 +546,8 @@ def test_candidate_gate_projection_is_exposed_with_strict_allowlist() -> None:
 
 
 def test_candidate_gate_projection_endpoint_is_self_scoped_candidate_only() -> None:
+    from pathlib import Path
+
     source = Path("app/gate_assessment/api.py").read_text()
     segment = source.split(
         '@router.get(\n    "/me/gate-assessments"',
