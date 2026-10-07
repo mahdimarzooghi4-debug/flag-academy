@@ -78,7 +78,7 @@ describe("AIGovernanceWorkspace", () => {
     render(<AIGovernanceWorkspace data={data} />);
 
     expect(screen.getByText("کنترل‌پلین هوش مصنوعی پرچم")).toBeInTheDocument();
-    expect(screen.getByText("Gemma 4 12B Unified")).toBeInTheDocument();
+    expect(screen.getAllByText("Gemma 4 12B Unified").length).toBeGreaterThan(0);
     expect(screen.getByText("OFFLINE EVALUATION")).toBeInTheDocument();
     expect(screen.getAllByText("APPROVED").length).toBeGreaterThan(0);
     expect(
