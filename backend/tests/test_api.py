@@ -500,3 +500,70 @@ def test_profile_review_request_requires_idempotency_key() -> None:
     assert "expected_version" in props
     assert "idempotency_key" in props
     assert {"expected_version", "idempotency_key"}.issubset(required)
+
+
+def test_candidate_gate_projection_is_exposed_with_strict_allowlist() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/me/gate-assessments" in paths
+    assert "get" in paths["/api/v1/me/gate-assessments"]
+
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["CandidateGateResponse"]["properties"]
+    assert set(props) == {
+        "gate_code",
+        "gate_name",
+        "status",
+        "evidence_gaps",
+        "remediation_status",
+    }
+
+    hidden = {
+        "id",
+        "version",
+        "organization_context_id",
+        "subject_person_id",
+        "gate_assessment_id",
+        "gate_definition_version_id",
+        "profile_snapshot_id",
+        "profile_snapshot_version",
+        "reviewer_id",
+        "reviewed_by",
+        "opened_by",
+        "rationale",
+        "review_rationale",
+        "decision_rationale",
+        "trace_id",
+        "idempotency_key",
+        "source_reference",
+        "source_observation_id",
+        "interpretation_id",
+        "lineage",
+        "risk_patterns",
+        "supporting_patterns",
+        "contradictory_patterns",
+    }
+    assert hidden.isdisjoint(props)
+
+
+def test_candidate_gate_projection_endpoint_is_self_scoped_candidate_only() -> None:
+    source = Path("app/gate_assessment/api.py").read_text()
+    segment = source.split(
+        '@router.get(\n    "/me/gate-assessments"',
+        1,
+    )[1]
+
+    assert 'require_role("CANDIDATE")' in segment
+    assert "organization_context_id=actor.organization_context_id" in segment
+    assert "subject_person_id=actor.person_id" in segment
+
+    for forbidden in (
+        "GateReviewDecision",
+        "GateReassessmentDecision",
+        "GateSnapshotEvidenceRef",
+        "GateSnapshotPatternRef",
+        "rationale",
+        "reviewer_id",
+        "source_reference",
+        "interpretation_id",
+    ):
+        assert forbidden not in segment
