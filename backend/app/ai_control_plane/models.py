@@ -355,40 +355,7 @@ class AIEvaluationResult(Base):
     __tablename__ = "evaluation_results"
     __table_args__ = (
         CheckConstraint(
-            "metrics_digest ~ '^[0-9a-f]{64}
-
-class AIModelPromotionDecision(Base):
-    __tablename__ = "model_promotion_decisions"
-    __table_args__ = (
-        UniqueConstraint(
-            "evaluation_run_id",
-            "target_environment",
-            name="uq_ai_model_promotion_eval_target",
-        ),
-        CheckConstraint(
-            "decision IN ('APPROVED', 'REJECTED')",
-            name="ck_ai_model_promotion_decision",
-        ),
-        {"schema": "ai_control_plane"},
-    )
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    model_version_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.model_versions.id")
-    )
-    evaluation_run_id: Mapped[UUID] = mapped_column(
-        ForeignKey("ai_control_plane.evaluation_runs.id")
-    )
-    reviewer_id: Mapped[UUID]
-    rationale: Mapped[str] = mapped_column(Text)
-    decision: Mapped[str] = mapped_column(String(32))
-    target_environment: Mapped[str] = mapped_column(String(64))
-    prior_active_model_version_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("ai_control_plane.model_versions.id"),
-        nullable=True,
-    )
-    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-",
+            "metrics_digest ~ '^[0-9a-f]{64}$'",
             name="ck_ai_evaluation_metrics_sha256",
         ),
         CheckConstraint(
