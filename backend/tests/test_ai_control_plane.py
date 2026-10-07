@@ -194,7 +194,8 @@ def test_ai_promotion_is_human_audited_but_not_runtime_activation() -> None:
     )[1]
 
     for forbidden in (
-        "active_model",
+        "is_active",
+        "activated_at",
         "runtime_activation",
         "activate_runtime",
         "production_route",
