@@ -196,6 +196,9 @@ jobs:
       - name: Verify governed AI Offline Evaluation
         working-directory: backend
         run: python scripts/ai_offline_evaluation_acceptance.py
+      - name: Verify Human AI Promotion Governance
+        working-directory: backend
+        run: python scripts/ai_human_promotion_acceptance.py
       - name: Upload E2E diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
