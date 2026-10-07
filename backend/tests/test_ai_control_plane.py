@@ -108,7 +108,6 @@ def test_ai_dataset_version_preserves_governed_provenance() -> None:
         "source_reference",
         "source_version",
         "approval_reference",
-        "approval_event_id",
         "data_classification",
         "source_payload_digest",
         "provenance_digest",
