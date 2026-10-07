@@ -226,6 +226,7 @@ async def load_current_flag_profile_snapshot(
     organization_context_id: UUID,
     subject_person_id: UUID,
     track_code: str,
+    lock_profile: bool = False,
 ) -> CurrentFlagProfileSnapshotContract:
     normalized_track = track_code.strip()
     if not normalized_track:
@@ -235,15 +236,15 @@ async def load_current_flag_profile_snapshot(
             status_code=422,
         )
 
-    profile = (
-        await db.execute(
-            select(FlagProfile).where(
-                FlagProfile.organization_context_id == organization_context_id,
-                FlagProfile.subject_person_id == subject_person_id,
-                FlagProfile.track_code == normalized_track,
-            )
-        )
-    ).scalar_one_or_none()
+    profile_query = select(FlagProfile).where(
+        FlagProfile.organization_context_id == organization_context_id,
+        FlagProfile.subject_person_id == subject_person_id,
+        FlagProfile.track_code == normalized_track,
+    )
+    if lock_profile:
+        profile_query = profile_query.with_for_update()
+
+    profile = (await db.execute(profile_query)).scalar_one_or_none()
     if profile is None:
         raise AppError(
             "FLAG_PROFILE_NOT_FOUND",
