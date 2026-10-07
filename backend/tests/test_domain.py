@@ -2694,3 +2694,123 @@ def test_gate_open_review_retry_requires_same_assessment_actor_and_track() -> No
         command=command,
         track_code="PRODUCT_MANAGER",
     )
+
+
+def test_gate_pre_decision_read_model_is_pinned_and_version_exact() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    load_source = source.split("async def load_assessor_pre_decision_read", 1)[1]
+
+    assert "GateReview.id == gate_review_id" in load_source
+    assert "GateReview.organization_context_id == organization_context_id" in load_source
+    assert (
+        "GateAssessment.gate_definition_version_id"
+        in load_source
+    )
+    assert "== review.gate_definition_version_id" in load_source
+    assert "assessment.version != review.gate_assessment_version" in load_source
+    assert "GateProfileSnapshot.id == review.gate_profile_snapshot_id" in load_source
+
+
+def test_gate_pre_decision_read_model_uses_only_gate_owned_snapshot() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+
+    assert "app.flag_profile" not in source
+    assert "app.patterns" not in source
+    assert "app.evidence" not in source
+    assert "GateProfileSnapshotClaim" in source
+    assert "GateSnapshotPatternRef" in source
+    assert "GateSnapshotEvidenceRef" in source
+
+
+def test_gate_pre_decision_read_model_surfaces_exact_definition_version() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    definition_source = source.split(
+        "async def _load_definition", 1
+    )[1].split(
+        "def _evidence_read", 1
+    )[0]
+
+    assert "GateDefinitionVersion.id == gate_definition_version_id" in definition_source
+    assert "version_number=version.version_number" in definition_source
+    assert "decision_question=version.decision_question" in definition_source
+    assert "requirements=tuple(item.requirement_text" in definition_source
+    assert "outcomes=tuple(item.outcome_text" in definition_source
+
+
+def test_gate_pre_decision_read_model_preserves_supporting_and_contradictory_lineage() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    claim_source = source.split(
+        "async def _load_claim", 1
+    )[1].split(
+        "async def load_assessor_pre_decision_read", 1
+    )[0]
+
+    assert 'pattern.relationship == "SUPPORTING"' in claim_source
+    assert 'pattern.relationship == "CONTRADICTORY"' in claim_source
+    assert "supporting_patterns=tuple(supporting)" in claim_source
+    assert "contradictory_patterns=tuple(contradictory)" in claim_source
+    assert "Pinned Gate Pattern relationship is not recognized." in claim_source
+
+
+def test_gate_pre_decision_read_model_surfaces_gaps_and_risks_without_scoring() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+
+    assert "next_evidence_needed=claim.next_evidence_needed" in source
+    assert "for pattern in claim.contradictory_patterns" in source
+    assert "risk_patterns=tuple(risk_patterns)" in source
+
+    forbidden = (
+        "overall_score",
+        "weighted_score",
+        "average_score",
+        "passing_score",
+        "threshold_value",
+        "readiness_score",
+        "auto_evaluator",
+    )
+    lowered = source.lower()
+    for value in forbidden:
+        assert value not in lowered
+
+
+def test_gate_pre_decision_read_model_is_read_only() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    load_source = source.split("async def load_assessor_pre_decision_read", 1)[1]
+
+    assert "await db.commit()" not in source
+    assert "db.add(" not in source
+    assert ".with_for_update()" not in source
+    assert "record_event(" not in source
+    assert "GateAssessmentState.REVIEW_REQUIRED.value" in load_source
+    assert "GateAssessmentState.PASS_CONFIRMED" not in load_source
+    assert "GateAssessmentState.FAIL" not in load_source
+
+
+def test_gate_pre_decision_read_model_preserves_full_evidence_lineage() -> None:
+    from dataclasses import fields
+
+    from app.gate_assessment.read_models import (
+        GateEvidenceLineageRead,
+        GatePatternLineageRead,
+    )
+
+    evidence_fields = {field.name for field in fields(GateEvidenceLineageRead)}
+    assert {
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+        "source_independence_group",
+        "prompt_contamination",
+    }.issubset(evidence_fields)
+
+    pattern_fields = {field.name for field in fields(GatePatternLineageRead)}
+    assert {
+        "source_pattern_id",
+        "source_pattern_version",
+        "relationship",
+        "evidence",
+    }.issubset(pattern_fields)
