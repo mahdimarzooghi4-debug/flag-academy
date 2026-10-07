@@ -964,11 +964,112 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
     "EXPERIMENT_RESULT_OBSERVED",
   );
 
+  // Gate Assessment pins the Current Profile before any accountable decision.
+  const gateWorkspace = page.getByTestId("assessor-gate-workspace");
+  await expect(gateWorkspace).toContainText("Gate A — Foundation Readiness");
+  await expect(gateWorkspace).toContainText("AT_RISK");
+  await gateWorkspace
+    .getByRole("button", { name: "بارگذاری Current Profile" })
+    .click();
+  await expect(gateWorkspace.getByTestId("gate-current-profile")).toContainText(
+    "DEMONSTRATED · L2",
+  );
+  await expect(gateWorkspace.getByTestId("gate-current-profile")).toContainText(
+    "Authority-pressure evidence from a later independent context.",
+  );
+
+  await gateWorkspace
+    .getByRole("button", { name: "Open Human Gate Review" })
+    .click();
+
+  const gatePreDecision = gateWorkspace.getByTestId("gate-pre-decision");
+  await expect(gatePreDecision).toContainText("REVIEW_REQUIRED");
+  await expect(gatePreDecision).toContainText("Foundation Readiness");
+  await expect(gatePreDecision).toContainText("METRIC_REASONING");
+  await expect(gatePreDecision).toContainText("EXPERIMENT_RESULT_OBSERVED");
+  await expect(gatePreDecision).toContainText("MISSION_RUNTIME");
+  await expect(gatePreDecision).toContainText(
+    "Authority-pressure evidence from a later independent context.",
+  );
+
+  await gatePreDecision
+    .getByLabel("Human Gate decision")
+    .selectOption("PASS_CONFIRMED");
+  await gatePreDecision
+    .getByLabel("منطق Human Gate Decision")
+    .fill(
+      "Pinned Profile, Claim, Pattern, Evidence, Interpretation, Observation and Source lineage reviewed by the accountable human assessor.",
+    );
+  await gatePreDecision
+    .getByRole("button", { name: "ثبت Human Gate Decision" })
+    .click();
+
+  const gateDecision = gateWorkspace.getByTestId("gate-decision-completed");
+  await expect(gateDecision).toContainText("PASS_CONFIRMED");
+
   await logout(page);
   await login(page, "candidate", candidatePassword);
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
   const candidatePatternToken = await currentAccessToken(page);
+
+  const candidateGatePanel = page.getByTestId("candidate-gate-projection");
+  await expect(candidateGatePanel).toContainText(
+    "Gate A — Foundation Readiness",
+  );
+  await expect(candidateGatePanel).toContainText("PASS_CONFIRMED");
+  await expect(candidateGatePanel).toContainText(
+    "Authority-pressure evidence from a later independent context.",
+  );
+  await expect(candidateGatePanel).not.toContainText(
+    "Pinned Profile, Claim, Pattern, Evidence",
+  );
+  await expect(candidateGatePanel).not.toContainText("MISSION_RUNTIME");
+  await expect(candidateGatePanel).not.toContainText("METRIC_REASONING");
+
+  const candidateGateResponse = await page.context().request.get(
+    "http://localhost:8000/api/v1/me/gate-assessments",
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidateGateResponse.status()).toBe(200);
+  const candidateGateProjection = (await candidateGateResponse.json()) as {
+    gates: Array<Record<string, unknown>>;
+  };
+  expect(candidateGateProjection.gates[0]).toMatchObject({
+    gate_code: "A",
+    gate_name: "Foundation Readiness",
+    status: "PASS_CONFIRMED",
+    remediation_status: null,
+  });
+  expect(Object.keys(candidateGateProjection.gates[0] ?? {}).sort()).toEqual(
+    [
+      "gate_code",
+      "gate_name",
+      "status",
+      "evidence_gaps",
+      "remediation_status",
+    ].sort(),
+  );
+  expect(candidateGateProjection.gates[0]).not.toHaveProperty("rationale");
+  expect(candidateGateProjection.gates[0]).not.toHaveProperty("reviewer_id");
+  expect(candidateGateProjection.gates[0]).not.toHaveProperty(
+    "profile_snapshot_id",
+  );
+
+  const candidateAssessorGateResponse = await page.context().request.get(
+    "http://localhost:8000/api/v1/gate-assessments",
+    {
+      headers: {
+        Authorization: `Bearer ${candidatePatternToken}`,
+      },
+    },
+  );
+  expect(candidateAssessorGateResponse.status()).toBe(403);
+
   const candidatePatternsResponse = await page.context().request.get(
     "http://localhost:8000/api/v1/me/patterns",
     {
@@ -1071,6 +1172,6 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   );
   expect(candidateClaimLineageResponse.status()).toBe(403);
 
-  // Profile Claim is human-applied, while Gate/Responsibility/proof remain separate.
+  // Profile Claim and Gate decision remain separate; Responsibility/proof are still untouched.
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 });
