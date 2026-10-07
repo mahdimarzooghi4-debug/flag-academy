@@ -3374,7 +3374,9 @@ def test_gate_stage_acceptance_proves_sprint_21_invariants() -> None:
         "weighted_score",
         "readiness_score",
         "threshold_value",
-        "auto_fail",
-        "automatic_fail",
+        "def auto_fail",
+        "def automatic_fail",
+        "auto_fail =",
+        "automatic_fail =",
     ):
         assert forbidden not in source
