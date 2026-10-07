@@ -24,4 +24,5 @@ class FlagProfileSnapshotReader:
             organization_context_id=organization_context_id,
             subject_person_id=subject_person_id,
             track_code=track_code,
+            lock_profile=True,
         )
