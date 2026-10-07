@@ -2228,3 +2228,153 @@ def test_gate_definition_registry_rows_are_database_immutable() -> None:
         "gate_definition_outcomes",
     ):
         assert f'"{table_name}"' in migration_source
+
+
+def test_flag_profile_public_snapshot_contract_has_exact_gate_facts() -> None:
+    from dataclasses import fields
+
+    from app.flag_profile.contracts import (
+        CapabilityClaimEvidenceLineageContract,
+        CapabilityClaimPatternLineageContract,
+        CurrentCapabilityClaimContract,
+        CurrentFlagProfileSnapshotContract,
+    )
+
+    assert {field.name for field in fields(CurrentFlagProfileSnapshotContract)} == {
+        "flag_profile_id",
+        "flag_profile_version",
+        "organization_context_id",
+        "subject_person_id",
+        "track_code",
+        "profile_updated_at",
+        "claims",
+    }
+    assert {field.name for field in fields(CurrentCapabilityClaimContract)} == {
+        "claim_id",
+        "claim_version",
+        "capability_id",
+        "state",
+        "level",
+        "proven_scope",
+        "evidence_recency",
+        "confidence_in_claim",
+        "reviewed_at",
+        "next_evidence_needed",
+        "source_profile_update_case_id",
+        "patterns",
+    }
+    assert {
+        "pattern_id",
+        "pattern_version",
+        "relationship",
+        "pattern_status",
+        "behaviour_code",
+        "scope",
+        "reviewed_at",
+        "evidence",
+    } == {field.name for field in fields(CapabilityClaimPatternLineageContract)}
+    assert {
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+    }.issubset(
+        {field.name for field in fields(CapabilityClaimEvidenceLineageContract)}
+    )
+
+
+def test_flag_profile_public_snapshot_contract_is_tenant_subject_scoped() -> None:
+    source = Path("app/flag_profile/contracts.py").read_text()
+
+    assert "FlagProfile.organization_context_id == organization_context_id" in source
+    assert "FlagProfile.subject_person_id == subject_person_id" in source
+    assert "FlagProfile.track_code == normalized_track" in source
+    assert (
+        "CapabilityClaim.organization_context_id == organization_context_id"
+        in source
+    )
+    assert "CapabilityClaim.subject_person_id == subject_person_id" in source
+    assert "ProfileUpdateCase.organization_context_id" in source
+    assert "ProfileUpdateCase.subject_person_id == subject_person_id" in source
+
+
+def test_flag_profile_public_snapshot_contract_fails_closed_on_lineage_or_stale_read() -> None:
+    source = Path("app/flag_profile/contracts.py").read_text()
+
+    assert "FLAG_PROFILE_SNAPSHOT_LINEAGE_INCOMPLETE" in source
+    assert "Current Capability Claim has no Reviewed Pattern lineage." in source
+    assert "Current Capability Claim Pattern has no Evidence lineage." in source
+    assert "claim_keys != set(source_by_key)" in source
+    assert "current_version != profile.version" in source
+    assert "FLAG_PROFILE_SNAPSHOT_STALE" in source
+
+
+def test_flag_profile_public_snapshot_contract_hides_reviewer_private_fields() -> None:
+    from dataclasses import fields
+
+    from app.flag_profile.contracts import CurrentCapabilityClaimContract
+
+    exposed = {field.name for field in fields(CurrentCapabilityClaimContract)}
+    assert "reviewed_by" not in exposed
+    assert "review_rationale" not in exposed
+    assert "applied_by" not in exposed
+    assert "creation_idempotency_key" not in exposed
+    assert "review_idempotency_key" not in exposed
+    assert "apply_idempotency_key" not in exposed
+
+
+def test_flag_profile_public_snapshot_matches_applied_claim_source() -> None:
+    from app.flag_profile.contracts import _source_case_matches_claim
+
+    shared = {
+        "flag_profile_id": UUID("91000000-0000-0000-0000-000000000001"),
+        "organization_context_id": UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        "subject_person_id": UUID("00000000-0000-0000-0000-000000000101"),
+        "track_code": "PRODUCT_MANAGER",
+        "capability_id": UUID("10000000-0000-0000-0000-000000000003"),
+    }
+    reviewed_at = datetime(2026, 10, 7, 6, 0, tzinfo=UTC)
+    reviewer_id = UUID("00000000-0000-0000-0000-000000000106")
+    source_case = ProfileUpdateCase(
+        **shared,
+        state="APPLIED",
+        reviewed_claim_state="DEMONSTRATED",
+        reviewed_level="L2",
+        reviewed_proven_scope="PROJECT",
+        reviewed_evidence_recency="CURRENT",
+        reviewed_confidence_in_claim="MODERATE",
+        reviewed_next_evidence_needed="Authority-pressure evidence.",
+        reviewed_at=reviewed_at,
+        reviewed_by=reviewer_id,
+    )
+    claim = CapabilityClaim(
+        **shared,
+        state="DEMONSTRATED",
+        level="L2",
+        proven_scope="PROJECT",
+        evidence_recency="CURRENT",
+        confidence_in_claim="MODERATE",
+        next_evidence_needed="Authority-pressure evidence.",
+        reviewed_at=reviewed_at,
+        reviewed_by=reviewer_id,
+    )
+
+    assert _source_case_matches_claim(source_case, claim)
+    source_case.reviewed_level = "L3"
+    assert not _source_case_matches_claim(source_case, claim)
+
+
+def test_gate_profile_reader_uses_only_flag_profile_public_contract() -> None:
+    source = Path("app/gate_assessment/profile_reader.py").read_text()
+
+    assert "from app.flag_profile.contracts import" in source
+    assert "load_current_flag_profile_snapshot" in source
+    assert "app.flag_profile.models" not in source
+    assert "app.flag_profile.application" not in source
+    assert "CapabilityClaim" not in source
+    assert "ProfileUpdateCase" not in source
