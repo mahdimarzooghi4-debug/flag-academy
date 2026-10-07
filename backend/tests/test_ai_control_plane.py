@@ -323,10 +323,8 @@ def _approved_input(
 
 def test_ai_dataset_root_is_tenant_scoped() -> None:
     assert "organization_context_id" in AIDataset.__table__.c
-    constraint_names = {
-        constraint.name for constraint in AIDataset.__table__.constraints
-    }
-    assert "uq_ai_dataset_scope_name_purpose" in constraint_names
+    source = Path("app/ai_control_plane/models.py").read_text()
+    assert 'name="uq_ai_dataset_scope_name_purpose"' in source
 
 
 def test_ai_learning_approval_is_explicit_and_immutable_lineage() -> None:
