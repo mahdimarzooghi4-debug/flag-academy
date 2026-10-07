@@ -313,13 +313,11 @@ async def ingest_approved_learning_input(
                     "approval_reference": normalized.approval_reference,
                 },
             )
-        result = await _result_for_approval(
+        return await _result_for_approval(
             db,
             approval=existing_by_reference,
             created=False,
         )
-        await db.commit()
-        return result
 
     existing_by_provenance = (
         await db.execute(
@@ -331,13 +329,11 @@ async def ingest_approved_learning_input(
         )
     ).scalar_one_or_none()
     if existing_by_provenance is not None:
-        result = await _result_for_approval(
+        return await _result_for_approval(
             db,
             approval=existing_by_provenance,
             created=False,
         )
-        await db.commit()
-        return result
 
     approval = AILearningSourceApproval(
         id=uuid4(),
@@ -440,8 +436,6 @@ async def ingest_approved_learning_input(
             trace_id=normalized.trace_id,
         ),
     )
-    await db.commit()
-
     return DatasetBuildResult(
         dataset_id=dataset.id,
         dataset_version_id=version.id,
