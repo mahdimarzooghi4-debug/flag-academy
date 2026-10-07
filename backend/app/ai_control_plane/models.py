@@ -191,6 +191,7 @@ class AITrainingRun(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_context_id: Mapped[UUID]
     request_key: Mapped[str] = mapped_column(String(160))
+    data_classification: Mapped[str] = mapped_column(String(64))
     dataset_version_id: Mapped[UUID] = mapped_column(
         ForeignKey("ai_control_plane.dataset_versions.id")
     )
