@@ -3308,3 +3308,24 @@ def test_candidate_gate_projection_has_no_score_threshold_or_hidden_trigger_logi
         "system_proposal",
     ):
         assert forbidden not in lowered
+
+
+def test_gate_snapshot_persistence_flushes_each_lineage_parent_before_children() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    persist_source = source.split(
+        "async def _persist_profile_snapshot", 1
+    )[1].split(
+        "async def open_gate_review", 1
+    )[0]
+
+    snapshot_add = persist_source.index("db.add(snapshot)")
+    snapshot_flush = persist_source.index("await db.flush()", snapshot_add)
+    claim_add = persist_source.index("db.add(claim_row)")
+    claim_flush = persist_source.index("await db.flush()", claim_add)
+    pattern_add = persist_source.index("db.add(pattern_row)")
+    pattern_flush = persist_source.index("await db.flush()", pattern_add)
+    evidence_add = persist_source.index("GateSnapshotEvidenceRef(")
+
+    assert snapshot_add < snapshot_flush < claim_add
+    assert claim_add < claim_flush < pattern_add
+    assert pattern_add < pattern_flush < evidence_add
