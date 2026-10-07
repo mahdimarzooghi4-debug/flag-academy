@@ -3214,3 +3214,97 @@ def test_gate_reassessment_decision_db_allows_only_pass_or_fail() -> None:
     ).read_text()
     assert "decision_state IN ('PASS', 'FAIL')" in migration_source
     assert "PASS_CONFIRMED" not in migration_source
+
+
+def test_candidate_gate_projection_is_gate_owned_and_self_scoped() -> None:
+    source = Path("app/gate_assessment/candidate_projection.py").read_text()
+
+    assert "GateAssessment.organization_context_id" in source
+    assert "GateAssessment.subject_person_id == subject_person_id" in source
+    assert "GateProfileSnapshot.organization_context_id" in source
+    assert "GateProfileSnapshot.subject_person_id == subject_person_id" in source
+
+    for forbidden in (
+        "app.flag_profile",
+        "app.patterns",
+        "app.evidence",
+        "GateReviewDecision",
+        "GateReassessmentDecision",
+        "ProfileUpdateCase",
+    ):
+        assert forbidden not in source
+
+
+def test_candidate_gate_projection_exposes_only_safe_gate_facts() -> None:
+    from dataclasses import fields
+
+    from app.gate_assessment.candidate_projection import CandidateGateItem
+
+    assert {field.name for field in fields(CandidateGateItem)} == {
+        "gate_code",
+        "gate_name",
+        "status",
+        "evidence_gaps",
+        "remediation_status",
+    }
+
+
+def test_candidate_gate_projection_uses_only_next_evidence_needed_for_gaps() -> None:
+    source = Path("app/gate_assessment/candidate_projection.py").read_text()
+    gap_source = source.split(
+        "async def _latest_snapshot_gaps", 1
+    )[1].split(
+        "async def load_candidate_gate_projection", 1
+    )[0]
+
+    assert "claim.next_evidence_needed.strip()" in gap_source
+    for forbidden in (
+        "reviewed_by",
+        "rationale",
+        "source_reference",
+        "source_observation_id",
+        "interpretation_id",
+        "evidence_set_member_id",
+        "confidence_in_claim",
+        "pattern_status",
+        "relationship",
+        "prompt_contamination",
+        "source_independence_group",
+    ):
+        assert forbidden not in gap_source
+
+
+def test_candidate_gate_projection_remediation_status_is_existing_state_only() -> None:
+    from app.gate_assessment.candidate_projection import (
+        _candidate_remediation_status,
+    )
+
+    assert _candidate_remediation_status("REMEDIATION") == "REMEDIATION"
+    assert _candidate_remediation_status("REASSESSMENT") == "REASSESSMENT"
+    for state in (
+        "UNPROVEN",
+        "PASS",
+        "AT_RISK",
+        "REVIEW_REQUIRED",
+        "PASS_CONFIRMED",
+        "FAIL",
+    ):
+        assert _candidate_remediation_status(state) is None
+
+
+def test_candidate_gate_projection_has_no_score_threshold_or_hidden_trigger_logic() -> None:
+    source = Path("app/gate_assessment/candidate_projection.py").read_text()
+    lowered = source.lower()
+
+    for forbidden in (
+        "overall_score",
+        "weighted_score",
+        "readiness_score",
+        "threshold_value",
+        "trigger_reason",
+        "risk_trigger",
+        "hidden_trigger",
+        "ai_proposal",
+        "system_proposal",
+    ):
+        assert forbidden not in lowered
