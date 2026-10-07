@@ -67,6 +67,11 @@ def upgrade() -> None:
         sa.Column("source_version", sa.String(160), nullable=True),
         sa.Column("source_payload_digest", sa.String(64), nullable=False),
         sa.Column("approval_reference", sa.String(255), nullable=False),
+        sa.Column(
+            "approval_event_id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+        ),
         sa.Column("data_classification", sa.String(64), nullable=False),
         sa.Column("provenance_digest", sa.String(64), nullable=False),
         sa.Column("approved_by_type", sa.String(16), nullable=False),
@@ -86,6 +91,10 @@ def upgrade() -> None:
             "dataset_id",
             "provenance_digest",
             name="uq_ai_learning_approval_provenance",
+        ),
+        sa.UniqueConstraint(
+            "approval_event_id",
+            name="uq_ai_learning_approval_event",
         ),
         sa.CheckConstraint(
             "source_payload_digest ~ '^[0-9a-f]{64}$'",
