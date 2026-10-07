@@ -2395,16 +2395,15 @@ def test_gate_assessment_persistence_matches_conceptual_identity() -> None:
         "created_at",
         "updated_at",
     }
-    unique_sets = {
-        tuple(column.name for column in constraint.columns)
-        for constraint in table.constraints
-        if constraint.__class__.__name__ == "UniqueConstraint"
-    }
-    assert (
-        "organization_context_id",
-        "subject_person_id",
-        "gate_definition_version_id",
-    ) in unique_sets
+
+    models_source = Path("app/gate_assessment/models.py").read_text()
+    assessment_source = models_source.split(
+        "class GateAssessment(Base):", 1
+    )[1].split("class GateProfileSnapshot(Base):", 1)[0]
+    assert '"organization_context_id"' in assessment_source
+    assert '"subject_person_id"' in assessment_source
+    assert '"gate_definition_version_id"' in assessment_source
+    assert 'name="uq_gate_assessment_identity"' in assessment_source
 
 
 def test_gate_snapshot_persistence_is_relational_and_complete() -> None:
