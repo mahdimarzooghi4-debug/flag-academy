@@ -16,24 +16,22 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute(
+    connection = op.get_bind()
+    legacy_model_version_exists = connection.execute(
         sa.text(
             """
-            DO $
-            BEGIN
-                IF EXISTS (
-                    SELECT 1
-                      FROM ai_control_plane.model_versions
-                     LIMIT 1
-                ) THEN
-                    RAISE EXCEPTION
-                        'cannot add artifact attestation to existing Model Versions';
-                END IF;
-            END
-            $;
+            SELECT EXISTS (
+                SELECT 1
+                  FROM ai_control_plane.model_versions
+                 LIMIT 1
+            )
             """
         )
-    )
+    ).scalar_one()
+    if legacy_model_version_exists:
+        raise RuntimeError(
+            "cannot add artifact attestation to existing Model Versions"
+        )
 
     op.add_column(
         "model_versions",
