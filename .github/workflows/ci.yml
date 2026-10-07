@@ -190,6 +190,9 @@ jobs:
       - name: Verify governed AI Training Run Control Plane
         working-directory: backend
         run: python scripts/ai_training_control_acceptance.py
+      - name: Verify attested AI Model Registry
+        working-directory: backend
+        run: python scripts/ai_model_registry_acceptance.py
       - name: Upload E2E diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
