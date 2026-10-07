@@ -635,6 +635,11 @@
 | DEC-626 | 2026-10-06 | هر داده جدیدی که طبق Policy پرچم برای استفاده AI تأیید و مجاز شد باید به‌صورت event-driven و بدون human batch gate یا انتظار برای ساخت دستی Dataset، وارد Structured AI Memory / Knowledge قابل استفاده و مسیر Automatic Dataset Builder شود. این ingestion باید idempotent، deduplicated، purpose-scoped، versioned و دارای source lineage باشد؛ «سریع» در این تصمیم به معنی عدم وجود مرحله دستی/Batch prerequisite است و SLA عددی جداگانه باید بعداً تعریف شود. | FINAL |
 | DEC-627 | 2026-10-06 | Immediate ingestion داده approved به Parcham AI به معنی direct online weight mutation در Production نیست. داده approved می‌تواند بلافاصله Memory/Knowledge و Dataset Delta را به‌روزرسانی کند و Training/Evaluation خودکار را trigger کند، اما Model Version جدید فقط از مسیر Versioned Training → Offline Evaluation → Promotion Gate تعریف‌شده در DEC-621 وارد Production می‌شود. | FINAL |
 
+| DEC-628 | 2026-10-06 | برای پیاده‌سازی GateAssessment، state machine دقیق DEC-405 مرجع است: UNPROVEN → PASS → AT_RISK → REVIEW_REQUIRED → PASS_CONFIRMED/FAIL و در صورت FAIL سپس REMEDIATION → REASSESSMENT → PASS/FAIL. DEC-326 چرخه مفهومی Living Gate را بیان می‌کند و نباید باعث حذف REVIEW_REQUIRED یا PASS_CONFIRMED از Aggregate شود. | FINAL |
+| DEC-629 | 2026-10-06 | هر Gate Review consequential باید به یک ProfileSnapshot immutable از Flag Profile همان لحظه Pin شود. Snapshot باید exact Claim IDs/versions، Gate-relevant Claim facts و lineage references لازم را حفظ کند؛ تصمیم Gate نباید بعداً با تغییر Current Profile بازتفسیر شود. | FINAL |
+| DEC-630 | 2026-10-06 | AI، System، Event یا یک Evidence منفرد حق transition مستقیم Gate به PASS/PASS_CONFIRMED/FAIL را ندارند. آن‌ها فقط می‌توانند Risk/Review trigger ایجاد کنند؛ تصمیم REVIEW_REQUIRED → PASS_CONFIRMED یا FAIL فقط با Accountable Human Reviewer و rationale/lineage کامل مجاز است. | FINAL |
+| DEC-631 | 2026-10-06 | Sprint 21 Gate Assessment Foundation هیچ threshold عددی، average score، auto-evaluator یا auto-progression برای Gate اختراع نمی‌کند. پنج Gate رسمی A–E به‌صورت versioned GateDefinition ثبت می‌شوند و requirementها explainable باقی می‌مانند؛ نبود Evidence با Gate Failure یکی نیست و بدون Evidence معتبر، FAIL ممنوع است. | FINAL |
+
 ---
 
 ## مواردی که عمداً FINAL نشده‌اند

@@ -500,3 +500,134 @@ def test_profile_review_request_requires_idempotency_key() -> None:
     assert "expected_version" in props
     assert "idempotency_key" in props
     assert {"expected_version", "idempotency_key"}.issubset(required)
+
+
+def test_candidate_gate_projection_is_exposed_with_strict_allowlist() -> None:
+    paths = app.openapi()["paths"]
+    assert "/api/v1/me/gate-assessments" in paths
+    assert "get" in paths["/api/v1/me/gate-assessments"]
+
+    schemas = app.openapi()["components"]["schemas"]
+    props = schemas["CandidateGateResponse"]["properties"]
+    assert set(props) == {
+        "gate_code",
+        "gate_name",
+        "status",
+        "evidence_gaps",
+        "remediation_status",
+    }
+
+    hidden = {
+        "id",
+        "version",
+        "organization_context_id",
+        "subject_person_id",
+        "gate_assessment_id",
+        "gate_definition_version_id",
+        "profile_snapshot_id",
+        "profile_snapshot_version",
+        "reviewer_id",
+        "reviewed_by",
+        "opened_by",
+        "rationale",
+        "review_rationale",
+        "decision_rationale",
+        "trace_id",
+        "idempotency_key",
+        "source_reference",
+        "source_observation_id",
+        "interpretation_id",
+        "lineage",
+        "risk_patterns",
+        "supporting_patterns",
+        "contradictory_patterns",
+    }
+    assert hidden.isdisjoint(props)
+
+
+def test_candidate_gate_projection_endpoint_is_self_scoped_candidate_only() -> None:
+    from pathlib import Path
+
+    source = Path("app/gate_assessment/api.py").read_text()
+    segment = source.split(
+        '@router.get(\n    "/me/gate-assessments"',
+        1,
+    )[1]
+
+    assert 'require_role("CANDIDATE")' in segment
+    assert "organization_context_id=actor.organization_context_id" in segment
+    assert "subject_person_id=actor.person_id" in segment
+
+    for forbidden in (
+        "GateReviewDecision",
+        "GateReassessmentDecision",
+        "GateSnapshotEvidenceRef",
+        "GateSnapshotPatternRef",
+        "rationale",
+        "reviewer_id",
+        "source_reference",
+        "interpretation_id",
+    ):
+        assert forbidden not in segment
+
+
+def test_gate_assessor_http_contract_is_exposed_and_human_only() -> None:
+    paths = app.openapi()["paths"]
+
+    expected = {
+        "/api/v1/gate-assessments",
+        "/api/v1/gate-assessments/{assessment_id}/reviews",
+        "/api/v1/gate-reviews/{review_id}/pre-decision",
+        "/api/v1/gate-reviews/{review_id}/decision",
+    }
+    assert expected.issubset(paths)
+    assert "get" in paths["/api/v1/gate-assessments"]
+    assert "post" in paths["/api/v1/gate-assessments/{assessment_id}/reviews"]
+    assert "get" in paths["/api/v1/gate-reviews/{review_id}/pre-decision"]
+    assert "post" in paths["/api/v1/gate-reviews/{review_id}/decision"]
+
+    schemas = app.openapi()["components"]["schemas"]
+    decision_props = schemas["CompleteGateReviewRequest"]["properties"]
+    decision_enum = decision_props["decision_state"]["enum"]
+    assert decision_enum == ["PASS_CONFIRMED", "FAIL"]
+    assert "rationale" in decision_props
+    assert "expected_version" in decision_props
+    assert "expected_gate_definition_version_id" in decision_props
+    assert "expected_profile_snapshot_id" in decision_props
+    assert "expected_profile_snapshot_version" in decision_props
+
+
+def test_gate_assessor_api_uses_existing_governed_commands() -> None:
+    from pathlib import Path
+
+    source = Path("app/gate_assessment/api.py").read_text()
+
+    assert 'require_role("ASSESSOR")' in source
+    assert "open_gate_review(" in source
+    assert "load_assessor_pre_decision_read(" in source
+    assert "complete_gate_review(" in source
+    assert "FlagProfileSnapshotReader(db)" in source
+
+    for forbidden in (
+        "GateReviewDecision(",
+        "GateProfileSnapshot(",
+        "CapabilityClaim",
+        "ResponsibilityRecommendation",
+    ):
+        assert forbidden not in source
+
+
+def test_gate_assessor_pre_decision_schema_keeps_lineage_out_of_candidate_schema() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    assessor_props = schemas["GateEvidenceLineageResponse"]["properties"]
+    candidate_props = schemas["CandidateGateResponse"]["properties"]
+
+    assert "source_reference" in assessor_props
+    assert "source_observation_id" in assessor_props
+    assert "interpretation_id" in assessor_props
+
+    assert "source_reference" not in candidate_props
+    assert "source_observation_id" not in candidate_props
+    assert "interpretation_id" not in candidate_props
+    assert "reviewer_id" not in candidate_props
+    assert "rationale" not in candidate_props

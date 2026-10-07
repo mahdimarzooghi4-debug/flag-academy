@@ -36,6 +36,12 @@ from app.flag_profile.domain import (
     profile_update_transition_allowed,
 )
 from app.flag_profile.models import CapabilityClaim, ProfileUpdateCase
+from app.gate_assessment.domain import (
+    GATE_DEFINITION_REGISTRY,
+    GateAssessmentState,
+    GateCode,
+    gate_transition_allowed,
+)
 from app.journey.domain import CandidateJourneyState
 from app.learning.domain import (
     LearningPhase,
@@ -2075,3 +2081,1302 @@ def test_profile_review_request_migration_is_flag_profile_local() -> None:
     assert "patterns." not in migration_source
     assert "evidence." not in migration_source
     assert "curriculum." not in migration_source
+
+
+
+def test_gate_assessment_state_vocabulary_is_exact() -> None:
+    assert {state.value for state in GateAssessmentState} == {
+        "UNPROVEN",
+        "PASS",
+        "AT_RISK",
+        "REVIEW_REQUIRED",
+        "PASS_CONFIRMED",
+        "FAIL",
+        "REMEDIATION",
+        "REASSESSMENT",
+    }
+
+
+def test_gate_assessment_transition_graph_matches_final_contract() -> None:
+    assert gate_transition_allowed("UNPROVEN", "PASS")
+    assert gate_transition_allowed("PASS", "AT_RISK")
+    assert gate_transition_allowed("AT_RISK", "REVIEW_REQUIRED")
+    assert gate_transition_allowed("REVIEW_REQUIRED", "PASS_CONFIRMED")
+    assert gate_transition_allowed("REVIEW_REQUIRED", "FAIL")
+    assert gate_transition_allowed("PASS_CONFIRMED", "AT_RISK")
+    assert gate_transition_allowed("FAIL", "REMEDIATION")
+    assert gate_transition_allowed("REMEDIATION", "REASSESSMENT")
+    assert gate_transition_allowed("REASSESSMENT", "PASS")
+    assert gate_transition_allowed("REASSESSMENT", "FAIL")
+
+    assert not gate_transition_allowed("UNPROVEN", "FAIL")
+    assert not gate_transition_allowed("AT_RISK", "FAIL")
+    assert not gate_transition_allowed("REVIEW_REQUIRED", "PASS")
+    assert not gate_transition_allowed("FAIL", "PASS")
+    assert not gate_transition_allowed("PASS", "FAIL")
+
+
+def test_gate_definition_registry_contains_only_canonical_gates() -> None:
+    assert [item.code for item in GATE_DEFINITION_REGISTRY] == [
+        GateCode.A,
+        GateCode.B,
+        GateCode.C,
+        GateCode.D,
+        GateCode.E,
+    ]
+    assert [item.name for item in GATE_DEFINITION_REGISTRY] == [
+        "Foundation Readiness",
+        "Product Judgment Readiness",
+        "Real Project Readiness",
+        "Ownership Trial Readiness",
+        "Flag Board",
+    ]
+    assert GATE_DEFINITION_REGISTRY[0].outcomes == (
+        "ENTER PRODUCT CORE",
+        "NOT YET",
+    )
+    assert GATE_DEFINITION_REGISTRY[3].outcomes == (
+        "GRANT OUTCOME OWNERSHIP",
+        "REMEDIATE",
+    )
+    assert GATE_DEFINITION_REGISTRY[4].outcomes == (
+        "READY",
+        "NOT YET",
+        "DIFFERENT SCOPE",
+    )
+
+
+def test_gate_definition_registry_has_no_scoring_policy() -> None:
+    domain_source = Path("app/gate_assessment/domain.py").read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text()
+
+    forbidden = (
+        "overall_score",
+        "weighted_score",
+        "average_score",
+        "threshold_value",
+        "passing_score",
+        "auto_evaluator",
+    )
+    for value in forbidden:
+        assert value not in domain_source.lower()
+        assert value not in models_source.lower()
+
+
+def test_gate_definition_persistence_is_versioned_and_context_local() -> None:
+    models_source = Path("app/gate_assessment/models.py").read_text()
+    migration_source = Path(
+        "alembic/versions/0019_gate_definition_registry_foundation.py"
+    ).read_text()
+
+    assert "GateDefinitionVersion" in models_source
+    assert "GateDefinitionRequirement" in models_source
+    assert "GateDefinitionOutcome" in models_source
+    assert 'ForeignKey("gate_assessment.gate_definitions.id")' in models_source
+    assert (
+        'ForeignKey("gate_assessment.gate_definition_versions.id")'
+        in models_source
+    )
+
+    assert '"flag_profile.' not in migration_source
+    assert '"patterns.' not in migration_source
+    assert '"evidence.' not in migration_source
+    assert '"curriculum.' not in migration_source
+    assert "JSONB" not in models_source
+
+
+def test_gate_definition_name_is_part_of_the_versioned_definition() -> None:
+    models_source = Path("app/gate_assessment/models.py").read_text()
+    migration_source = Path(
+        "alembic/versions/0019_gate_definition_registry_foundation.py"
+    ).read_text()
+
+    definition_model = models_source.split(
+        "class GateDefinition(Base):", 1
+    )[1].split("class GateDefinitionVersion(Base):", 1)[0]
+    version_model = models_source.split(
+        "class GateDefinitionVersion(Base):", 1
+    )[1].split("class GateDefinitionRequirement(Base):", 1)[0]
+    assert "name: Mapped[str]" not in definition_model
+    assert "name: Mapped[str]" in version_model
+
+    definition_table = migration_source.split(
+        'op.create_table(\n        "gate_definitions"', 1
+    )[1].split(
+        'op.create_table(\n        "gate_definition_versions"', 1
+    )[0]
+    version_table = migration_source.split(
+        'op.create_table(\n        "gate_definition_versions"', 1
+    )[1].split(
+        'op.create_table(\n        "gate_definition_requirements"', 1
+    )[0]
+    assert 'sa.Column("name"' not in definition_table
+    assert 'sa.Column("name"' in version_table
+
+
+def test_gate_definition_registry_rows_are_database_immutable() -> None:
+    migration_source = Path(
+        "alembic/versions/0019_gate_definition_registry_foundation.py"
+    ).read_text()
+
+    assert "reject_gate_definition_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    for table_name in (
+        "gate_definitions",
+        "gate_definition_versions",
+        "gate_definition_requirements",
+        "gate_definition_outcomes",
+    ):
+        assert f'"{table_name}"' in migration_source
+
+
+def test_flag_profile_public_snapshot_contract_has_exact_gate_facts() -> None:
+    from dataclasses import fields
+
+    from app.flag_profile.contracts import (
+        CapabilityClaimEvidenceLineageContract,
+        CapabilityClaimPatternLineageContract,
+        CurrentCapabilityClaimContract,
+        CurrentFlagProfileSnapshotContract,
+    )
+
+    assert {field.name for field in fields(CurrentFlagProfileSnapshotContract)} == {
+        "flag_profile_id",
+        "flag_profile_version",
+        "organization_context_id",
+        "subject_person_id",
+        "track_code",
+        "profile_updated_at",
+        "claims",
+    }
+    assert {field.name for field in fields(CurrentCapabilityClaimContract)} == {
+        "claim_id",
+        "claim_version",
+        "capability_id",
+        "state",
+        "level",
+        "proven_scope",
+        "evidence_recency",
+        "confidence_in_claim",
+        "reviewed_at",
+        "next_evidence_needed",
+        "source_profile_update_case_id",
+        "patterns",
+    }
+    assert {
+        "pattern_id",
+        "pattern_version",
+        "relationship",
+        "pattern_status",
+        "behaviour_code",
+        "scope",
+        "reviewed_at",
+        "evidence",
+    } == {field.name for field in fields(CapabilityClaimPatternLineageContract)}
+    assert {
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+    }.issubset(
+        {field.name for field in fields(CapabilityClaimEvidenceLineageContract)}
+    )
+
+
+def test_flag_profile_public_snapshot_contract_is_tenant_subject_scoped() -> None:
+    source = Path("app/flag_profile/contracts.py").read_text()
+
+    assert "FlagProfile.organization_context_id == organization_context_id" in source
+    assert "FlagProfile.subject_person_id == subject_person_id" in source
+    assert "FlagProfile.track_code == normalized_track" in source
+    assert (
+        "CapabilityClaim.organization_context_id == organization_context_id"
+        in source
+    )
+    assert "CapabilityClaim.subject_person_id == subject_person_id" in source
+    assert "ProfileUpdateCase.organization_context_id" in source
+    assert "ProfileUpdateCase.subject_person_id == subject_person_id" in source
+
+
+def test_flag_profile_public_snapshot_contract_fails_closed_on_lineage_or_stale_read() -> None:
+    source = Path("app/flag_profile/contracts.py").read_text()
+
+    assert "FLAG_PROFILE_SNAPSHOT_LINEAGE_INCOMPLETE" in source
+    assert "Current Capability Claim has no Reviewed Pattern lineage." in source
+    assert "Current Capability Claim Pattern has no Evidence lineage." in source
+    assert "claim_keys != set(source_by_key)" in source
+    assert "current_version != profile.version" in source
+    assert "FLAG_PROFILE_SNAPSHOT_STALE" in source
+
+
+def test_flag_profile_public_snapshot_contract_hides_reviewer_private_fields() -> None:
+    from dataclasses import fields
+
+    from app.flag_profile.contracts import CurrentCapabilityClaimContract
+
+    exposed = {field.name for field in fields(CurrentCapabilityClaimContract)}
+    assert "reviewed_by" not in exposed
+    assert "review_rationale" not in exposed
+    assert "applied_by" not in exposed
+    assert "creation_idempotency_key" not in exposed
+    assert "review_idempotency_key" not in exposed
+    assert "apply_idempotency_key" not in exposed
+
+
+def test_flag_profile_public_snapshot_matches_applied_claim_source() -> None:
+    from app.flag_profile.contracts import _source_case_matches_claim
+
+    shared = {
+        "flag_profile_id": UUID("91000000-0000-0000-0000-000000000001"),
+        "organization_context_id": UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        "subject_person_id": UUID("00000000-0000-0000-0000-000000000101"),
+        "track_code": "PRODUCT_MANAGER",
+        "capability_id": UUID("10000000-0000-0000-0000-000000000003"),
+    }
+    reviewed_at = datetime(2026, 10, 7, 6, 0, tzinfo=UTC)
+    reviewer_id = UUID("00000000-0000-0000-0000-000000000106")
+    source_case = ProfileUpdateCase(
+        **shared,
+        state="APPLIED",
+        reviewed_claim_state="DEMONSTRATED",
+        reviewed_level="L2",
+        reviewed_proven_scope="PROJECT",
+        reviewed_evidence_recency="CURRENT",
+        reviewed_confidence_in_claim="MODERATE",
+        reviewed_next_evidence_needed="Authority-pressure evidence.",
+        reviewed_at=reviewed_at,
+        reviewed_by=reviewer_id,
+    )
+    claim = CapabilityClaim(
+        **shared,
+        state="DEMONSTRATED",
+        level="L2",
+        proven_scope="PROJECT",
+        evidence_recency="CURRENT",
+        confidence_in_claim="MODERATE",
+        next_evidence_needed="Authority-pressure evidence.",
+        reviewed_at=reviewed_at,
+        reviewed_by=reviewer_id,
+    )
+
+    assert _source_case_matches_claim(source_case, claim)
+    source_case.reviewed_level = "L3"
+    assert not _source_case_matches_claim(source_case, claim)
+
+
+def test_gate_profile_reader_uses_only_flag_profile_public_contract() -> None:
+    source = Path("app/gate_assessment/profile_reader.py").read_text()
+
+    assert "from app.flag_profile.contracts import" in source
+    assert "load_current_flag_profile_snapshot" in source
+    assert "app.flag_profile.models" not in source
+    assert "app.flag_profile.application" not in source
+    assert "CapabilityClaim" not in source
+    assert "ProfileUpdateCase" not in source
+
+
+def test_gate_assessment_persistence_matches_conceptual_identity() -> None:
+    from app.gate_assessment.models import GateAssessment
+
+    table = GateAssessment.__table__
+    assert table.schema == "gate_assessment"
+    assert set(table.c.keys()) == {
+        "id",
+        "version",
+        "gate_definition_version_id",
+        "organization_context_id",
+        "subject_person_id",
+        "state",
+        "created_at",
+        "updated_at",
+    }
+
+    models_source = Path("app/gate_assessment/models.py").read_text()
+    assessment_source = models_source.split(
+        "class GateAssessment(Base):", 1
+    )[1].split("class GateProfileSnapshot(Base):", 1)[0]
+    assert '"organization_context_id"' in assessment_source
+    assert '"subject_person_id"' in assessment_source
+    assert '"gate_definition_version_id"' in assessment_source
+    assert 'name="uq_gate_assessment_identity"' in assessment_source
+
+
+def test_gate_snapshot_persistence_is_relational_and_complete() -> None:
+    from app.gate_assessment.models import (
+        GateProfileSnapshot,
+        GateProfileSnapshotClaim,
+        GateSnapshotEvidenceRef,
+        GateSnapshotPatternRef,
+    )
+
+    assert {
+        "source_flag_profile_id",
+        "source_flag_profile_version",
+        "source_track_code",
+        "source_profile_updated_at",
+        "captured_at",
+    }.issubset(GateProfileSnapshot.__table__.c.keys())
+    assert {
+        "source_claim_id",
+        "source_claim_version",
+        "capability_id",
+        "state",
+        "level",
+        "proven_scope",
+        "evidence_recency",
+        "confidence_in_claim",
+        "reviewed_at",
+        "next_evidence_needed",
+        "source_profile_update_case_id",
+    }.issubset(GateProfileSnapshotClaim.__table__.c.keys())
+    assert {
+        "source_pattern_id",
+        "source_pattern_version",
+        "relationship",
+        "pattern_status",
+        "behaviour_code",
+        "scope",
+        "reviewed_at",
+    }.issubset(GateSnapshotPatternRef.__table__.c.keys())
+    assert {
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+    }.issubset(GateSnapshotEvidenceRef.__table__.c.keys())
+
+
+def test_gate_snapshot_foreign_keys_are_intra_context_only() -> None:
+    from app.gate_assessment.models import (
+        GateAssessment,
+        GateProfileSnapshot,
+        GateProfileSnapshotClaim,
+        GateSnapshotEvidenceRef,
+        GateSnapshotPatternRef,
+    )
+
+    tables = (
+        GateAssessment.__table__,
+        GateProfileSnapshot.__table__,
+        GateProfileSnapshotClaim.__table__,
+        GateSnapshotPatternRef.__table__,
+        GateSnapshotEvidenceRef.__table__,
+    )
+    targets = {
+        fk.target_fullname
+        for table in tables
+        for fk in table.foreign_keys
+    }
+    assert targets
+    assert all(target.startswith("gate_assessment.") for target in targets)
+    for forbidden in (
+        "flag_profile.",
+        "patterns.",
+        "evidence.",
+        "curriculum.",
+        "mission.",
+    ):
+        assert all(not target.startswith(forbidden) for target in targets)
+
+
+def test_gate_profile_snapshot_rows_are_database_immutable() -> None:
+    migration_source = Path(
+        "alembic/versions/0020_gate_assessment_persistence_foundation.py"
+    ).read_text()
+
+    assert "reject_profile_snapshot_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    for table_name in (
+        "gate_profile_snapshots",
+        "gate_profile_snapshot_claims",
+        "gate_snapshot_pattern_refs",
+        "gate_snapshot_evidence_refs",
+    ):
+        assert f'"{table_name}"' in migration_source
+
+
+def test_gate_persistence_foundation_has_no_cross_context_fk_or_jsonb() -> None:
+    migration_source = Path(
+        "alembic/versions/0020_gate_assessment_persistence_foundation.py"
+    ).read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text()
+
+    assert "JSONB" not in migration_source
+    assert "JSONB" not in models_source
+    for forbidden in (
+        "flag_profile.",
+        "patterns.",
+        "evidence.",
+        "curriculum.",
+        "mission.",
+    ):
+        assert forbidden not in migration_source
+
+
+def test_gate_persistence_foundation_adds_no_review_command_event_or_api() -> None:
+    migration_source = Path(
+        "alembic/versions/0020_gate_assessment_persistence_foundation.py"
+    ).read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text().split(
+        "class GateReview(Base):", 1
+    )[0]
+
+    for forbidden in (
+        "GateReview",
+        "open_review",
+        "reviewer_id",
+        "decision_rationale",
+        "idempotency_key",
+        "gate.review_completed.v1",
+        "profile.snapshot_created.v1",
+    ):
+        assert forbidden not in migration_source
+        assert forbidden not in models_source
+
+
+def test_gate_review_opening_persistence_is_auditable_and_immutable() -> None:
+    from app.gate_assessment.models import GateReview
+
+    columns = set(GateReview.__table__.c.keys())
+    assert {
+        "gate_assessment_id",
+        "gate_profile_snapshot_id",
+        "gate_definition_version_id",
+        "organization_context_id",
+        "subject_person_id",
+        "gate_assessment_version",
+        "opened_by",
+        "opened_at",
+        "open_idempotency_key",
+        "trace_id",
+    }.issubset(columns)
+
+    migration_source = Path(
+        "alembic/versions/0021_gate_review_opening_audit.py"
+    ).read_text()
+    assert "reject_gate_review_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    assert "uq_gate_review_open_idempotency" in migration_source
+    assert "uq_gate_review_assessment_version" in migration_source
+
+
+def test_gate_review_opening_has_only_intra_context_foreign_keys() -> None:
+    from app.gate_assessment.models import GateReview
+
+    targets = {fk.target_fullname for fk in GateReview.__table__.foreign_keys}
+    assert targets == {
+        "gate_assessment.gate_assessments.id",
+        "gate_assessment.gate_profile_snapshots.id",
+        "gate_assessment.gate_definition_versions.id",
+    }
+
+
+def test_gate_open_review_uses_only_flag_profile_public_contract() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    reader_source = Path("app/gate_assessment/profile_reader.py").read_text()
+
+    assert "from app.flag_profile.contracts import" in source
+    assert "app.flag_profile.models" not in source
+    assert "app.flag_profile.application" not in source
+    assert "lock_profile=True" in reader_source
+
+
+def test_flag_profile_public_contract_can_pin_profile_for_gate_snapshot() -> None:
+    source = Path("app/flag_profile/contracts.py").read_text()
+    load_source = source.split(
+        "async def load_current_flag_profile_snapshot", 1
+    )[1]
+
+    assert "lock_profile: bool = False" in load_source
+    assert "if lock_profile:" in load_source
+    assert "profile_query = profile_query.with_for_update()" in load_source
+
+
+def test_gate_open_review_is_tenant_scoped_versioned_and_transition_guarded() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    open_source = source.split("async def open_gate_review", 1)[1]
+    lookup = open_source.split("select(GateAssessment)", 1)[1].split(
+        ".with_for_update()", 1
+    )[0]
+
+    assert "GateAssessment.id == command.gate_assessment_id" in lookup
+    assert "GateAssessment.organization_context_id" in lookup
+    assert "command.organization_context_id" in lookup
+    assert "_require_expected_version(" in open_source
+    assert "gate_transition_allowed(" in open_source
+    assert "GateAssessmentState.REVIEW_REQUIRED.value" in open_source
+
+
+def test_gate_open_review_snapshots_full_public_lineage_before_single_commit() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    persist_source = source.split(
+        "def _persist_profile_snapshot", 1
+    )[1].split(
+        "async def open_gate_review", 1
+    )[0]
+    open_source = source.split("async def open_gate_review", 1)[1].split(
+        "@dataclass(frozen=True)\nclass CompleteGateReviewCommand",
+        1,
+    )[0]
+
+    for value in (
+        "source_flag_profile_version=source.flag_profile_version",
+        "source_claim_version=claim.claim_version",
+        "source_pattern_version=pattern.pattern_version",
+        "interpretation_version=evidence.interpretation_version",
+        "source_observation_id=evidence.source_observation_id",
+        "source_reference=evidence.source_reference",
+    ):
+        assert value in persist_source
+
+    assert open_source.count("await db.commit()") == 1
+    assert "_persist_profile_snapshot(" in open_source
+    assert "db.add(review)" in open_source
+
+
+def test_gate_open_review_has_no_pass_fail_or_event_side_effect() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    open_source = source.split("async def open_gate_review", 1)[1].split(
+        "@dataclass(frozen=True)\nclass CompleteGateReviewCommand",
+        1,
+    )[0]
+
+    assert "PASS_CONFIRMED" not in open_source
+    assert "GateAssessmentState.FAIL" not in open_source
+    assert "gate.review_completed.v1" not in open_source
+    assert "profile.snapshot_created.v1" not in open_source
+    assert "record_event(" not in open_source
+    assert "CapabilityClaim" not in open_source
+    assert "ResponsibilityRecommendation" not in open_source
+
+
+def test_gate_open_review_retry_requires_same_assessment_actor_and_track() -> None:
+    from app.gate_assessment.application import (
+        OpenGateReviewCommand,
+        _open_review_retry_matches,
+    )
+    from app.gate_assessment.models import GateProfileSnapshot, GateReview
+
+    assessment_id = UUID("a2000000-0000-0000-0000-000000000001")
+    actor_id = UUID("00000000-0000-0000-0000-000000000106")
+    command = OpenGateReviewCommand(
+        organization_context_id=UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        gate_assessment_id=assessment_id,
+        track_code="PRODUCT_MANAGER",
+        opened_by=actor_id,
+        expected_version=4,
+        idempotency_key="gate-open-review-1",
+        trace_id="trace-gate-open-review-1",
+    )
+    review = GateReview(
+        gate_assessment_id=assessment_id,
+        opened_by=actor_id,
+    )
+    snapshot = GateProfileSnapshot(
+        gate_assessment_id=assessment_id,
+        source_track_code="PRODUCT_MANAGER",
+    )
+
+    assert _open_review_retry_matches(
+        review,
+        snapshot,
+        command=command,
+        track_code="PRODUCT_MANAGER",
+    )
+    snapshot.source_track_code = "OTHER_TRACK"
+    assert not _open_review_retry_matches(
+        review,
+        snapshot,
+        command=command,
+        track_code="PRODUCT_MANAGER",
+    )
+
+
+def test_gate_pre_decision_read_model_is_pinned_and_version_exact() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    load_source = source.split("async def load_assessor_pre_decision_read", 1)[1]
+
+    assert "GateReview.id == gate_review_id" in load_source
+    assert "GateReview.organization_context_id == organization_context_id" in load_source
+    assert (
+        "GateAssessment.gate_definition_version_id"
+        in load_source
+    )
+    assert "== review.gate_definition_version_id" in load_source
+    assert "assessment.version != review.gate_assessment_version" in load_source
+    assert "GateProfileSnapshot.id == review.gate_profile_snapshot_id" in load_source
+
+
+def test_gate_pre_decision_read_model_uses_only_gate_owned_snapshot() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+
+    assert "app.flag_profile" not in source
+    assert "app.patterns" not in source
+    assert "app.evidence" not in source
+    assert "GateProfileSnapshotClaim" in source
+    assert "GateSnapshotPatternRef" in source
+    assert "GateSnapshotEvidenceRef" in source
+
+
+def test_gate_pre_decision_read_model_surfaces_exact_definition_version() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    definition_source = source.split(
+        "async def _load_definition", 1
+    )[1].split(
+        "def _evidence_read", 1
+    )[0]
+
+    assert "GateDefinitionVersion.id == gate_definition_version_id" in definition_source
+    assert "version_number=version.version_number" in definition_source
+    assert "decision_question=version.decision_question" in definition_source
+    assert "requirements=tuple(item.requirement_text" in definition_source
+    assert "outcomes=tuple(item.outcome_text" in definition_source
+
+
+def test_gate_pre_decision_read_model_preserves_supporting_and_contradictory_lineage() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    claim_source = source.split(
+        "async def _load_claim", 1
+    )[1].split(
+        "async def load_assessor_pre_decision_read", 1
+    )[0]
+
+    assert 'pattern.relationship == "SUPPORTING"' in claim_source
+    assert 'pattern.relationship == "CONTRADICTORY"' in claim_source
+    assert "supporting_patterns=tuple(supporting)" in claim_source
+    assert "contradictory_patterns=tuple(contradictory)" in claim_source
+    assert "Pinned Gate Pattern relationship is not recognized." in claim_source
+
+
+def test_gate_pre_decision_read_model_surfaces_gaps_and_risks_without_scoring() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+
+    assert "next_evidence_needed=claim.next_evidence_needed" in source
+    assert "for pattern in claim.contradictory_patterns" in source
+    assert "risk_patterns=tuple(risk_patterns)" in source
+
+    forbidden = (
+        "overall_score",
+        "weighted_score",
+        "average_score",
+        "passing_score",
+        "threshold_value",
+        "readiness_score",
+        "auto_evaluator",
+    )
+    lowered = source.lower()
+    for value in forbidden:
+        assert value not in lowered
+
+
+def test_gate_pre_decision_read_model_is_read_only() -> None:
+    source = Path("app/gate_assessment/read_models.py").read_text()
+    load_source = source.split("async def load_assessor_pre_decision_read", 1)[1]
+
+    assert "await db.commit()" not in source
+    assert "db.add(" not in source
+    assert ".with_for_update()" not in source
+    assert "record_event(" not in source
+    assert "GateAssessmentState.REVIEW_REQUIRED.value" in load_source
+    assert "GateAssessmentState.PASS_CONFIRMED" not in load_source
+    assert "GateAssessmentState.FAIL" not in load_source
+
+
+def test_gate_pre_decision_read_model_preserves_full_evidence_lineage() -> None:
+    from dataclasses import fields
+
+    from app.gate_assessment.read_models import (
+        GateEvidenceLineageRead,
+        GatePatternLineageRead,
+    )
+
+    evidence_fields = {field.name for field in fields(GateEvidenceLineageRead)}
+    assert {
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+        "source_independence_group",
+        "prompt_contamination",
+    }.issubset(evidence_fields)
+
+    pattern_fields = {field.name for field in fields(GatePatternLineageRead)}
+    assert {
+        "source_pattern_id",
+        "source_pattern_version",
+        "relationship",
+        "evidence",
+    }.issubset(pattern_fields)
+
+
+def test_gate_human_decision_persistence_is_append_only_and_exact() -> None:
+    from app.gate_assessment.models import GateReviewDecision
+
+    columns = set(GateReviewDecision.__table__.c.keys())
+    assert {
+        "gate_review_id",
+        "gate_assessment_id",
+        "gate_profile_snapshot_id",
+        "gate_profile_snapshot_version",
+        "gate_definition_version_id",
+        "organization_context_id",
+        "subject_person_id",
+        "prior_assessment_version",
+        "resulting_assessment_version",
+        "decision_state",
+        "reviewer_id",
+        "rationale",
+        "decided_at",
+        "decision_idempotency_key",
+        "trace_id",
+    }.issubset(columns)
+
+    migration_source = Path(
+        "alembic/versions/0022_gate_human_decision_audit.py"
+    ).read_text()
+    assert "decision_state IN ('PASS_CONFIRMED', 'FAIL')" in migration_source
+    assert "reject_gate_decision_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    assert "uq_gate_review_decision_idempotency" in migration_source
+
+
+def test_gate_human_decision_foreign_keys_are_context_local() -> None:
+    from app.gate_assessment.models import GateReviewDecision
+
+    targets = {
+        fk.target_fullname for fk in GateReviewDecision.__table__.foreign_keys
+    }
+    assert targets == {
+        "gate_assessment.gate_reviews.id",
+        "gate_assessment.gate_assessments.id",
+        "gate_assessment.gate_profile_snapshots.id",
+        "gate_assessment.gate_definition_versions.id",
+    }
+
+
+def test_gate_human_decision_accepts_only_pass_confirmed_or_fail() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    decision_source = source.split(
+        "def _require_gate_decision_contract", 1
+    )[1].split(
+        "async def _decision_by_idempotency_key", 1
+    )[0]
+
+    assert "GateAssessmentState.PASS_CONFIRMED.value" in decision_source
+    assert "GateAssessmentState.FAIL.value" in decision_source
+    assert "Human Gate decision must be PASS_CONFIRMED or FAIL." in decision_source
+    assert "GATE_DECISION_RATIONALE_REQUIRED" in decision_source
+
+
+def test_gate_human_decision_is_tenant_scoped_and_row_locked() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+    lookup = complete_source.split("select(GateAssessment)", 1)[1].split(
+        ".with_for_update()", 1
+    )[0]
+
+    assert "GateReview.organization_context_id" in complete_source
+    assert "command.organization_context_id" in complete_source
+    assert "GateAssessment.organization_context_id" in lookup
+    assert "GateAssessment.subject_person_id == review.subject_person_id" in lookup
+    assert (
+        "GateAssessment.gate_definition_version_id"
+        in lookup
+    )
+
+
+def test_gate_human_decision_requires_exact_pinned_versions() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    assert "_require_expected_version(" in complete_source
+    assert "review.gate_assessment_version != command.expected_version" in complete_source
+    assert (
+        "review.gate_definition_version_id"
+        in complete_source
+        and "command.expected_gate_definition_version_id" in complete_source
+    )
+    assert "snapshot.id != command.expected_profile_snapshot_id" in complete_source
+    assert (
+        "snapshot.snapshot_version"
+        in complete_source
+        and "command.expected_profile_snapshot_version" in complete_source
+    )
+    assert "load_assessor_pre_decision_read(" in complete_source
+
+
+def test_gate_human_decision_event_and_outbox_are_atomic() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    event_index = complete_source.index("record_event(")
+    commit_index = complete_source.index("await db.commit()")
+    assert event_index < commit_index
+    assert complete_source.count("await db.commit()") == 1
+
+    event_source = source.split(
+        "def _new_gate_review_completed_event", 1
+    )[1].split(
+        "async def complete_gate_review", 1
+    )[0]
+    assert 'event_type="gate.review_completed.v1"' in event_source
+    assert 'aggregate_type="GateAssessment"' in event_source
+    assert 'actor={"type": "PERSON"' in event_source
+    assert '"profile_snapshot_id"' in event_source
+    assert '"profile_snapshot_version"' in event_source
+    assert '"gate_definition_version_id"' in event_source
+    assert '"decision_state"' in event_source
+
+
+def test_gate_human_decision_has_no_ai_system_or_cross_context_mutation() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    assert "app.flag_profile" not in complete_source
+    assert "CapabilityClaim" not in complete_source
+    assert "ResponsibilityRecommendation" not in complete_source
+    assert "FlagBoard" not in complete_source
+    assert "Appointment" not in complete_source
+    assert '"type": "SYSTEM"' not in complete_source
+    assert '"type": "AI"' not in complete_source
+
+
+def test_gate_human_decision_never_converts_missing_evidence_to_fail() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    complete_source = source.split("async def complete_gate_review", 1)[1]
+
+    assert "evidence_gaps" not in complete_source
+    assert "insufficient" not in complete_source.lower()
+    assert "decision_state = GateAssessmentState.FAIL" not in complete_source
+    assert "assessment.state = decision_state" in complete_source
+
+
+def test_gate_human_decision_exact_retry_contract() -> None:
+    from app.gate_assessment.application import (
+        CompleteGateReviewCommand,
+        _gate_decision_retry_matches,
+    )
+    from app.gate_assessment.models import GateReviewDecision
+
+    review_id = UUID("a3000000-0000-0000-0000-000000000001")
+    reviewer_id = UUID("00000000-0000-0000-0000-000000000106")
+    definition_version_id = UUID("a3000000-0000-0000-0000-000000000002")
+    snapshot_id = UUID("a3000000-0000-0000-0000-000000000003")
+    command = CompleteGateReviewCommand(
+        organization_context_id=UUID(
+            "00000000-0000-0000-0000-000000000001"
+        ),
+        gate_review_id=review_id,
+        reviewer_id=reviewer_id,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        expected_version=5,
+        expected_gate_definition_version_id=definition_version_id,
+        expected_profile_snapshot_id=snapshot_id,
+        expected_profile_snapshot_version=2,
+        idempotency_key="gate-decision-1",
+        trace_id="trace-gate-decision-1",
+    )
+    decision = GateReviewDecision(
+        gate_review_id=review_id,
+        reviewer_id=reviewer_id,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        prior_assessment_version=5,
+        gate_definition_version_id=definition_version_id,
+        gate_profile_snapshot_id=snapshot_id,
+        gate_profile_snapshot_version=2,
+        decision_idempotency_key="gate-decision-1",
+    )
+
+    assert _gate_decision_retry_matches(
+        decision,
+        command=command,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        idempotency_key="gate-decision-1",
+    )
+    decision.decision_state = "FAIL"
+    assert not _gate_decision_retry_matches(
+        decision,
+        command=command,
+        decision_state="PASS_CONFIRMED",
+        rationale="Pinned evidence supports the accountable decision.",
+        idempotency_key="gate-decision-1",
+    )
+
+
+def test_gate_recovery_history_is_append_only_and_relational() -> None:
+    from app.gate_assessment.models import (
+        GateReassessment,
+        GateReassessmentDecision,
+        GateRemediation,
+    )
+
+    assert GateRemediation.__table__.schema == "gate_assessment"
+    assert GateReassessment.__table__.schema == "gate_assessment"
+    assert GateReassessmentDecision.__table__.schema == "gate_assessment"
+
+    targets = {
+        fk.target_fullname
+        for table in (
+            GateRemediation.__table__,
+            GateReassessment.__table__,
+            GateReassessmentDecision.__table__,
+        )
+        for fk in table.foreign_keys
+    }
+    assert targets
+    assert all(target.startswith("gate_assessment.") for target in targets)
+
+    migration_source = Path(
+        "alembic/versions/0023_gate_remediation_reassessment.py"
+    ).read_text()
+    assert "reject_recovery_history_mutation" in migration_source
+    assert migration_source.count("BEFORE UPDATE OR DELETE") == 1
+    for table_name in (
+        "gate_remediations",
+        "gate_reassessments",
+        "gate_reassessment_decisions",
+    ):
+        assert f'"{table_name}"' in migration_source
+
+
+def test_gate_remediation_requires_human_backed_fail_state() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    failure_source = source.split(
+        "async def _failure_is_human_decision", 1
+    )[1].split(
+        "async def _remediation_by_key", 1
+    )[0]
+    start_source = source.split(
+        "async def start_gate_remediation", 1
+    )[1].split(
+        "async def _reassessment_by_key", 1
+    )[0]
+
+    assert "GateReviewDecision" in failure_source
+    assert "GateReassessmentDecision" in failure_source
+    assert "GateAssessmentState.FAIL.value" in failure_source
+    assert "GateAssessmentState.REMEDIATION.value" in start_source
+    assert "_failure_is_human_decision(" in start_source
+    assert "GATE_FAILURE_DECISION_NOT_FOUND" in start_source
+    assert ".with_for_update()" in start_source
+    assert "_require_expected_version(" in start_source
+
+
+def test_gate_reassessment_pins_new_current_profile_snapshot() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    open_source = source.split(
+        "async def open_gate_reassessment", 1
+    )[1].split(
+        "async def _require_snapshot_lineage_complete", 1
+    )[0]
+
+    assert "reader: CurrentFlagProfileReader" in open_source
+    assert "current_profile = await reader.load(" in open_source
+    assert "_require_profile_scope(" in open_source
+    assert "_next_snapshot_version(" in open_source
+    assert "_persist_profile_snapshot(" in open_source
+    assert "GateAssessmentState.REASSESSMENT.value" in open_source
+    assert "GateRemediation.remediation_assessment_version" in open_source
+    assert "GateProfileSnapshot" not in open_source.split(
+        "snapshot = _persist_profile_snapshot(", 1
+    )[0].split("current_profile = await reader.load(", 1)[0]
+
+
+def test_gate_reassessment_decision_is_human_only_pass_or_fail() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    contract_source = source.split(
+        "def _require_reassessment_decision_contract", 1
+    )[1].split(
+        "def _reassessment_decision_retry_matches", 1
+    )[0]
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+
+    assert "GateAssessmentState.PASS.value" in contract_source
+    assert "GateAssessmentState.FAIL.value" in contract_source
+    assert "PASS_CONFIRMED" not in contract_source
+    assert "Human reassessment decision must be PASS or FAIL." in contract_source
+    assert "GATE_DECISION_RATIONALE_REQUIRED" in contract_source
+    assert "reviewer_id=command.reviewer_id" in complete_source
+    assert "assessment.state = decision_state" in complete_source
+    assert "gate_transition_allowed(assessment.state, decision_state)" in complete_source
+
+
+def test_gate_reassessment_decision_requires_exact_pinned_versions() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+
+    assert "_require_expected_version(" in complete_source
+    assert (
+        "reassessment.reassessment_assessment_version"
+        in complete_source
+    )
+    assert "command.expected_gate_definition_version_id" in complete_source
+    assert "command.expected_profile_snapshot_id" in complete_source
+    assert "command.expected_profile_snapshot_version" in complete_source
+    assert "_require_snapshot_lineage_complete(" in complete_source
+    assert ".with_for_update()" in complete_source
+
+
+def test_gate_reassessment_decision_event_is_atomic_and_person_actor() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    event_source = source.split(
+        "def _new_reassessment_completed_event", 1
+    )[1].split(
+        "async def complete_gate_reassessment", 1
+    )[0]
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+
+    assert 'event_type="gate.review_completed.v1"' in event_source
+    assert '"review_kind": "REASSESSMENT"' in event_source
+    assert 'actor={"type": "PERSON"' in event_source
+    assert '"profile_snapshot_id"' in event_source
+    assert '"profile_snapshot_version"' in event_source
+    assert '"decision_state"' in event_source
+
+    assert complete_source.count("await db.commit()") == 1
+    assert complete_source.index("record_event(") < complete_source.index(
+        "await db.commit()"
+    )
+
+
+def test_gate_recovery_never_auto_recovers_or_mutates_other_contexts() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+    lowered = source.lower()
+
+    for forbidden in (
+        "overall_score",
+        "weighted_score",
+        "readiness_score",
+        "threshold_value",
+        "auto_recover",
+        "automatic_recovery",
+    ):
+        assert forbidden not in lowered
+
+    for forbidden in (
+        "CapabilityClaim",
+        "ResponsibilityRecommendation",
+        "FlagBoard",
+        "Appointment",
+        "app.flag_profile.models",
+        "app.patterns",
+        "app.evidence",
+    ):
+        assert forbidden not in source
+
+    assert '"type": "SYSTEM"' not in source
+    assert '"type": "AI"' not in source
+
+
+def test_gate_recovery_does_not_rewrite_prior_review_decisions() -> None:
+    source = Path("app/gate_assessment/recovery.py").read_text()
+
+    assert "GateReviewDecision." in source
+    assert "GateReassessmentDecision." in source
+    assert "GateReviewDecision(" not in source
+    complete_source = source.split(
+        "async def complete_gate_reassessment", 1
+    )[1]
+    assert "GateReassessmentDecision(" in complete_source
+
+    migration_source = Path(
+        "alembic/versions/0023_gate_remediation_reassessment.py"
+    ).read_text()
+    assert "gate_review_decisions" not in migration_source
+    assert "gate_reviews" not in migration_source
+
+
+def test_gate_reassessment_decision_db_allows_only_pass_or_fail() -> None:
+    migration_source = Path(
+        "alembic/versions/0023_gate_remediation_reassessment.py"
+    ).read_text()
+    assert "decision_state IN ('PASS', 'FAIL')" in migration_source
+    assert "PASS_CONFIRMED" not in migration_source
+
+
+def test_candidate_gate_projection_is_gate_owned_and_self_scoped() -> None:
+    source = Path("app/gate_assessment/candidate_projection.py").read_text()
+
+    assert "GateAssessment.organization_context_id" in source
+    assert "GateAssessment.subject_person_id == subject_person_id" in source
+    assert "GateProfileSnapshot.organization_context_id" in source
+    assert "GateProfileSnapshot.subject_person_id == subject_person_id" in source
+
+    for forbidden in (
+        "app.flag_profile",
+        "app.patterns",
+        "app.evidence",
+        "GateReviewDecision",
+        "GateReassessmentDecision",
+        "ProfileUpdateCase",
+    ):
+        assert forbidden not in source
+
+
+def test_candidate_gate_projection_exposes_only_safe_gate_facts() -> None:
+    from dataclasses import fields
+
+    from app.gate_assessment.candidate_projection import CandidateGateItem
+
+    assert {field.name for field in fields(CandidateGateItem)} == {
+        "gate_code",
+        "gate_name",
+        "status",
+        "evidence_gaps",
+        "remediation_status",
+    }
+
+
+def test_candidate_gate_projection_uses_only_next_evidence_needed_for_gaps() -> None:
+    source = Path("app/gate_assessment/candidate_projection.py").read_text()
+    gap_source = source.split(
+        "async def _latest_snapshot_gaps", 1
+    )[1].split(
+        "async def load_candidate_gate_projection", 1
+    )[0]
+
+    assert "claim.next_evidence_needed.strip()" in gap_source
+    for forbidden in (
+        "reviewed_by",
+        "rationale",
+        "source_reference",
+        "source_observation_id",
+        "interpretation_id",
+        "evidence_set_member_id",
+        "confidence_in_claim",
+        "pattern_status",
+        "relationship",
+        "prompt_contamination",
+        "source_independence_group",
+    ):
+        assert forbidden not in gap_source
+
+
+def test_candidate_gate_projection_remediation_status_is_existing_state_only() -> None:
+    from app.gate_assessment.candidate_projection import (
+        _candidate_remediation_status,
+    )
+
+    assert _candidate_remediation_status("REMEDIATION") == "REMEDIATION"
+    assert _candidate_remediation_status("REASSESSMENT") == "REASSESSMENT"
+    for state in (
+        "UNPROVEN",
+        "PASS",
+        "AT_RISK",
+        "REVIEW_REQUIRED",
+        "PASS_CONFIRMED",
+        "FAIL",
+    ):
+        assert _candidate_remediation_status(state) is None
+
+
+def test_candidate_gate_projection_has_no_score_threshold_or_hidden_trigger_logic() -> None:
+    source = Path("app/gate_assessment/candidate_projection.py").read_text()
+    lowered = source.lower()
+
+    for forbidden in (
+        "overall_score",
+        "weighted_score",
+        "readiness_score",
+        "threshold_value",
+        "trigger_reason",
+        "risk_trigger",
+        "hidden_trigger",
+        "ai_proposal",
+        "system_proposal",
+    ):
+        assert forbidden not in lowered
+
+
+def test_gate_snapshot_persistence_flushes_each_lineage_parent_before_children() -> None:
+    source = Path("app/gate_assessment/application.py").read_text()
+    persist_source = source.split(
+        "async def _persist_profile_snapshot", 1
+    )[1].split(
+        "async def open_gate_review", 1
+    )[0]
+
+    snapshot_add = persist_source.index("db.add(snapshot)")
+    snapshot_flush = persist_source.index("await db.flush()", snapshot_add)
+    claim_add = persist_source.index("db.add(claim_row)")
+    claim_flush = persist_source.index("await db.flush()", claim_add)
+    pattern_add = persist_source.index("db.add(pattern_row)")
+    pattern_flush = persist_source.index("await db.flush()", pattern_add)
+    evidence_add = persist_source.index("GateSnapshotEvidenceRef(")
+
+    assert snapshot_add < snapshot_flush < claim_add
+    assert claim_add < claim_flush < pattern_add
+    assert pattern_add < pattern_flush < evidence_add
+
+
+def test_gate_stage_acceptance_is_wired_after_live_oidc() -> None:
+    workflow = Path("../.github/workflows/stage.yml").read_text()
+
+    browser_index = workflow.index(
+        "- name: Run browser acceptance with live OIDC"
+    )
+    gate_index = workflow.index(
+        "- name: Verify Gate Assessment stage invariants"
+    )
+    assert browser_index < gate_index
+    assert "python scripts/gate_stage_acceptance.py" in workflow
+    assert "cat gate-stage-acceptance.txt" in workflow
+    assert "<!-- stage-acceptance: requested -->" in workflow
+    assert "types: [edited, synchronize]" in workflow
+
+
+def test_gate_stage_acceptance_proves_sprint_21_invariants() -> None:
+    source = Path("scripts/gate_stage_acceptance.py").read_text()
+
+    for required in (
+        "GateAssessmentState",
+        "GateCode",
+        "gate_profile_snapshots",
+        "gate_snapshot_pattern_refs",
+        "gate_snapshot_evidence_refs",
+        "gate.review_completed.v1",
+        "gate_snapshot_immutable_triggers",
+        "gate_cross_context_foreign_keys",
+        "gate_nonhuman_review_events",
+        "gate_claim_mutations_after_review",
+        "gate_downstream_decision_events",
+        "gate_pass_with_evidence_gap",
+        "open_gate_review(",
+        "complete_gate_review(",
+        "counts_after == counts_before",
+    ):
+        assert required in source
+
+    for forbidden in (
+        "overall_score",
+        "weighted_score",
+        "readiness_score",
+        "threshold_value",
+        "def auto_fail",
+        "def automatic_fail",
+        "auto_fail =",
+        "automatic_fail =",
+    ):
+        assert forbidden not in source

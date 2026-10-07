@@ -39,6 +39,15 @@ import {
   type ReviewedPatternLineage,
 } from "./components/PatternWorkspace";
 import {
+  AssessorGateWorkspace,
+  CandidateGatePanel,
+  type CandidateGateProjection,
+  type GateAssessmentSummary,
+  type GateDecisionResult,
+  type GateOpenReviewResult,
+  type GatePreDecision,
+} from "./components/GateWorkspace";
+import {
   AssessorProfileWorkspace,
   type CapabilityClaim,
   type PersonFlagProfile,
@@ -217,6 +226,26 @@ function AuthenticatedApp({
       const { data, error } = await api.GET("/api/v1/profile-update-cases");
       if (error || !data) throw new Error("دریافت Profile Update Caseها ناموفق بود.");
       return data as ProfileUpdateCase[];
+    },
+  });
+
+  const assessorGateAssessments = useQuery({
+    queryKey: ["assessor-gate-assessments"],
+    enabled: isAssessor,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/gate-assessments");
+      if (error || !data) throw new Error("دریافت Gate Assessmentها ناموفق بود.");
+      return data as GateAssessmentSummary[];
+    },
+  });
+
+  const candidateGates = useQuery({
+    queryKey: ["candidate-gate-assessments"],
+    enabled: isCandidate,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/me/gate-assessments");
+      if (error || !data) throw new Error("دریافت Gateهای فراگیر ناموفق بود.");
+      return data as CandidateGateProjection;
     },
   });
 
@@ -945,6 +974,91 @@ function AuthenticatedApp({
     return data as PersonFlagProfile;
   };
 
+  const openGateReviewMutation = useMutation({
+    mutationFn: async ({
+      assessmentId,
+      trackCode,
+      expectedVersion,
+    }: {
+      assessmentId: string;
+      trackCode: string;
+      expectedVersion: number;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/gate-assessments/{assessment_id}/reviews",
+        {
+          params: { path: { assessment_id: assessmentId } },
+          body: {
+            track_code: trackCode,
+            expected_version: expectedVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("Open Gate Review ناموفق بود.");
+      return data as GateOpenReviewResult;
+    },
+    onSuccess: async () => {
+      await assessorGateAssessments.refetch();
+    },
+  });
+
+  const loadGatePreDecision = async (
+    reviewId: string,
+  ): Promise<GatePreDecision> => {
+    const { data, error } = await api.GET(
+      "/api/v1/gate-reviews/{review_id}/pre-decision",
+      {
+        params: { path: { review_id: reviewId } },
+      },
+    );
+    if (error || !data) throw new Error("دریافت Pinned Gate Lineage ناموفق بود.");
+    return data as GatePreDecision;
+  };
+
+  const completeGateReviewMutation = useMutation({
+    mutationFn: async ({
+      reviewId,
+      decisionState,
+      rationale,
+      expectedVersion,
+      expectedGateDefinitionVersionId,
+      expectedProfileSnapshotId,
+      expectedProfileSnapshotVersion,
+    }: {
+      reviewId: string;
+      decisionState: "PASS_CONFIRMED" | "FAIL";
+      rationale: string;
+      expectedVersion: number;
+      expectedGateDefinitionVersionId: string;
+      expectedProfileSnapshotId: string;
+      expectedProfileSnapshotVersion: number;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/v1/gate-reviews/{review_id}/decision",
+        {
+          params: { path: { review_id: reviewId } },
+          body: {
+            decision_state: decisionState,
+            rationale,
+            expected_version: expectedVersion,
+            expected_gate_definition_version_id:
+              expectedGateDefinitionVersionId,
+            expected_profile_snapshot_id: expectedProfileSnapshotId,
+            expected_profile_snapshot_version:
+              expectedProfileSnapshotVersion,
+            idempotency_key: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error || !data) throw new Error("ثبت Human Gate Decision ناموفق بود.");
+      return data as GateDecisionResult;
+    },
+    onSuccess: async () => {
+      await assessorGateAssessments.refetch();
+    },
+  });
+
   const respondEvidenceContext = useMutation({
     mutationFn: async ({
       caseId,
@@ -1012,6 +1126,8 @@ function AuthenticatedApp({
     assessorEvidence.isLoading ||
     assessorPatterns.isLoading ||
     assessorProfileCases.isLoading ||
+    assessorGateAssessments.isLoading ||
+    candidateGates.isLoading ||
     candidateEvidence.isLoading
   ) return <Loading />;
   const error =
@@ -1027,6 +1143,8 @@ function AuthenticatedApp({
     assessorEvidence.error ||
     assessorPatterns.error ||
     assessorProfileCases.error ||
+    assessorGateAssessments.error ||
+    candidateGates.error ||
     candidateEvidence.error ||
     createMission.error ||
     validateMission.error ||
@@ -1052,6 +1170,8 @@ function AuthenticatedApp({
     requestProfileUpdateReview.error ||
     approveProfileUpdate.error ||
     applyProfileUpdate.error ||
+    openGateReviewMutation.error ||
+    completeGateReviewMutation.error ||
     respondEvidenceContext.error;
   if (error) return <div className="center-state error">{error.message}</div>;
 
@@ -1122,6 +1242,7 @@ function AuthenticatedApp({
               submitAssignment.isPending ? submitAssignment.variables?.assignmentId : undefined
             }
           />
+          <CandidateGatePanel projection={candidateGates.data ?? { gates: [] }} />
           <main className="page-shell mission-shell">
             <MissionWorkspace
               missions={activeMissions.data}
@@ -1424,6 +1545,40 @@ function AuthenticatedApp({
               })
             }
             onLoadFlagProfile={loadFlagProfile}
+          />
+          <AssessorGateWorkspace
+            assessments={assessorGateAssessments.data ?? []}
+            busy={
+              openGateReviewMutation.isPending ||
+              completeGateReviewMutation.isPending
+            }
+            onLoadCurrentProfile={loadFlagProfile}
+            onOpenReview={async (
+              assessmentId,
+              trackCode,
+              expectedVersion,
+            ) =>
+              openGateReviewMutation.mutateAsync({
+                assessmentId,
+                trackCode,
+                expectedVersion,
+              })
+            }
+            onLoadPreDecision={loadGatePreDecision}
+            onDecide={async (reviewId, input) =>
+              completeGateReviewMutation.mutateAsync({
+                reviewId,
+                decisionState: input.decisionState,
+                rationale: input.rationale,
+                expectedVersion: input.expectedVersion,
+                expectedGateDefinitionVersionId:
+                  input.expectedGateDefinitionVersionId,
+                expectedProfileSnapshotId:
+                  input.expectedProfileSnapshotId,
+                expectedProfileSnapshotVersion:
+                  input.expectedProfileSnapshotVersion,
+              })
+            }
           />
         </>
       ) : null}

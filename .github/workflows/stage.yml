@@ -3,6 +3,9 @@ name: Stage Acceptance
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [edited, synchronize]
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +15,12 @@ concurrency:
 jobs:
   ephemeral-stage:
     name: Ephemeral Stage Acceptance
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(
+        github.event.pull_request.body,
+        '<!-- stage-acceptance: requested -->'
+      )
     runs-on: ubuntu-latest
     environment: stage
     env:
@@ -31,6 +40,8 @@ jobs:
       E2E_BASE_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -129,6 +140,10 @@ jobs:
       - name: Run browser acceptance with live OIDC
         working-directory: frontend
         run: npm run e2e
+
+      - name: Verify Gate Assessment stage invariants
+        working-directory: backend
+        run: python scripts/gate_stage_acceptance.py | tee ../gate-stage-acceptance.txt
 
       - name: Replay sealed observation delivery for evidence idempotency
         working-directory: backend
@@ -314,7 +329,7 @@ jobs:
           accepted_experiment_evidence=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from evidence.evidence_cases ec join evidence.evidence_interpretations ei on ei.evidence_case_id = ec.id and ei.status = 'ACTIVE' join evidence.evidence_links el on el.interpretation_id = ei.id where ec.status = 'ACCEPTED' and ec.observation_type = 'EXPERIMENT_RESULT_OBSERVED' and ei.behaviour_code = 'METRIC_REASONING' and el.target_type = 'CAPABILITY' and el.target_ref = 'METRICS_EXPERIMENTATION';")
           evidence_accepted_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type = 'evidence.accepted.v1';")
           unaudited_profile_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events de where de.event_type like 'profile.%' and (de.event_type <> 'profile.claim_changed.v1' or not exists (select 1 from flag_profile.profile_update_cases puc join flag_profile.capability_claims cc on cc.source_profile_update_case_id = puc.id and cc.id = de.aggregate_id where puc.id::text = de.payload->>'profile_update_case_id' and puc.state = 'APPLIED' and puc.review_requested_by is not null and puc.review_requested_at is not null and puc.reviewed_by is not null and puc.reviewed_at is not null and puc.applied_by is not null and puc.applied_at is not null));")
-          gate_responsibility_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where event_type like 'gate.%' or event_type like 'responsibility.%' or event_type like 'capability.%';")
+          gate_responsibility_events=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.domain_events where (event_type like 'gate.%' and event_type <> 'gate.review_completed.v1') or event_type like 'responsibility.%' or event_type like 'capability.%';")
           evidence_cross_context_fks=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from information_schema.table_constraints tc join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.constraint_schema = tc.constraint_schema where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'evidence' and ccu.table_schema <> 'evidence';")
           duplicate_evidence_sources=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from (select source_observation_id from evidence.evidence_cases group by source_observation_id having count(*) > 1) duplicates;")
           evidence_replay_inbox_after=$(docker compose -f infra/docker-compose.yml exec -T postgres             psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc             "select count(*) from platform.inbox_events where consumer_name = 'evidence-observation-ingestor-v1';")
@@ -497,7 +512,7 @@ jobs:
 
           mkdir -p stage-artifacts
           {
-            echo "commit=$GITHUB_SHA"
+            echo "commit=$(git rev-parse HEAD)"
             echo "published_outbox_events=$published"
             echo "processed_inbox_events=$inbox"
             echo "candidate_home_rows=$candidate_home"
@@ -654,6 +669,7 @@ jobs:
             echo "profile_gate_responsibility_mutation=FORBIDDEN"
             echo "profile_claim_state_vocabulary=UNPROVEN+EMERGING+DEMONSTRATED+PROVEN"
             echo "profile_claim_level_vocabulary=L0+L1+L2+L3+L4"
+            cat gate-stage-acceptance.txt
             echo "evidence_duplicate_delivery=SAME_EVENT_ID+NEW_EVENT_ID_REPLAYED"
             echo "observation_to_evidence=EVENT_CONTRACT_ONLY"
             echo "evidence_candidate_projection=ALLOWLIST_FAIL_CLOSED"

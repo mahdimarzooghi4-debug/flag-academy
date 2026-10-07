@@ -4,7 +4,7 @@ import asyncio
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.academy.models import (
     ClassOffering,
@@ -29,6 +29,8 @@ from app.evidence.models import (
     EvidenceLink,
     EvidenceReview,
 )
+from app.gate_assessment.domain import GateAssessmentState
+from app.gate_assessment.models import GateAssessment
 from app.identity.models import Organization, OrganizationMembership, Person
 from app.journey.models import CandidateJourney
 from app.learning.models import (
@@ -369,6 +371,30 @@ async def seed() -> None:
                 created_at=now,
             )
         )
+
+        gate_assessment_id = UUID("a2000000-0000-0000-0000-000000000001")
+        gate_assessment = (
+            await db.execute(
+                select(GateAssessment).where(
+                    GateAssessment.id == gate_assessment_id
+                )
+            )
+        ).scalar_one_or_none()
+        if gate_assessment is None:
+            db.add(
+                GateAssessment(
+                    id=gate_assessment_id,
+                    version=1,
+                    gate_definition_version_id=UUID(
+                        "a1100000-0000-0000-0000-000000000001"
+                    ),
+                    organization_context_id=ORG_ID,
+                    subject_person_id=CANDIDATE_ID,
+                    state=GateAssessmentState.AT_RISK.value,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
 
         journey_id = UUID("00000000-0000-0000-0000-000000000401")
         db.add(
