@@ -2378,3 +2378,164 @@ def test_gate_profile_reader_uses_only_flag_profile_public_contract() -> None:
     assert "app.flag_profile.application" not in source
     assert "CapabilityClaim" not in source
     assert "ProfileUpdateCase" not in source
+
+
+def test_gate_assessment_persistence_matches_conceptual_identity() -> None:
+    from app.gate_assessment.models import GateAssessment
+
+    table = GateAssessment.__table__
+    assert table.schema == "gate_assessment"
+    assert set(table.c.keys()) == {
+        "id",
+        "version",
+        "gate_definition_version_id",
+        "organization_context_id",
+        "subject_person_id",
+        "state",
+        "created_at",
+        "updated_at",
+    }
+    unique_sets = {
+        tuple(column.name for column in constraint.columns)
+        for constraint in table.constraints
+        if constraint.__class__.__name__ == "UniqueConstraint"
+    }
+    assert (
+        "organization_context_id",
+        "subject_person_id",
+        "gate_definition_version_id",
+    ) in unique_sets
+
+
+def test_gate_snapshot_persistence_is_relational_and_complete() -> None:
+    from app.gate_assessment.models import (
+        GateProfileSnapshot,
+        GateProfileSnapshotClaim,
+        GateSnapshotEvidenceRef,
+        GateSnapshotPatternRef,
+    )
+
+    assert {
+        "source_flag_profile_id",
+        "source_flag_profile_version",
+        "source_track_code",
+        "source_profile_updated_at",
+        "captured_at",
+    }.issubset(GateProfileSnapshot.__table__.c.keys())
+    assert {
+        "source_claim_id",
+        "source_claim_version",
+        "capability_id",
+        "state",
+        "level",
+        "proven_scope",
+        "evidence_recency",
+        "confidence_in_claim",
+        "reviewed_at",
+        "next_evidence_needed",
+        "source_profile_update_case_id",
+    }.issubset(GateProfileSnapshotClaim.__table__.c.keys())
+    assert {
+        "source_pattern_id",
+        "source_pattern_version",
+        "relationship",
+        "pattern_status",
+        "behaviour_code",
+        "scope",
+        "reviewed_at",
+    }.issubset(GateSnapshotPatternRef.__table__.c.keys())
+    assert {
+        "evidence_case_id",
+        "interpretation_id",
+        "interpretation_version",
+        "source_observation_id",
+        "source_context",
+        "source_reference",
+        "observation_type",
+    }.issubset(GateSnapshotEvidenceRef.__table__.c.keys())
+
+
+def test_gate_snapshot_foreign_keys_are_intra_context_only() -> None:
+    from app.gate_assessment.models import (
+        GateAssessment,
+        GateProfileSnapshot,
+        GateProfileSnapshotClaim,
+        GateSnapshotEvidenceRef,
+        GateSnapshotPatternRef,
+    )
+
+    tables = (
+        GateAssessment.__table__,
+        GateProfileSnapshot.__table__,
+        GateProfileSnapshotClaim.__table__,
+        GateSnapshotPatternRef.__table__,
+        GateSnapshotEvidenceRef.__table__,
+    )
+    targets = {
+        fk.target_fullname
+        for table in tables
+        for fk in table.foreign_keys
+    }
+    assert targets
+    assert all(target.startswith("gate_assessment.") for target in targets)
+    for forbidden in (
+        "flag_profile.",
+        "patterns.",
+        "evidence.",
+        "curriculum.",
+        "mission.",
+    ):
+        assert all(not target.startswith(forbidden) for target in targets)
+
+
+def test_gate_profile_snapshot_rows_are_database_immutable() -> None:
+    migration_source = Path(
+        "alembic/versions/0020_gate_assessment_persistence_foundation.py"
+    ).read_text()
+
+    assert "reject_profile_snapshot_mutation" in migration_source
+    assert "BEFORE UPDATE OR DELETE" in migration_source
+    for table_name in (
+        "gate_profile_snapshots",
+        "gate_profile_snapshot_claims",
+        "gate_snapshot_pattern_refs",
+        "gate_snapshot_evidence_refs",
+    ):
+        assert f'"{table_name}"' in migration_source
+
+
+def test_gate_persistence_foundation_has_no_cross_context_fk_or_jsonb() -> None:
+    migration_source = Path(
+        "alembic/versions/0020_gate_assessment_persistence_foundation.py"
+    ).read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text()
+
+    assert "JSONB" not in migration_source
+    assert "JSONB" not in models_source
+    for forbidden in (
+        "flag_profile.",
+        "patterns.",
+        "evidence.",
+        "curriculum.",
+        "mission.",
+    ):
+        assert forbidden not in migration_source
+
+
+def test_gate_persistence_foundation_adds_no_review_command_event_or_api() -> None:
+    migration_source = Path(
+        "alembic/versions/0020_gate_assessment_persistence_foundation.py"
+    ).read_text()
+    models_source = Path("app/gate_assessment/models.py").read_text()
+
+    for forbidden in (
+        "GateReview",
+        "open_review",
+        "reviewer_id",
+        "decision_rationale",
+        "idempotency_key",
+        "gate.review_completed.v1",
+        "profile.snapshot_created.v1",
+    ):
+        assert forbidden not in migration_source
+        assert forbidden not in models_source
