@@ -11,7 +11,6 @@ from app.ai_control_plane.dataset_builder import (
     approval_provenance_digest,
     dataset_version_digest,
 )
-
 from app.ai_control_plane.domain import (
     EvaluationRunState,
     GovernanceActorType,
@@ -25,9 +24,9 @@ from app.ai_control_plane.models import (
     AIEvaluationResult,
     AIEvaluationRun,
     AIEvaluationRunState,
+    AILearningSourceApproval,
     AIModelArtifact,
     AIModelPromotionDecision,
-    AILearningSourceApproval,
     AIModelVersion,
     AITrainingRun,
     AITrainingRunState,
