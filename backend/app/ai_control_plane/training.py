@@ -433,6 +433,53 @@ async def complete_training_run(
                 status_code=409,
                 details={"current_state": latest.state},
             )
+        if outcome == TrainingRunState.SUCCEEDED.value:
+            retry_format = _required_text(
+                command.artifact_format or "",
+                "artifact_format",
+            )
+            retry_reference = _required_text(
+                command.artifact_reference or "",
+                "artifact_reference",
+            )
+            retry_sha256 = _sha256(
+                command.content_sha256 or "",
+                "content_sha256",
+            )
+            if command.byte_size is None or command.byte_size < 0:
+                raise AppError(
+                    "AI_TRAINING_INPUT_INVALID",
+                    "byte_size must be a non-negative integer.",
+                    status_code=422,
+                    details={"field": "byte_size"},
+                )
+            exact_retry = (
+                artifact is not None
+                and command.failure_code is None
+                and artifact.artifact_format == retry_format
+                and artifact.artifact_reference == retry_reference
+                and artifact.content_sha256 == retry_sha256
+                and artifact.byte_size == command.byte_size
+            )
+        else:
+            retry_failure_code = _required_text(
+                command.failure_code or "",
+                "failure_code",
+            )
+            exact_retry = (
+                artifact is None
+                and latest.failure_code == retry_failure_code
+                and command.artifact_format is None
+                and command.artifact_reference is None
+                and command.content_sha256 is None
+                and command.byte_size is None
+            )
+        if not exact_retry:
+            raise AppError(
+                "AI_TRAINING_TERMINAL_RETRY_MISMATCH",
+                "Terminal Training Run retry does not match recorded outcome.",
+                status_code=409,
+            )
         return TrainingRunResult(
             training_run_id=run.id,
             state=latest.state,
