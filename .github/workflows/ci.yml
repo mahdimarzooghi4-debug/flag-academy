@@ -151,6 +151,7 @@ jobs:
         run: |
           python -m app.read_models.consumer > /tmp/parcham-projector.log 2>&1 &
           python -m app.evidence.consumer > /tmp/parcham-evidence.log 2>&1 &
+          python -m app.ai_control_plane.consumer > /tmp/parcham-ai-dataset.log 2>&1 &
           python -m app.platform.outbox > /tmp/parcham-outbox.log 2>&1 &
 
       - name: Start backend
@@ -183,6 +184,9 @@ jobs:
       - name: Browser E2E with live OIDC
         working-directory: frontend
         run: npm run e2e
+      - name: Verify governed AI Dataset Builder
+        working-directory: backend
+        run: python scripts/ai_dataset_builder_acceptance.py
       - name: Upload E2E diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -196,6 +200,7 @@ jobs:
             /tmp/parcham-outbox.log
             /tmp/parcham-projector.log
             /tmp/parcham-evidence.log
+            /tmp/parcham-ai-dataset.log
           if-no-files-found: ignore
       - name: Stop integration infrastructure
         if: always()
