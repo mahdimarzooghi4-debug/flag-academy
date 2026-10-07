@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -248,4 +248,48 @@ class GateReview(Base):
     opened_by: Mapped[UUID]
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     open_idempotency_key: Mapped[str] = mapped_column(String(160))
+    trace_id: Mapped[str] = mapped_column(String(255))
+
+
+
+class GateReviewDecision(Base):
+    __tablename__ = "gate_review_decisions"
+    __table_args__ = (
+        CheckConstraint(
+            "decision_state IN ('PASS_CONFIRMED', 'FAIL')",
+            name="ck_gate_review_decision_state",
+        ),
+        UniqueConstraint(
+            "organization_context_id",
+            "reviewer_id",
+            "decision_idempotency_key",
+            name="uq_gate_review_decision_idempotency",
+        ),
+        {"schema": "gate_assessment"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    gate_review_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_reviews.id"),
+        unique=True,
+    )
+    gate_assessment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_assessments.id")
+    )
+    gate_profile_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_profile_snapshots.id")
+    )
+    gate_profile_snapshot_version: Mapped[int] = mapped_column(BigInteger)
+    gate_definition_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("gate_assessment.gate_definition_versions.id")
+    )
+    organization_context_id: Mapped[UUID]
+    subject_person_id: Mapped[UUID]
+    prior_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    resulting_assessment_version: Mapped[int] = mapped_column(BigInteger)
+    decision_state: Mapped[str] = mapped_column(String(32))
+    reviewer_id: Mapped[UUID]
+    rationale: Mapped[str] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    decision_idempotency_key: Mapped[str] = mapped_column(String(160))
     trace_id: Mapped[str] = mapped_column(String(255))
