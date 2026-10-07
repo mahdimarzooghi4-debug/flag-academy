@@ -83,6 +83,10 @@ class AILearningSourceApproval(Base):
             "provenance_digest",
             name="uq_ai_learning_approval_provenance",
         ),
+        UniqueConstraint(
+            "approval_event_id",
+            name="uq_ai_learning_approval_event",
+        ),
         CheckConstraint(
             "source_payload_digest ~ '^[0-9a-f]{64}$'",
             name="ck_ai_learning_approval_payload_sha256",
@@ -112,6 +116,7 @@ class AILearningSourceApproval(Base):
     )
     source_payload_digest: Mapped[str] = mapped_column(String(64))
     approval_reference: Mapped[str] = mapped_column(String(255))
+    approval_event_id: Mapped[UUID]
     data_classification: Mapped[str] = mapped_column(String(64))
     provenance_digest: Mapped[str] = mapped_column(String(64))
     approved_by_type: Mapped[str] = mapped_column(String(16))
