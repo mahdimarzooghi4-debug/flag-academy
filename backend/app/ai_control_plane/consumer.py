@@ -93,6 +93,7 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
                 payload,
                 "approval_reference",
             ),
+            approval_event_id=envelope.event_id,
             data_classification=envelope.data_classification,
             approved_by_type=str(actor_type),
             approved_by_reference=actor_id.strip(),
