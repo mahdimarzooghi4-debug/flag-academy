@@ -993,7 +993,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   );
 
   await gatePreDecision
-    .getByLabel("Human Gate decision")
+    .getByLabel("Human Gate decision", { exact: true })
     .selectOption("PASS_CONFIRMED");
   await gatePreDecision
     .getByLabel("منطق Human Gate Decision")
