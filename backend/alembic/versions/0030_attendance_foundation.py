@@ -142,7 +142,48 @@ def upgrade() -> None:
         schema="academy",
     )
 
+    op.execute(
+        sa.text(
+            """
+            CREATE OR REPLACE FUNCTION
+                academy.reject_attendance_revision_mutation()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS 'BEGIN
+                RAISE EXCEPTION
+                    ''attendance revision history is append-only'';
+            END;';
+            """
+        )
+    )
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_attendance_revisions_immutable
+            BEFORE UPDATE OR DELETE ON academy.attendance_revisions
+            FOR EACH ROW
+            EXECUTE FUNCTION academy.reject_attendance_revision_mutation()
+            """
+        )
+    )
+
 
 def downgrade() -> None:
+    op.execute(
+        sa.text(
+            """
+            DROP TRIGGER IF EXISTS trg_attendance_revisions_immutable
+            ON academy.attendance_revisions
+            """
+        )
+    )
+    op.execute(
+        sa.text(
+            """
+            DROP FUNCTION IF EXISTS
+                academy.reject_attendance_revision_mutation()
+            """
+        )
+    )
     op.drop_table("attendance_revisions", schema="academy")
     op.drop_table("attendance_records", schema="academy")
