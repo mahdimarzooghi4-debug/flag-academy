@@ -526,8 +526,13 @@ Completion evidence:
 - Decision-Making Curated Synthetic Seed Corpus v1 authored in `docs/90-parcham-ai-decision-making-seed-corpus-v1.md` and `docs/ai/seed/decision-making-v1.jsonl`;
 - Seed corpus contains 24 source-linked synthetic examples spanning Learn / Practice / Assessment / Instructor-assist / Governance behaviour;
 - existence of Seed content does not create a Dataset or authorize Training;
-- next AI-data sub-slice is a Human-governed Seed Learning Approval Bridge into the existing Automatic Dataset Builder;
-- no retrieval/indexing/model-runtime technology selected in this slice.
+- Human-governed Seed Learning Approval Bridge — COMPLETE;
+- exact Seed artifact digest preview + ACADEMY_ADMIN-only explicit approval implemented;
+- approval emits existing `ai.learning_input_approved.v1` through Domain Event + Outbox;
+- existing Automatic Dataset Builder remains the only Dataset Version creator;
+- CI acceptance proves ephemeral Seed → approval → Dataset Version 1 without Training/runtime activation;
+- real Academy-environment Seed approval has not been executed;
+- Academy Knowledge retrieval/indexing and model-runtime technology remain unresolved and are not selected in this slice.
 
 ### P23-11 — Interaction / stale-safety / security tests
 - role isolation;
