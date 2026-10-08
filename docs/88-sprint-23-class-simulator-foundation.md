@@ -1,6 +1,6 @@
 # 88 — Sprint 23: Class Simulator Foundation
 
-**Status:** PLANNING  
+**Status:** ACTIVE  
 **Date:** 2026-10-08  
 **Parent:** Sprint 22 — Parcham AI Foundation  
 **Base branch:** `sprint-22-parcham-ai-foundation`  
@@ -448,19 +448,31 @@ A generic “activity” event that duplicates every domain event SHOULD NOT be 
 
 ## Scrum / Product Backlog
 
-### P23-01 — Class Simulator architecture guards
-- codify shared-class / role-view contract;
+### P23-01 — Class Simulator architecture guards — COMPLETE
+- shared-class / role-view contract recorded;
 - no new Subject entity;
 - no score/GPA/rank;
 - no attendance-based proof/progression;
 - report card remains derived.
 
-### P23-02 — Attendance foundation
-- relational Academy-owned AttendanceRecord;
-- initial PRESENT / ABSENT only;
-- missing record != ABSENT;
-- audit/version foundation;
-- no public write API until recorder/correction policy is explicitly resolved.
+### P23-02 — Attendance foundation — COMPLETE
+- Academy-owned relational AttendanceRecord;
+- PRESENT / ABSENT only;
+- missing record remains NOT RECORDED and is never inferred as ABSENT;
+- ACADEMY_ADMIN-only record/correction API;
+- assigned Instructor read-only attendance access;
+- optimistic version safety;
+- idempotent command replay with conflict detection;
+- append-only DB-enforced AttendanceRevision audit history;
+- attendance recorded/corrected domain events;
+- zero Evidence/Profile/Gate mutation.
+
+Completion evidence:
+- implementation HEAD: `216055fc0fe90265962261737e349aef290321dc`
+- CI run: `37820626275` — SUCCESS
+- Backend: SUCCESS
+- Frontend: SUCCESS
+- Live OIDC E2E: SUCCESS
 
 ### P23-03 — Class roster read model
 - Candidate membership;
@@ -539,29 +551,20 @@ These MUST NOT be guessed in code:
 6. Which Academy Knowledge categories are permitted to reach each AI mode?
 7. Which instructor content-generation actions may eventually execute automatically versus requiring confirmation?
 
-## First implementation slice after contract approval
+## First implementation slice — COMPLETE
 
-The first code slice will be intentionally small:
+**Attendance persistence foundation + architecture guards** is complete on the evidence recorded under P23-02.
 
-**Attendance persistence foundation + architecture guards**
+The next implementation slice is:
 
-It may add:
-- Academy-owned relational Attendance persistence;
-- exact PRESENT / ABSENT vocabulary;
-- uniqueness/version/audit foundation;
-- ACADEMY_ADMIN-only attendance record/correction command/API;
-- tenant/class/session authorization and version safety;
-- tests proving no attendance-to-proof/progression side effect.
+**P23-03 — Class roster read model**
 
-It will not yet add:
-- Instructor attendance mutation;
-- Attendance status vocabulary beyond PRESENT / ABSENT;
-- UI attendance editing;
-- report-card projection;
-- AI knowledge retrieval;
+It must remain read-model only and must not yet add:
+- Attendance UI editing;
+- Report-card projection;
+- Assessor global class visibility;
+- Academy Knowledge retrieval;
 - Instructor AI runtime.
-
-This first code slice is now authorized by the recorder/correction policy decision.
 
 ## Definition of Done
 
