@@ -354,6 +354,12 @@ async def record_session_attendance(
         current.status = body.status
         current.updated_by = actor.person_id
         current.updated_at = now
+    else:
+        # Keep the business version stable for a semantic no-op while making
+        # the accepted command response exactly reproducible from its audit
+        # revision on an idempotent retry.
+        current.updated_by = actor.person_id
+        current.updated_at = now
 
     revision = AttendanceRevision(
         id=uuid4(),
