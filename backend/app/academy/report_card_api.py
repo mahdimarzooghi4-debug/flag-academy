@@ -393,6 +393,21 @@ async def qualitative_class_report_card(
             )
         )
 
+    def observed_attendance_status(
+        record: AttendanceRecord | None,
+    ) -> Literal["PRESENT", "ABSENT", "NOT_RECORDED"]:
+        if record is None:
+            return "NOT_RECORDED"
+        if record.status == "PRESENT":
+            return "PRESENT"
+        if record.status == "ABSENT":
+            return "ABSENT"
+        raise AppError(
+            "ATTENDANCE_STATUS_INVALID",
+            "Invalid recorded attendance status.",
+            status_code=409,
+        )
+
     return QualitativeClassReportCard(
         class_offering_id=offering.id,
         cohort_id=cohort.id,
@@ -402,10 +417,8 @@ async def qualitative_class_report_card(
                 session_id=session.id,
                 title=session.title,
                 starts_at=session.starts_at,
-                status=(
-                    "NOT_RECORDED"
-                    if session.id not in attendance_by_session
-                    else attendance_by_session[session.id].status
+                status=observed_attendance_status(
+                    attendance_by_session.get(session.id)
                 ),
                 attendance_record_id=(
                     None
