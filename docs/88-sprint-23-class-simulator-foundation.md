@@ -531,6 +531,8 @@ Completion evidence:
 - approval emits existing `ai.learning_input_approved.v1` through Domain Event + Outbox;
 - existing Automatic Dataset Builder remains the only Dataset Version creator;
 - CI acceptance proves ephemeral Seed → approval → Dataset Version 1 without Training/runtime activation;
+- completion CI evidence: implementation `36ce527916c2824f35290f9b6f367d3851e8b217`, run `37825433611` SUCCESS (Backend, Frontend, E2E); follow-up HEAD `644e444cde35b64a83abdbb052feb9db2f07d284`, CI `37826174432` SUCCESS;
+- acceptance source: `backend/scripts/ai_seed_learning_approval_acceptance.py` verifies `training_started=NO` and `runtime_activation=NO`;
 - real Academy-environment Seed approval has not been executed;
 - Academy Knowledge retrieval/indexing and model-runtime technology remain unresolved and are not selected in this slice.
 
