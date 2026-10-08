@@ -116,7 +116,14 @@ Attendance may be shown in operational and report-card views, but:
 - absence alone is not weakness, failure, low motivation or Gate failure;
 - Parcham AI must not infer personal reasons for absence.
 
-Exact recorder/correction authorization is an explicit unresolved product decision before a public attendance mutation API is implemented.
+Attendance recorder/correction authority for v1 is now explicit:
+
+- only an authorized `ACADEMY_ADMIN` records attendance;
+- only an authorized `ACADEMY_ADMIN` corrects a prior attendance record;
+- every correction remains versioned/auditable and the previous value must remain reconstructable;
+- no second-approver / maker-checker requirement is introduced by this decision.
+
+Assigned Instructors may read attendance for their assigned class but do not mutate attendance in v1.
 
 ### 4. Class roster
 
@@ -292,7 +299,9 @@ Can:
 - teach;
 - provide feedback;
 - select/approve learning content according to future content policy;
-- perform explicitly authorized attendance actions once the recorder policy is defined.
+- read attendance for their assigned class.
+
+Instructor attendance mutation is not permitted in v1; Attendance recording/correction belongs to an authorized Academy Admin.
 
 Cannot:
 - automatically convert feedback/activity into formal Evidence;
@@ -322,6 +331,10 @@ Can see authorized operational Academy truth:
 - report-card summaries;
 - Mission Studio;
 - AI governance.
+
+Can:
+- record PRESENT / ABSENT attendance for authorized class Sessions;
+- correct a prior Attendance record while preserving version/audit history.
 
 Admin visibility does not bypass:
 - tenant isolation;
@@ -403,7 +416,7 @@ Expected properties include:
 - accountable recorder;
 - correction/audit lineage sufficient to reconstruct changes.
 
-No public mutation endpoint is authorized until exact recorder/correction policy is explicitly approved.
+Attendance mutations are authorized only for `ACADEMY_ADMIN` in v1. Assigned Instructors remain read-only for Attendance. Public mutation APIs may be implemented only with tenant/class/session scoping, version safety and audit preservation.
 
 ### Report-card read-model identity
 
@@ -518,15 +531,13 @@ A generic “activity” event that duplicates every domain event SHOULD NOT be 
 
 These MUST NOT be guessed in code:
 
-1. Who may record Attendance: assigned Instructor, Academy Admin, or both?
-2. Who may correct a prior Attendance record and what approval/audit rule applies?
-3. Do future attendance statuses beyond PRESENT / ABSENT exist (late, excused, remote, etc.)?
-4. Does a Session become attendance-locked after a defined lifecycle state?
-5. What explicit mechanism scopes an Assessor to a class?
-6. Does Parcham ever introduce numeric subject grades? If yes, the formula/scale/governance requires a separate contract.
-7. What storage/index/retrieval technology serves Academy Knowledge?
-8. Which Academy Knowledge categories are permitted to reach each AI mode?
-9. Which instructor content-generation actions may eventually execute automatically versus requiring confirmation?
+1. Do future attendance statuses beyond PRESENT / ABSENT exist (late, excused, remote, etc.)?
+2. Does a Session become attendance-locked after a defined lifecycle state?
+3. What explicit mechanism scopes an Assessor to a class?
+4. Does Parcham ever introduce numeric subject grades? If yes, the formula/scale/governance requires a separate contract.
+5. What storage/index/retrieval technology serves Academy Knowledge?
+6. Which Academy Knowledge categories are permitted to reach each AI mode?
+7. Which instructor content-generation actions may eventually execute automatically versus requiring confirmation?
 
 ## First implementation slice after contract approval
 
@@ -538,16 +549,19 @@ It may add:
 - Academy-owned relational Attendance persistence;
 - exact PRESENT / ABSENT vocabulary;
 - uniqueness/version/audit foundation;
+- ACADEMY_ADMIN-only attendance record/correction command/API;
+- tenant/class/session authorization and version safety;
 - tests proving no attendance-to-proof/progression side effect.
 
 It will not yet add:
-- public attendance mutation API;
+- Instructor attendance mutation;
+- Attendance status vocabulary beyond PRESENT / ABSENT;
 - UI attendance editing;
 - report-card projection;
 - AI knowledge retrieval;
 - Instructor AI runtime.
 
-The next code slice is authorized only after the recorder/correction policy is explicitly decided.
+This first code slice is now authorized by the recorder/correction policy decision.
 
 ## Definition of Done
 
