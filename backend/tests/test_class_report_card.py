@@ -102,12 +102,14 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
         title="Decision practice",
         position=1,
         capability_version_id=CAPABILITY,
+        status="ACTIVE",
     )
     task = SimpleNamespace(
         id=ASSIGNMENT,
         title="Decision reflection",
         capability_version_id=CAPABILITY,
         created_at=NOW,
+        status="ACTIVE",
     )
     version = SimpleNamespace(
         id=CAPABILITY, definition_id=UUID(int=2001), name="Decision Making", version_number=1
@@ -176,7 +178,7 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
     subject = result.subjects[0]
     assert subject.capability_version_id == CAPABILITY
     assert subject.capability_name == "Decision Making"
-    assert subject.learning_state is None
+    assert subject.learning_state == "IN_LEARNING"
     assert subject.proof_state is None
     assert subject.reviewed_claim is not None
     assert subject.reviewed_claim.claim_state == "DEMONSTRATED"
@@ -223,6 +225,7 @@ async def test_missing_learning_and_capability_are_not_invented() -> None:
     assert len(result.subjects) == 1
     assert result.subjects[0].capability_name is None
     assert result.subjects[0].learning_sources == []
+    assert result.subjects[0].learning_state is None
     assert result.subjects[0].proof_state is None
     assert result.subjects[0].reviewed_claim is None
     assert result.attendance == []
@@ -289,7 +292,9 @@ def test_report_card_never_creates_proof_or_mutates_source_domains() -> None:
     assert "Cohort.organization_context_id == actor.organization_context_id" in src
     assert "CohortMembership.member_type == \"CANDIDATE\"" in src
     assert "Session.class_offering_id == offering.id" in src
-    assert "learning_state=None" in src
+    assert "derive_learning_state(" in src
+    assert 'unit.status == "ACTIVE"' in src
+    assert 'assignment.status == "ACTIVE"' in src
     assert "proof_state=None" in src
     assert "read_candidate_safe_reviewed_claims(" in src
     assert "next_learning_focus=None" in src
