@@ -22,6 +22,7 @@ from app.db import get_session
 from app.errors import AppError
 from app.flag_profile.public_reader import read_candidate_safe_reviewed_claims
 from app.identity.auth import ActorContext, get_actor
+from app.learning.state_reader import derive_learning_state
 from app.learning.models import (
     Assignment,
     InstructorFeedback,
@@ -411,10 +412,22 @@ async def qualitative_class_report_card(
                 capability_version_number=(
                     None if version is None else version.version_number
                 ),
-                # There is no class-scoped authoritative aggregate LearningState
-                # or reviewed CapabilityClaim projection wired to this view yet.
-                # NEVER use CandidateHome's static UNPROVEN placeholder as ProofState.
-                learning_state=None,
+                # Learning state reuses the Learning-owned CandidateHome rule.
+                # This reports education only, never formal proof.
+                learning_state=derive_learning_state(
+                    unit_progress_states=[
+                        progress_by_unit[unit.id].state
+                        if unit.id in progress_by_unit
+                        else None
+                        for unit in units
+                        if unit.capability_version_id == capability_id
+                    ],
+                    assignment_submitted=[
+                        assignment.id in submissions_by_assignment
+                        for assignment in assignments
+                        if assignment.capability_version_id == capability_id
+                    ],
+                ),
                 proof_state=None,
                 next_learning_focus=None,
                 reviewed_claim=(
