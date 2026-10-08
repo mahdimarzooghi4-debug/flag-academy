@@ -651,6 +651,9 @@
 
 | DEC-639 | 2026-10-08 | در Class Simulator v1 فقط ACADEMY_ADMIN مجاز به ثبت و اصلاح Attendance است. Instructor برای کلاس‌های تخصیص‌یافته Attendance را فقط می‌خواند. اصلاح Attendance باید versioned/auditable باشد و مقدار قبلی قابل بازسازی بماند؛ این تصمیم Maker-Checker یا تأییدکننده دوم اختراع نمی‌کند. | FINAL |
 
+| DEC-640 | 2026-10-08 | Bootstrap اولیه Parcham AI دو لایه دارد: Academy Knowledge Pack نسخه‌دار برای استفاده دانشی، و Curated Synthetic Seed Corpus برای AI-learning. تمرکز Seed v1 روی Decision Making است تا رفتار پایه در سؤال تصمیم، Evidence/Assumption، Trade-off، Risk، Cost of Delay، Revisit Trigger و مرزهای Learn/Practice/Assessment شکل بگیرد. وجود فایل Seed به‌تنهایی Dataset یا Training ایجاد نمی‌کند. | FINAL |
+| DEC-641 | 2026-10-08 | Dataset رشد Parcham AI فقط از مسیر Governed Learning Approval و Automatic Dataset Builder تکامل می‌یابد. Seed v1 پس از Human AI-learning approval می‌تواند پایه Dataset Version 1 باشد؛ داده واقعی فقط در صورت reviewed + policy-eligible + explicitly approved بودن به نسخه‌های immutable بعدی افزوده می‌شود. Seed و نسخه‌های قبلی بازنویسی نمی‌شوند و raw operational data مستقیم وارد Training نمی‌شود. | FINAL |
+
 ---
 
 ## مواردی که عمداً FINAL نشده‌اند
