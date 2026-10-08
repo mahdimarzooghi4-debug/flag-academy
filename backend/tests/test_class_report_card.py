@@ -200,7 +200,7 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
 @pytest.mark.asyncio
 async def test_missing_learning_and_capability_are_not_invented() -> None:
     db = FakeSession([
-        context(), [UUID(int=2000)], [], [], [], [], [],
+        context(), [UUID(int=2000)], [], [], [], [],
     ])
     result = await qualitative_class_report_card(
         CLASS, LEARNER, actor(LEARNER, "CANDIDATE"), cast(AsyncSession, db)
