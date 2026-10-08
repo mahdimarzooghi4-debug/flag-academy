@@ -640,6 +640,15 @@
 | DEC-630 | 2026-10-06 | AI، System، Event یا یک Evidence منفرد حق transition مستقیم Gate به PASS/PASS_CONFIRMED/FAIL را ندارند. آن‌ها فقط می‌توانند Risk/Review trigger ایجاد کنند؛ تصمیم REVIEW_REQUIRED → PASS_CONFIRMED یا FAIL فقط با Accountable Human Reviewer و rationale/lineage کامل مجاز است. | FINAL |
 | DEC-631 | 2026-10-06 | Sprint 21 Gate Assessment Foundation هیچ threshold عددی، average score، auto-evaluator یا auto-progression برای Gate اختراع نمی‌کند. پنج Gate رسمی A–E به‌صورت versioned GateDefinition ثبت می‌شوند و requirementها explainable باقی می‌مانند؛ نبود Evidence با Gate Failure یکی نیست و بدون Evidence معتبر، FAIL ممنوع است. | FINAL |
 
+
+| DEC-632 | 2026-10-08 | Class Simulator در پرچم یک واقعیت مشترک کلاس است که Candidate، Instructor، Assessor، Academy Admin و Parcham AI فقط View و اختیار متفاوتی از همان Cohort/Class/Session/Activity truth دارند؛ پیاده‌سازی نباید برای هر نقش مدل موازی کلاس بسازد. | FINAL |
+| DEC-633 | 2026-10-08 | در Class Simulator v1 واژه کاربرمحور «درس» به CapabilityVersion نسخه‌دار در Context یک ClassOffering نگاشت می‌شود. Sprint 23 یک Subject aggregate مستقل اختراع نمی‌کند؛ ایجاد Subject first-class فقط با تصمیم محصول جداگانه مجاز است. | FINAL |
+| DEC-634 | 2026-10-08 | Attendance یک حقیقت عملیاتی Academy است. واژگان اولیه فقط PRESENT / ABSENT است؛ نبود AttendanceRecord به معنی NOT RECORDED است و نباید ABSENT فرض شود. Attendance به‌تنهایی Completion، Evidence، Proof، CapabilityClaim، Gate یا Progression ایجاد نمی‌کند. | FINAL |
+| DEC-635 | 2026-10-08 | کارنامه هر درس یک Read Model کیفی و provenance-aware برای person × capability_version × class/cohort context است و می‌تواند Attendance، Learning Activity، Mission Activity، Instructor Feedback، LearningState و فقط ProofState رسمیِ خوانده‌شده از منبع authoritative را نمایش دهد؛ کارنامه حق ساخت Grade/GPA/Rank یا mutation روی Evidence/Profile/Gate ندارد. | FINAL |
+| DEC-636 | 2026-10-08 | Academy Knowledge برای استفاده روزمره Parcham AI از Training Dataset جداست. تأیید یک منبع برای Knowledge-use به‌تنهایی AI-learning eligibility ایجاد نمی‌کند؛ فقط اگر همان منبع جداگانه طبق Policy برای AI learning مجاز شود، DEC-625/626/627 و Automatic Dataset Builder اعمال می‌شوند. | FINAL |
+| DEC-637 | 2026-10-08 | Academy Admin نمای عملیاتی مجاز از Classes، People/Roles، Sessions، Attendance، Activity، Mission و Report-card summary دارد، اما «همه اطلاعات» به معنی عبور از Tenant isolation، reviewer-private rationale، hidden assessment mechanics یا AI secret boundaries نیست. | FINAL |
+| DEC-638 | 2026-10-08 | نقش ASSESSOR به‌تنهایی دسترسی سراسری به Roster/Activity همه کلاس‌ها نمی‌دهد. Context کلاس برای Assessor باید explicit و scoped باشد؛ مکانیزم دقیق assignment در Sprint 23 هنوز unresolved است و نباید حدس زده شود. | FINAL |
+
 ---
 
 ## مواردی که عمداً FINAL نشده‌اند
