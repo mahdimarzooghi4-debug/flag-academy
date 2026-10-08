@@ -474,11 +474,16 @@ Completion evidence:
 - Frontend: SUCCESS
 - Live OIDC E2E: SUCCESS
 
-### P23-03 — Class roster read model
-- Candidate membership;
-- Instructor assignment;
-- role-aware class context;
-- no global Assessor visibility.
+### P23-03 — Class roster read model — COMPLETE (backend foundation)
+- GET `/api/v1/class-offerings/{class_offering_id}/roster` composes existing Cohort, ClassOffering, CohortMembership and InstructorAssignment; no new aggregate, migration or writes.
+- Candidate sees only their own membership; assigned Instructor sees the class roster; authorized Academy Admin sees the organization-scoped roster.
+- Unauthorized actors, cross-organization requests and global Assessor-only access fail closed with non-disclosing 404; Assessor assignment mechanics remain separately unresolved.
+- OpenAPI and backend guard tests cover GET-only contract, role/tenant checks and absence of formal growth mutation; full role-browser UX remains a later Sprint 23 slice.
+
+Completion evidence:
+- code commit `463de938fbade3b8f6b17d1d866efdefb12d0669`; test commit and tested HEAD `c93c6c32d8b76d60b3fe5f5b53c7070def8f52d5`
+- CI `37828166995` — SUCCESS (Backend, Frontend and E2E); PR #21 kept Draft/Open/Unmerged.
+
 
 ### P23-04 — Unified class activity read model
 - Learning + Practice + Assignment + Mission + Attendance references;
