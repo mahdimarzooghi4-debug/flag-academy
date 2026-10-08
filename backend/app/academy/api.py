@@ -411,3 +411,94 @@ async def record_session_attendance(
 
     await db.commit()
     return _attendance_response(current)
+
+
+class ClassRosterPersonResponse(BaseModel):
+    person_id: UUID
+    member_type: str
+
+
+class ClassRosterResponse(BaseModel):
+    class_offering_id: UUID
+    cohort_id: UUID
+    title: str
+    primary_capability_version_id: UUID
+    members: list[ClassRosterPersonResponse]
+    instructor_person_ids: list[UUID]
+
+
+@router.get(
+    "/class-offerings/{class_offering_id}/roster",
+    response_model=ClassRosterResponse,
+)
+async def class_offering_roster(
+    class_offering_id: UUID,
+    actor: Annotated[ActorContext, Depends(get_actor)],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ClassRosterResponse:
+    """A read-only, role-scoped projection of existing Academy assignments."""
+    row = (
+        await db.execute(
+            select(ClassOffering, Cohort)
+            .join(Cohort, ClassOffering.cohort_id == Cohort.id)
+            .where(
+                ClassOffering.id == class_offering_id,
+                Cohort.organization_context_id == actor.organization_context_id,
+            )
+        )
+    ).first()
+    if row is None:
+        raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+    offering, cohort = row
+
+    member_rows = (
+        await db.execute(
+            select(CohortMembership.person_id, CohortMembership.member_type)
+            .where(CohortMembership.cohort_id == cohort.id)
+            .order_by(CohortMembership.person_id, CohortMembership.member_type)
+        )
+    ).all()
+    instructor_rows = (
+        await db.execute(
+            select(InstructorAssignment.person_id)
+            .where(InstructorAssignment.class_offering_id == offering.id)
+            .order_by(InstructorAssignment.person_id)
+        )
+    ).scalars().all()
+
+    is_admin = "ACADEMY_ADMIN" in actor.roles
+    is_assigned_instructor = (
+        "INSTRUCTOR" in actor.roles and actor.person_id in instructor_rows
+    )
+    is_member = (
+        "CANDIDATE" in actor.roles
+        and any(person_id == actor.person_id for person_id, _ in member_rows)
+    )
+    if not (is_admin or is_assigned_instructor or is_member):
+        # A global ASSESSOR role never grants roster access.
+        raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+
+    visible_members = (
+        member_rows
+        if is_admin or is_assigned_instructor
+        else [
+            (person_id, member_type)
+            for person_id, member_type in member_rows
+            if person_id == actor.person_id
+        ]
+    )
+    return ClassRosterResponse(
+        class_offering_id=offering.id,
+        cohort_id=cohort.id,
+        title=offering.title,
+        primary_capability_version_id=offering.primary_capability_version_id,
+        members=[
+            ClassRosterPersonResponse(person_id=person_id, member_type=member_type)
+            for person_id, member_type in visible_members
+        ],
+        instructor_person_ids=(
+            list(instructor_rows) if is_admin or is_assigned_instructor else []
+        ),
+    )
+
+
