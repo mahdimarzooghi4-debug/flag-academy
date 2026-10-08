@@ -22,7 +22,6 @@ from app.db import get_session
 from app.errors import AppError
 from app.flag_profile.public_reader import read_candidate_safe_reviewed_claims
 from app.identity.auth import ActorContext, get_actor
-from app.learning.state_reader import derive_learning_state
 from app.learning.models import (
     Assignment,
     InstructorFeedback,
@@ -32,6 +31,7 @@ from app.learning.models import (
     PracticeFeedback,
     Submission,
 )
+from app.learning.state_reader import derive_learning_state
 
 router = APIRouter(prefix="/api/v1", tags=["academy"])
 
