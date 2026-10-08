@@ -20,6 +20,7 @@ from app.academy.models import (
 from app.curriculum.models import CapabilityVersion
 from app.db import get_session
 from app.errors import AppError
+from app.flag_profile.public_reader import read_candidate_safe_reviewed_claims
 from app.identity.auth import ActorContext, get_actor
 from app.learning.models import (
     Assignment,
@@ -60,6 +61,15 @@ class ReportCardFeedbackSource(BaseModel):
     created_at: datetime
 
 
+class ReportCardReviewedClaim(BaseModel):
+    claim_id: UUID
+    claim_version: int
+    capability_definition_id: UUID
+    claim_state: Literal["UNPROVEN", "EMERGING", "DEMONSTRATED", "PROVEN"]
+    level: str
+    reviewed_at: datetime
+
+
 class QualitativeSubjectReportCard(BaseModel):
     capability_version_id: UUID
     capability_name: str | None
@@ -67,6 +77,7 @@ class QualitativeSubjectReportCard(BaseModel):
     learning_state: str | None = None
     proof_state: str | None = None
     next_learning_focus: str | None = None
+    reviewed_claim: ReportCardReviewedClaim | None = None
     learning_sources: list[ReportCardLearningSource]
     feedback_sources: list[ReportCardFeedbackSource]
 
@@ -304,9 +315,27 @@ async def qualitative_class_report_card(
         for item in attempts
     }
 
+    # The public Flag Profile reader is the only source of reviewed claims.
+    # CapabilityVersion ID and Capability definition ID are different identities;
+    # never join a reviewed claim by the version ID alone.
+    reviewed_claims = await read_candidate_safe_reviewed_claims(
+        db,
+        organization_context_id=actor.organization_context_id,
+        subject_person_id=person_id,
+        track_code=cohort.track_code,
+        capability_definition_ids={
+            version.definition_id for version in capability_versions.values()
+        },
+    )
+
     subjects: list[QualitativeSubjectReportCard] = []
     for capability_id in sorted(capability_ids, key=str):
         version = capability_versions.get(capability_id)
+        reviewed = (
+            None
+            if version is None
+            else reviewed_claims.get(version.definition_id)
+        )
         learning_sources: list[ReportCardLearningSource] = []
         feedback_sources: list[ReportCardFeedbackSource] = []
         for unit in units:
@@ -388,6 +417,18 @@ async def qualitative_class_report_card(
                 learning_state=None,
                 proof_state=None,
                 next_learning_focus=None,
+                reviewed_claim=(
+                    None
+                    if reviewed is None
+                    else ReportCardReviewedClaim(
+                        claim_id=reviewed.claim_id,
+                        claim_version=reviewed.claim_version,
+                        capability_definition_id=reviewed.capability_id,
+                        claim_state=reviewed.claim_state,
+                        level=reviewed.level,
+                        reviewed_at=reviewed.reviewed_at,
+                    )
+                ),
                 learning_sources=learning_sources,
                 feedback_sources=feedback_sources,
             )
