@@ -232,15 +232,80 @@ A synthetic scenario used for training must not be reused unchanged as the only 
 
 Future Evaluation Dataset construction remains under the P22 independent evaluation contract.
 
-## Next implementation contract
+## Seed Learning Approval Bridge — COMPLETE
 
-To move from repository Seed artifact to real Dataset creation, the next AI-data sub-slice must add a governed **Seed Learning Approval Bridge** that:
+The governed bridge is implemented.
 
-1. reads/pins an exact approved Seed artifact/version;
-2. computes and records the exact source payload SHA-256;
-3. requires an explicit accountable Human AI-learning approval;
-4. emits/records the existing governed learning-source approval input expected by the Automatic Dataset Builder;
-5. cannot bypass Dataset Builder provenance/idempotency;
-6. cannot start Training by itself.
+Runtime Seed artifact:
+- `backend/app/ai_control_plane/seeds/decision-making-v1.jsonl`
+- exact CI assertion keeps it byte-identical to `docs/ai/seed/decision-making-v1.jsonl`;
+- artifact SHA-256 is computed from runtime bytes at approval time;
+- the backend package explicitly includes `seeds/*.jsonl`.
 
-The exact API/UI shape for that approval is not defined by this document.
+Admin API:
+- `GET /api/v1/admin/ai/seed-learning/decision-making-v1`
+  - ACADEMY_ADMIN only;
+  - returns exact Seed metadata, record count and SHA-256;
+  - reports whether this organization context already has a Seed learning approval.
+- `POST /api/v1/admin/ai/seed-learning/decision-making-v1/approve`
+  - ACADEMY_ADMIN only;
+  - requires the exact reviewed `expected_source_payload_digest`;
+  - requires an explicit `approval_reference`;
+  - records a PERSON actor from the authenticated Academy Admin;
+  - fails closed if the Seed changed after preview;
+  - is multi-replica serialized and idempotent for an exact retry;
+  - conflicts if the same Seed version already has different Human approval semantics.
+
+The Bridge has no arbitrary Dataset/source upload parameters. Dataset name, purpose, policy, source type and source reference are fixed by the approved Seed contract.
+
+The Bridge does **not** call the Dataset Builder directly. It records the existing:
+
+`ai.learning_input_approved.v1`
+
+Domain Event + transactional Outbox. The existing NATS consumer and Automatic Dataset Builder remain authoritative for Dataset creation.
+
+The Bridge does not:
+- start Training;
+- create a Model Version;
+- start Evaluation;
+- promote a Model;
+- activate runtime.
+
+### Acceptance evidence
+
+Implementation HEAD before this completion-record update:
+
+`36ce527916c2824f35290f9b6f367d3851e8b217`
+
+CI:
+
+`37825433611` — SUCCESS
+
+Verified:
+- Backend — SUCCESS
+- Frontend — SUCCESS
+- Live OIDC E2E — SUCCESS
+- Human Seed Learning Approval Bridge acceptance — SUCCESS
+- exact Seed artifact SHA-256 — PASS
+- Human approval — PASS
+- exact retry idempotency — PASS
+- Outbox → NATS → existing Dataset Builder — PASS
+- ephemeral acceptance Dataset Version 1 — created successfully
+- Training started — NO
+- Runtime activation — NO
+
+The Dataset Version 1 above is CI acceptance evidence in an ephemeral test database. It is **not** a real Academy-environment learning approval or persistent product Dataset.
+
+## Next AI-data step
+
+The next product operation is a real authenticated Academy Admin review and approval of the exact Seed digest in the target environment.
+
+Only after that explicit Human action may the existing Dataset Builder create that organization context's first persistent Decision-Making Dataset Version.
+
+After real Academy activity exists, future enrichment remains:
+
+**reviewed + policy-eligible + explicitly AI-learning-approved source**
+→ **Automatic Dataset Builder**
+→ **new immutable Dataset Version**
+
+Raw classroom activity remains forbidden from direct Training ingestion.
