@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -72,3 +72,82 @@ class InstructorAssignment(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     class_offering_id: Mapped[UUID] = mapped_column(ForeignKey("academy.class_offerings.id"))
     person_id: Mapped[UUID]
+
+
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('PRESENT', 'ABSENT')",
+            name="ck_attendance_record_status",
+        ),
+        UniqueConstraint(
+            "session_id",
+            "person_id",
+            name="uq_attendance_record_session_person",
+        ),
+        {"schema": "academy"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    organization_context_id: Mapped[UUID]
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.sessions.id")
+    )
+    person_id: Mapped[UUID]
+    status: Mapped[str] = mapped_column(String(16))
+    created_by: Mapped[UUID]
+    updated_by: Mapped[UUID]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AttendanceRevision(Base):
+    __tablename__ = "attendance_revisions"
+    __table_args__ = (
+        CheckConstraint(
+            "prior_status IS NULL OR prior_status IN ('PRESENT', 'ABSENT')",
+            name="ck_attendance_revision_prior_status",
+        ),
+        CheckConstraint(
+            "resulting_status IN ('PRESENT', 'ABSENT')",
+            name="ck_attendance_revision_resulting_status",
+        ),
+        CheckConstraint(
+            "expected_version >= 0",
+            name="ck_attendance_revision_expected_version",
+        ),
+        CheckConstraint(
+            "resulting_version >= 1",
+            name="ck_attendance_revision_resulting_version",
+        ),
+        UniqueConstraint(
+            "organization_context_id",
+            "changed_by",
+            "idempotency_key",
+            name="uq_attendance_revision_idempotency",
+        ),
+        {"schema": "academy"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    attendance_record_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.attendance_records.id")
+    )
+    organization_context_id: Mapped[UUID]
+    session_id: Mapped[UUID]
+    person_id: Mapped[UUID]
+    expected_version: Mapped[int] = mapped_column(BigInteger)
+    prior_version: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
+    )
+    prior_status: Mapped[str | None] = mapped_column(
+        String(16), nullable=True
+    )
+    resulting_version: Mapped[int] = mapped_column(BigInteger)
+    resulting_status: Mapped[str] = mapped_column(String(16))
+    changed_by: Mapped[UUID]
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    idempotency_key: Mapped[str] = mapped_column(String(160))
