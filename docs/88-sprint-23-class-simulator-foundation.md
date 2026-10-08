@@ -519,9 +519,14 @@ Completion evidence:
 - Evidence workspace can display class/session context;
 - global ASSESSOR role alone is insufficient for unrestricted class roster access.
 
-### P23-10 — Academy Knowledge contract
+### P23-10 — Academy Knowledge foundation — ACTIVE
 - versioned/approved/traceable source contract;
 - explicit separation from AI Training Dataset;
+- Initial Knowledge Pack v1 authored in `docs/89-parcham-ai-initial-knowledge-pack-v1.md`;
+- Decision-Making Curated Synthetic Seed Corpus v1 authored in `docs/90-parcham-ai-decision-making-seed-corpus-v1.md` and `docs/ai/seed/decision-making-v1.jsonl`;
+- Seed corpus contains 24 source-linked synthetic examples spanning Learn / Practice / Assessment / Instructor-assist / Governance behaviour;
+- existence of Seed content does not create a Dataset or authorize Training;
+- next AI-data sub-slice is a Human-governed Seed Learning Approval Bridge into the existing Automatic Dataset Builder;
 - no retrieval/indexing/model-runtime technology selected in this slice.
 
 ### P23-11 — Interaction / stale-safety / security tests
