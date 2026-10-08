@@ -26,6 +26,7 @@ from app.learning.models import (
     PracticeFeedback,
     Submission,
 )
+from app.learning.state_reader import derive_learning_state
 from app.read_models.models import CandidateHomeProjection, InstructorHomeProjection
 
 
@@ -309,28 +310,16 @@ async def rebuild_candidate_home(
             if assignment.capability_version_id == capability.id
         ]
         has_requirements = bool(capability_units or capability_assignments)
-        all_units_completed = all(
-            progress_by_unit.get(unit.id) is not None
-            and progress_by_unit[unit.id].state == "COMPLETED"
-            for unit in capability_units
-        )
-        all_assignments_submitted = all(
-            assignment.id in submission_by_assignment
-            for assignment in capability_assignments
-        )
-        has_activity = any(
-            unit.id in progress_by_unit for unit in capability_units
-        ) or any(
-            assignment.id in submission_by_assignment
-            for assignment in capability_assignments
-        )
-
-        if has_requirements and all_units_completed and all_assignments_submitted:
-            learning_state = "LEARNING_COMPLETED"
-        elif has_activity:
-            learning_state = "IN_LEARNING"
-        else:
-            learning_state = "TO_LEARN"
+        learning_state = derive_learning_state(
+            unit_progress_states=[
+                progress_by_unit[unit.id].state if unit.id in progress_by_unit else None
+                for unit in capability_units
+            ],
+            assignment_submitted=[
+                assignment.id in submission_by_assignment
+                for assignment in capability_assignments
+            ],
+        ) or "TO_LEARN"
 
         if next_session is not None or has_requirements:
             what_to_learn.append(
