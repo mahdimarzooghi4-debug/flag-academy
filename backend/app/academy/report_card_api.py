@@ -421,11 +421,13 @@ async def qualitative_class_report_card(
                         else None
                         for unit in units
                         if unit.capability_version_id == capability_id
+                        and unit.status == "ACTIVE"
                     ],
                     assignment_submitted=[
                         assignment.id in submissions_by_assignment
                         for assignment in assignments
                         if assignment.capability_version_id == capability_id
+                        and assignment.status == "ACTIVE"
                     ],
                 ),
                 proof_state=None,
