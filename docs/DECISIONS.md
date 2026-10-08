@@ -649,6 +649,8 @@
 | DEC-637 | 2026-10-08 | Academy Admin نمای عملیاتی مجاز از Classes، People/Roles، Sessions، Attendance، Activity، Mission و Report-card summary دارد، اما «همه اطلاعات» به معنی عبور از Tenant isolation، reviewer-private rationale، hidden assessment mechanics یا AI secret boundaries نیست. | FINAL |
 | DEC-638 | 2026-10-08 | نقش ASSESSOR به‌تنهایی دسترسی سراسری به Roster/Activity همه کلاس‌ها نمی‌دهد. Context کلاس برای Assessor باید explicit و scoped باشد؛ مکانیزم دقیق assignment در Sprint 23 هنوز unresolved است و نباید حدس زده شود. | FINAL |
 
+| DEC-639 | 2026-10-08 | در Class Simulator v1 فقط ACADEMY_ADMIN مجاز به ثبت و اصلاح Attendance است. Instructor برای کلاس‌های تخصیص‌یافته Attendance را فقط می‌خواند. اصلاح Attendance باید versioned/auditable باشد و مقدار قبلی قابل بازسازی بماند؛ این تصمیم Maker-Checker یا تأییدکننده دوم اختراع نمی‌کند. | FINAL |
+
 ---
 
 ## مواردی که عمداً FINAL نشده‌اند
