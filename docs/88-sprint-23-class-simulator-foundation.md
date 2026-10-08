@@ -500,12 +500,21 @@ Completion evidence:
 - No Stage/QA gate, Production, or human release approval claimed.
 
 
-### P23-05 — Qualitative subject report card read model
-- per CapabilityVersion learner-facing «درس»;
-- attendance + learning + mission + feedback summaries;
-- existing LearningState / authoritative ProofState only;
-- no numeric grade/average/rank;
-- source traceability.
+### P23-05 — Qualitative subject report card read model — BACKEND/CI VERIFIED (PARTIAL)
+- `GET /api/v1/class-offerings/{class_offering_id}/report-cards/{person_id}` exposes learner-specific, per-CapabilityVersion class report facts with the real CapabilityVersion name/version.
+- Learning Unit Progress, Assignment Submission, Practice Attempt and Instructor/Practice Feedback preserve exact source/parent IDs and recorded states/timestamps; Session Attendance preserves per-Session status, recording source ID, and explicit `NOT_RECORDED` when absent.
+- Candidate own-only, Instructor assigned-class-only, Academy Admin same-organization read; Assessor global role alone fails closed. No new write aggregate, migration, mutation or formal-growth side effect.
+- `app.flag_profile.public_reader.read_candidate_safe_reviewed_claims` is the Flag Profile-owned public read contract for current, human-applied CapabilityClaims. It scopes subject person, organization, track, and Capability *definition* identity (not CapabilityVersion ID), exposing candidate-safe claim ID/version/state/level/reviewed timestamp only.
+- The report card field `reviewed_claim` is separate from `proof_state`: no synthetic mapping or automatic proof conversion. Reviewer/private rationale, provenance/confidence and assessment-internal records are not exposed.
+- `learning_state`, `proof_state`, and `next_learning_focus` remain `null` until their separate authoritative public read semantics are verified and integrated. Historical `CandidateHome` static `UNPROVEN` placeholder is NOT authoritative ProofState.
+- Mission summaries remain out of this slice because there is no trustworthy Mission-to-ClassOffering link. No grade, rank, average, readiness score or auto-progression.
+
+Implementation and CI evidence:
+- base report-card implementation `b57b23518bc61d889c6969b5ea9f39336415237e`, route `479bf752c5f53953d7523d86bbe50356aa32425d`, tests `cb3c5fe74ac79b5dd2d20ad9e33a7a2ed3ccbfc3`, fixture fix `08935d23adc4e32d1deea57141ee948cdf5d273d`, attendance type safety `936749c472f352cb6b373fca56ef0807ad3dbe62`, CI `37832493397` SUCCESS.
+- public reviewed-claim contract `bdf0b9bc8a61fabfb76d3a6dc4b0715ed3b11c7b`, report integration `c76b86c5884d955cf0c0f87b2d4e3990042b802f`, report tests `8e2b916febdb7b5c36df5bd4d548b28055af580d`, public reader tests `cf1970d8c9c66b912248ddfb20dd9b6859cf6f0c`.
+- CI `37834816816` SUCCESS (Backend, Frontend, E2E), including browser/live OIDC and existing AI governance verifications.
+- P23-05 remains PARTIAL: no Stage/QA Gate or final Sprint acceptance is claimed. Outstanding: authorized LearningState/ProofState semantics and verified class-linked Mission participation.
+
 
 ### P23-06 — Candidate report-card experience
 - own multi-subject report card;
