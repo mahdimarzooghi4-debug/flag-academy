@@ -7,6 +7,8 @@ from uuid import UUID
 from sqlalchemy import delete, select
 
 from app.academy.models import (
+    AttendanceRecord,
+    AttendanceRevision,
     ClassOffering,
     Cohort,
     CohortMembership,
@@ -97,6 +99,8 @@ async def seed() -> None:
     now = datetime.now(UTC)
     async with SessionFactory() as db:
         for model in (
+            AttendanceRevision,
+            AttendanceRecord,
             CandidateResponse,
             EvidenceReview,
             EvidenceLink,
