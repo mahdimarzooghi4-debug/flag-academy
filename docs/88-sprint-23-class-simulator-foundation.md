@@ -506,14 +506,17 @@ Completion evidence:
 - Candidate own-only, Instructor assigned-class-only, Academy Admin same-organization read; Assessor global role alone fails closed. No new write aggregate, migration, mutation or formal-growth side effect.
 - `app.flag_profile.public_reader.read_candidate_safe_reviewed_claims` is the Flag Profile-owned public read contract for current, human-applied CapabilityClaims. It scopes subject person, organization, track, and Capability *definition* identity (not CapabilityVersion ID), exposing candidate-safe claim ID/version/state/level/reviewed timestamp only.
 - The report card field `reviewed_claim` is separate from `proof_state`: no synthetic mapping or automatic proof conversion. Reviewer/private rationale, provenance/confidence and assessment-internal records are not exposed.
-- `learning_state`, `proof_state`, and `next_learning_focus` remain `null` until their separate authoritative public read semantics are verified and integrated. Historical `CandidateHome` static `UNPROVEN` placeholder is NOT authoritative ProofState.
+- `learning_state` now uses the existing CandidateHome qualitative rule from a shared Learning-owned pure reader: `TO_LEARN`, `IN_LEARNING`, `LEARNING_COMPLETED` for a class CapabilityVersion's active units/assignments; missing active requirements return `null` (never an invented completion). CandidateHome shares this same rule; practice/attendance/reviewer data never counts as completion.
+- `proof_state` and `next_learning_focus` remain `null` pending independent authoritative source contracts. Historical CandidateHome static `UNPROVEN` is NOT an authoritative ProofState.
 - Mission summaries remain out of this slice because there is no trustworthy Mission-to-ClassOffering link. No grade, rank, average, readiness score or auto-progression.
 
 Implementation and CI evidence:
 - base report-card implementation `b57b23518bc61d889c6969b5ea9f39336415237e`, route `479bf752c5f53953d7523d86bbe50356aa32425d`, tests `cb3c5fe74ac79b5dd2d20ad9e33a7a2ed3ccbfc3`, fixture fix `08935d23adc4e32d1deea57141ee948cdf5d273d`, attendance type safety `936749c472f352cb6b373fca56ef0807ad3dbe62`, CI `37832493397` SUCCESS.
 - public reviewed-claim contract `bdf0b9bc8a61fabfb76d3a6dc4b0715ed3b11c7b`, report integration `c76b86c5884d955cf0c0f87b2d4e3990042b802f`, report tests `8e2b916febdb7b5c36df5bd4d548b28055af580d`, public reader tests `cf1970d8c9c66b912248ddfb20dd9b6859cf6f0c`.
 - CI `37834816816` SUCCESS (Backend, Frontend, E2E), including browser/live OIDC and existing AI governance verifications.
-- P23-05 remains PARTIAL: no Stage/QA Gate or final Sprint acceptance is claimed. Outstanding: authorized LearningState/ProofState semantics and verified class-linked Mission participation.
+- shared LearningState commits: Learning-owned reader `f5a03f2448f8914c6ba2c064b9f382ac3803956a`, CandidateHome parity `bcc228c12c0e417ec88fc64afbc579d454d7fe5e`, class report `ece980b2a7701bfc886ff2281e504eeb8eb5a937`, active requirements `6ef7a45f53d39cdfb8ef3cabd50dfdd203e2a816`, report tests `bf28ac46fcddc8c942a27d1b5b27af42515b5b30`, semantics/parity tests `5071dccf490ea84e961fb81f30ee1f1b06c56b73`, import hygiene `503af44f3ea6f64f97f4170fd7c5f423add5dc27`.
+- CI `37836558356` SUCCESS (Backend, Frontend, E2E). No scores, automatic progression, new Evidence, or formal-governance mutations.
+- P23-05 remains PARTIAL: no Stage/QA Gate or final Sprint acceptance is claimed. Outstanding: authoritative ProofState public contract, next-focus policy and verified class-linked Mission participation.
 
 
 ### P23-06 — Candidate report-card experience
