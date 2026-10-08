@@ -485,10 +485,20 @@ Completion evidence:
 - CI `37828166995` — SUCCESS (Backend, Frontend and E2E); PR #21 kept Draft/Open/Unmerged.
 
 
-### P23-04 — Unified class activity read model
-- Learning + Practice + Assignment + Mission + Attendance references;
-- source lineage preserved;
-- visibility filtered by role.
+### P23-04 — Unified class activity read model — COMPLETE (backend foundation)
+- GET `/api/v1/class-offerings/{class_offering_id}/activity` composes Academy Attendance with Learning Unit Progress, Assignment Submission, Instructor Feedback, Practice Attempt and Practice Feedback.
+- Every item preserves source kind/id, source parent, subject person, class context, real timestamp, and source status where present; read model has no mutation authority.
+- Class- and tenant-scoped Candidate-own, assigned Instructor, Academy Admin visibility; global Assessor role is never sufficient.
+- No raw feedback/attempt text, no made-up absent state or formal proof, and no Mission activity while a verified Mission-to-ClassOffering linkage is unavailable.
+- Source-local bounded reads, chronological merge, truncation reporting.
+- Backend tests cover source lineage, absence of writes, role/tenant isolation and OpenAPI.
+
+Completion evidence:
+- implementation commits `6e7332f97e7ed9da6cdf196880aec5981de479b3`, `ceb7ccae225d4aa6b54f8f106dd534211c9f9a48`, tests `9c8f5843743f464ba0eba2f1944644d2336cd3cf`
+- CI fixes `91ced146bb62f11ca862fa779424d68b244d2ef7` (Lint) and `3d963a8a53cf5f5c578eb835a46653708d038900` (Pyright test-double types)
+- CI `37830689165` — SUCCESS, Backend/Frontend/E2E
+- No Stage/QA gate, Production, or human release approval claimed.
+
 
 ### P23-05 — Qualitative subject report card read model
 - per CapabilityVersion learner-facing «درس»;
