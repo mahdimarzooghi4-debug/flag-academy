@@ -3,9 +3,11 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from uuid import UUID
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.academy.activity_api import class_activity
 from app.errors import AppError
@@ -110,7 +112,7 @@ async def test_candidate_sees_only_own_source_linked_activity_and_real_attendanc
             [(attendance, class_session)],
         ]
     )
-    response = await class_activity(CLASS, actor(CANDIDATE, "CANDIDATE"), db, limit=50)
+    response = await class_activity(CLASS, actor(CANDIDATE, "CANDIDATE"), cast(AsyncSession, db), limit=50)
 
     assert [item.source_type for item in response.items] == [
         "ATTENDANCE_RECORD",
@@ -157,7 +159,7 @@ async def test_admin_can_read_bounded_class_activity_but_not_other_classes() -> 
             [],
         ]
     )
-    response = await class_activity(CLASS, actor(INSTRUCTOR, "ACADEMY_ADMIN"), db, limit=1)
+    response = await class_activity(CLASS, actor(INSTRUCTOR, "ACADEMY_ADMIN"), cast(AsyncSession, db), limit=1)
     assert len(response.items) == 1
     assert response.items[0].person_id == OTHER_CANDIDATE
     assert response.is_truncated is True
@@ -168,13 +170,13 @@ async def test_admin_can_read_bounded_class_activity_but_not_other_classes() -> 
 async def test_unassigned_instructor_and_global_assessor_fail_closed() -> None:
     instructor_db = FakeSession([class_rows(), [CANDIDATE], []])
     with pytest.raises(AppError) as instructor_error:
-        await class_activity(CLASS, actor(INSTRUCTOR, "INSTRUCTOR"), instructor_db, limit=50)
+        await class_activity(CLASS, actor(INSTRUCTOR, "INSTRUCTOR"), cast(AsyncSession, instructor_db), limit=50)
     assert instructor_error.value.status_code == 404
     assert len(instructor_db.statements) == 3
 
     assessor_db = FakeSession([class_rows(), [CANDIDATE]])
     with pytest.raises(AppError) as assessor_error:
-        await class_activity(CLASS, actor(ASSESSOR, "ASSESSOR"), assessor_db, limit=50)
+        await class_activity(CLASS, actor(ASSESSOR, "ASSESSOR"), cast(AsyncSession, assessor_db), limit=50)
     assert assessor_error.value.status_code == 404
     assert len(assessor_db.statements) == 2
 
@@ -183,7 +185,7 @@ async def test_unassigned_instructor_and_global_assessor_fail_closed() -> None:
 async def test_cross_tenant_class_rejected_before_any_activity_read() -> None:
     db = FakeSession([[]])
     with pytest.raises(AppError) as error:
-        await class_activity(CLASS, actor(INSTRUCTOR, "ACADEMY_ADMIN"), db, limit=50)
+        await class_activity(CLASS, actor(INSTRUCTOR, "ACADEMY_ADMIN"), cast(AsyncSession, db), limit=50)
     assert error.value.status_code == 404
     assert len(db.statements) == 1
     assert ORG in db.statements[0].compile().params.values()
