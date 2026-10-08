@@ -237,18 +237,20 @@ Every knowledge source must eventually be:
 
 Critical separation:
 
-**Academy Knowledge → day-to-day AI assistance**
+**Academy Knowledge approval for day-to-day assistance**
 
-is not:
+is not the same authorization as:
 
-**Governed Dataset → Training → Model Version → Evaluation → Human Promotion**
+**AI-learning eligibility for Governed Dataset → Training → Model Version → Evaluation → Human Promotion**
 
-Adding approved content to Academy Knowledge MUST NOT automatically:
+Knowledge-use approval alone MUST NOT automatically:
 - create a Training Dataset;
 - start Training;
 - change model weights;
 - promote a model;
 - activate runtime.
+
+If an Academy Knowledge source is separately approved by policy for AI learning, DEC-625 / DEC-626 / DEC-627 apply and the eligible source may enter the Automatic Dataset Builder with its required provenance, purpose and governance.
 
 The storage/indexing/retrieval implementation for Academy Knowledge is intentionally unresolved in this planning slice.
 
