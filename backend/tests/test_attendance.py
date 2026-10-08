@@ -94,6 +94,9 @@ def test_attendance_migration_enforces_status_identity_and_audit_constraints() -
     assert "uq_attendance_revision_idempotency" in source
     assert "expected_version >= 0" in source
     assert "resulting_version >= 1" in source
+    assert "reject_attendance_revision_mutation" in source
+    assert "trg_attendance_revisions_immutable" in source
+    assert "BEFORE UPDATE OR DELETE" in source
 
 
 def test_attendance_http_contract_is_admin_mutation_and_role_scoped_read() -> None:
