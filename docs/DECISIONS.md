@@ -654,6 +654,8 @@
 | DEC-640 | 2026-10-08 | Bootstrap اولیه Parcham AI دو لایه دارد: Academy Knowledge Pack نسخه‌دار برای استفاده دانشی، و Curated Synthetic Seed Corpus برای AI-learning. تمرکز Seed v1 روی Decision Making است تا رفتار پایه در سؤال تصمیم، Evidence/Assumption، Trade-off، Risk، Cost of Delay، Revisit Trigger و مرزهای Learn/Practice/Assessment شکل بگیرد. وجود فایل Seed به‌تنهایی Dataset یا Training ایجاد نمی‌کند. | FINAL |
 | DEC-641 | 2026-10-08 | Dataset رشد Parcham AI فقط از مسیر Governed Learning Approval و Automatic Dataset Builder تکامل می‌یابد. Seed v1 پس از Human AI-learning approval می‌تواند پایه Dataset Version 1 باشد؛ داده واقعی فقط در صورت reviewed + policy-eligible + explicitly approved بودن به نسخه‌های immutable بعدی افزوده می‌شود. Seed و نسخه‌های قبلی بازنویسی نمی‌شوند و raw operational data مستقیم وارد Training نمی‌شود. | FINAL |
 
+| DEC-642 | 2026-10-08 | Decision-Making Seed v1 فقط از طریق Human Seed Learning Approval Bridge وارد مسیر AI-learning می‌شود: ACADEMY_ADMIN باید SHA-256 دقیق artifact را صریحاً تأیید کند؛ Bridge فقط event رسمی `ai.learning_input_approved.v1` و Outbox را ثبت می‌کند و Dataset را مستقیم نمی‌نویسد. Dataset Builder موجود تنها مرجع ایجاد Dataset Version است. Bridge حق شروع Training، Model creation، Promotion یا Runtime activation ندارد. | FINAL |
+
 ---
 
 ## مواردی که عمداً FINAL نشده‌اند
