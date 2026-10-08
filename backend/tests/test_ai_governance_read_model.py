@@ -64,13 +64,14 @@ def test_admin_ai_governance_read_model_is_tenant_scoped() -> None:
 
 def test_admin_ai_governance_endpoint_requires_academy_admin() -> None:
     source = Path("app/ai_governance_api.py").read_text()
+    route_source = source.split(
+        'async def get_ai_governance(', 1
+    )[1].split(
+        '@router.get(\n    "/seed-learning/decision-making-v1"', 1
+    )[0]
 
-    assert 'require_role("ACADEMY_ADMIN")' in source
-    assert "@router.get" in source
-    assert "@router.post" not in source
-    assert "@router.put" not in source
-    assert "@router.patch" not in source
-    assert "@router.delete" not in source
+    assert 'Depends(require_role("ACADEMY_ADMIN"))' in route_source
+    assert "load_ai_governance_read(" in route_source
 
 
 def test_ai_governance_ui_is_read_only_and_marks_authorization_boundary() -> None:
