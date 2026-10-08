@@ -71,7 +71,7 @@ def context() -> list:
             cohort_id=COHORT,
             primary_capability_version_id=CAPABILITY,
         ),
-        SimpleNamespace(id=COHORT),
+        SimpleNamespace(id=COHORT, track_code="FLAG_TRACK"),
     )]
 
 
@@ -110,7 +110,7 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
         created_at=NOW,
     )
     version = SimpleNamespace(
-        id=CAPABILITY, name="Decision Making", version_number=1
+        id=CAPABILITY, definition_id=UUID(int=2001), name="Decision Making", version_number=1
     )
     session_a = SimpleNamespace(
         id=UUID(int=1010), title="First meeting", starts_at=NOW
@@ -154,6 +154,10 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
         [submission],
         [teacher_feedback],
         [practice_feedback],
+        [SimpleNamespace(
+            id=UUID(int=3001), version=3, capability_id=UUID(int=2001),
+            state="DEMONSTRATED", level="L2", reviewed_at=NOW,
+        )],
     ])
 
     result = await qualitative_class_report_card(
@@ -174,6 +178,12 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
     assert subject.capability_name == "Decision Making"
     assert subject.learning_state is None
     assert subject.proof_state is None
+    assert subject.reviewed_claim is not None
+    assert subject.reviewed_claim.claim_state == "DEMONSTRATED"
+    assert subject.reviewed_claim.claim_id == UUID(int=3001)
+    assert subject.reviewed_claim.claim_version == 3
+    assert subject.reviewed_claim.level == "L2"
+    assert subject.reviewed_claim.capability_definition_id == UUID(int=2001)
     assert subject.next_learning_focus is None
     assert [s.state for s in subject.learning_sources] == [
         "IN_PROGRESS",
@@ -188,6 +198,11 @@ async def test_candidate_qualitative_sources_and_missing_attendance_are_truthful
     }
     assert all(s.capability_version_id is not None for s in result.subjects)
     assert not db.batches
+    params = list(db.queries[-1].compile().params.values())
+    assert ORG in params
+    assert LEARNER in params
+    assert "FLAG_TRACK" in params
+    assert [UUID(int=2001)] in params
     # All person-specific reads follow successful membership/tenant authorization.
     assert ORG in db.queries[0].compile().params.values()
     assert LEARNER in db.queries[1].compile().params.values()
@@ -209,6 +224,7 @@ async def test_missing_learning_and_capability_are_not_invented() -> None:
     assert result.subjects[0].capability_name is None
     assert result.subjects[0].learning_sources == []
     assert result.subjects[0].proof_state is None
+    assert result.subjects[0].reviewed_claim is None
     assert result.attendance == []
     assert not db.batches
 
@@ -275,6 +291,7 @@ def test_report_card_never_creates_proof_or_mutates_source_domains() -> None:
     assert "Session.class_offering_id == offering.id" in src
     assert "learning_state=None" in src
     assert "proof_state=None" in src
+    assert "read_candidate_safe_reviewed_claims(" in src
     assert "next_learning_focus=None" in src
     for forbidden in (
         "db.commit(",
