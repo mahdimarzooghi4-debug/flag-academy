@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -45,7 +45,7 @@ class FakeSession:
         return Result(self.values.pop(0))
 
 
-def fixtures() -> tuple[object, ...]:
+def fixtures() -> tuple[UUID, UUID, list[object]]:
     org = uuid4()
     run_id = uuid4()
     dataset_id = uuid4()
