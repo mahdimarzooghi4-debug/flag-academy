@@ -569,7 +569,7 @@ Implementation and CI evidence:
 - PR #21 remains Draft/Open/Unmerged. No Code Review sign-off, Stage, QA Gate, Release Approval, or Production.
 
 
-### P23-09 — Assessor class-context binding — BUSINESS APPROVED / P23-09A CODE/CI VERIFIED (PARTIAL)
+### P23-09 — Assessor class-context binding — BUSINESS APPROVED / P23-09A+B BACKEND CODE/CI VERIFIED (PARTIAL)
 - The 2026-10-09 approved scope is recorded in DEC-643..646 and `docs/91-sprint-23-approved-governance-decisions.md`: only ACADEMY_ADMIN appoints an Assessor to one whole ClassOffering, with an explicit time interval, extend/revoke, scoped data and separately governed classroom Observation.
 - **P23-09A Academy grant foundation implemented:** Academy `AssessorClassGrant` + append-only `AssessorClassGrantRevision` and migration `0031_assessor_class_grants.py` with DB immutability trigger; pure grant-window policy; Identity-owned organization membership reader; admin-only POST create, extend and revoke APIs. Requests are timezone-aware and tenant-scoped; absent/other-org class or missing current ASSESSOR membership is refused; stale version and key reuse fail closed; accepted command and Audit/Outbox persist together.
 - Idempotent replay was hardened: retrying an accepted request returns the **original immutable command result** rather than the grant's later mutable state. Positive create/extend/revoke and historical replay tests were added alongside migration, OpenAPI, role/membership, cross-tenant and stale-version tests.
@@ -577,6 +577,16 @@ Implementation and CI evidence:
 - **No positive Assessor class access yet.** Existing private class roster/activity/report endpoints remain unchanged, and mere global ASSESSOR role continues to fail closed. P23-09B still must connect live grant + role + tenant + time + ClassOffering status to *each* authorized read path, including genuine signed-in HTTP tests and Admin discovery/UI; P23-09C still requires authoritative Observation-to-ClassOffering/Session lineage before any formal Evidence bridge.
 - Reappointment after expiry/revocation, class completion lifecycle state, late Observation authorization, and distinct Evidence/Gate permissions remain explicitly unresolved; no inferred Mission/source linkage, cross-context FK, auto-Evidence, Profile Apply or Gate decision has been introduced.
 - PR #21 remains Draft/Open/Unmerged; no Stage/QA Gate, Release or Production performed.
+
+**P23-09B — scoped Assessor class read paths — BACKEND CODE/CI VERIFIED (2026-10-09)**
+
+- Central live grant reader `backend/app/academy/assessor_access.py` now checks ASSESSOR organizational membership, exact Academy ClassOffering + Cohort tenant, grant time window, non-revocation and ACTIVE class/cohort before granting access; no global-role bypass.
+- Existing GET routes for Roster, Sessions, recorded Attendance, class Activity and qualitative Candidate ReportCard use this reader. Assessor-only requests are denied before private member/activity/report reads; Attendance POST remains ACADEMY_ADMIN-only. No new formal Observation, Evidence/Pattern/Profile/Gate, ProofState, Mission association, grades or AI authority.
+- New ASGI/TestClient and policy tests verify positive class-scoped reads, unrelated class and missing/expired/not-yet-active/revoked grants, non-ACTIVE class/cohort, missing current Identity role, unrecorded attendance, and denied Assessor mutation. Existing global Assessor denial regressions remain.
+- Code review found and fixed authorization order for private membership/activity/report reads; scoped technical review at `docs/reviews/24-sprint-23-assessor-class-read-access-code-review.md`.
+- Reviewed implementation HEAD `8fb7de9b9f6d7e58b3a681c2e0c16ebca4ae55cb`; exact-head CI `37914381619` **SUCCESS**, all Backend/Frontend/live-OIDC E2E/AI governance CI jobs successful. The browser CI has not yet proven the **positive** grant-create → Assessor-read journey against real PostgreSQL+Keycloak; it validates existing browser regressions.
+- Still required: Admin grant discovery and assignment-management UI, signed-in positive Assessor workspace, independent second-class/cross-tenant/concurrency acceptance fixtures, P23-09C provenance-bound classroom Observation and Evidence review, and explicitly contracted class-completion/reappointment semantics. P23-09 remains **PARTIAL**.
+- PR #21 Draft/Open/Unmerged, no Stage, QA Gate, full Sprint Code Review approval, Release or Production.
 
 ### P23-10 — Academy Knowledge foundation — ACTIVE
 - versioned/approved/traceable source contract;
