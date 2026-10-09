@@ -5,10 +5,11 @@ controlled AsyncSession, including positive role-scoped reads and fail-closed ca
 No private classroom read is allowed by a stale/revoked/other-class grant.
 """
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from typing import Iterator, cast
+from typing import cast
 from uuid import UUID
 
 import pytest
