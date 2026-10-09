@@ -9,6 +9,27 @@ function practiceKindLabel(value?: string | null) {
   return "تمرین";
 }
 
+function learningStateLabel(value: string) {
+  if (value === "TO_LEARN") return "هنوز شروع نشده";
+  if (value === "IN_LEARNING") return "در حال یادگیری";
+  if (value === "LEARNING_COMPLETED") return "الزامات آموزشی تکمیل شده";
+  return value;
+}
+
+function proofStateLabel(value: string) {
+  if (value === "UNPROVEN") return "هنوز اثبات نشده";
+  return value;
+}
+
+function activityStateLabel(value: string) {
+  if (value === "NOT_STARTED") return "شروع نشده";
+  if (value === "IN_PROGRESS") return "در حال انجام";
+  if (value === "COMPLETED") return "تکمیل‌شده";
+  if (value === "SUBMITTED") return "ارسال‌شده";
+  if (value === "FEEDBACK_PROVIDED") return "بازخورد ثبت‌شده";
+  return value;
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("fa-IR", {
@@ -56,7 +77,7 @@ export function CandidateHome({
     const response = (drafts[`practice-${learningUnitId}`] ?? "").trim();
     if (!response || !onSubmitPracticeAttempt) return;
     await onSubmitPracticeAttempt(learningUnitId, response);
-    setSubmittedMessage("تمرین ثبت شد. بازخورد آن توسعه‌ای است و به‌تنهایی Proof ایجاد نمی‌کند.");
+    setSubmittedMessage("تمرین ثبت شد. این ثبت به‌تنهایی به معنی پذیرش شاهد رسمی نیست.");
   }
 
   async function submit(assignmentId: string) {
@@ -76,7 +97,7 @@ export function CandidateHome({
             {data.journey?.track ?? "—"} · {data.current_wave?.name ?? "—"}
           </p>
         </div>
-        <span className="status-chip">{data.journey?.state ?? "—"}</span>
+        <span className="status-chip">{data.journey?.state === "ACTIVE" ? "در جریان" : data.journey?.state ?? "—"}</span>
       </section>
 
       <section className="grid-two">
@@ -88,12 +109,15 @@ export function CandidateHome({
               <div className="task-card" key={item.capability_version_id}>
                 <div>
                   <strong>{item.name}</strong>
-                  <p>{item.next_session?.title ?? "مسیر یادگیری برای این Capability فعال است."}</p>
+                  <p>{item.next_session?.title ?? "جلسه بعدی ثبت نشده است."}</p>
                   <small>{formatDate(item.next_session?.starts_at)}</small>
                 </div>
-                <span className="state">{item.learning_state}</span>
+                <span className="state">{learningStateLabel(item.learning_state)}</span>
               </div>
             ))}
+            {(data.what_to_learn ?? []).length === 0 ? (
+              <p className="muted" role="status">هنوز برنامه یادگیری قابل‌نمایشی ثبت نشده است.</p>
+            ) : null}
           </div>
         </article>
 
@@ -104,9 +128,12 @@ export function CandidateHome({
             {(data.what_to_prove ?? []).map((item) => (
               <div className="proof-row" key={item.capability_version_id}>
                 <span>{item.name}</span>
-                <span className="state state-muted">{item.proof_state}</span>
+                <span className="state state-muted">{proofStateLabel(item.proof_state)}</span>
               </div>
             ))}
+            {(data.what_to_prove ?? []).length === 0 ? (
+              <p className="muted" role="status">هنوز داده‌ای برای نمایش اثبات رسمی ثبت نشده است؛ نبود داده به معنای ضعف نیست.</p>
+            ) : null}
           </div>
         </article>
       </section>
@@ -120,7 +147,7 @@ export function CandidateHome({
               <div className="learning-card" key={item.id}>
                 <div className="assignment-head">
                   <strong>{item.title}</strong>
-                  <span className="state">{item.status}</span>
+                  <span className="state">{activityStateLabel(item.status)}</span>
                 </div>
                 <p>{item.body}</p>
                 {item.status === "NOT_STARTED" ? (
@@ -139,8 +166,10 @@ export function CandidateHome({
                   >
                     {updatingLearningUnitId === item.id ? "در حال ثبت..." : "تکمیل فعالیت"}
                   </button>
-                ) : (
+                ) : item.status === "COMPLETED" ? (
                   <p className="success-note">این فعالیت یادگیری تکمیل شده است.</p>
+                ) : (
+                  <p className="muted" role="status">وضعیت فعالیت نیازمند بررسی است؛ امکان ثبت تغییر وجود ندارد.</p>
                 )}
               </div>
             ))}
@@ -164,7 +193,7 @@ export function CandidateHome({
                       <p className="muted">{practiceKindLabel(item.practice_kind)}</p>
                     </div>
                     <span className="state">
-                      {attempts.length > 0 ? `${attempts.length} ATTEMPT` : item.status}
+                      {attempts.length > 0 ? `تلاش ثبت‌شده: ${attempts.length.toLocaleString("fa-IR")}` : activityStateLabel(item.status)}
                     </span>
                   </div>
                   <p>{item.body}</p>
@@ -175,7 +204,7 @@ export function CandidateHome({
                         <div className="submission-summary" key={attempt.id}>
                           <div className="assignment-head">
                             <b>تلاش {attempt.attempt_number}</b>
-                            <span className="state">{attempt.status}</span>
+                            <span className="state">{activityStateLabel(attempt.status)}</span>
                           </div>
                           <p>{attempt.response_text}</p>
                           {(attempt.feedback_history ?? []).map((feedback) => (
@@ -262,7 +291,7 @@ export function CandidateHome({
                     <p>{item.body}</p>
                     <small>مهلت: {formatDate(item.due_at)}</small>
                   </div>
-                  <span className="state">{item.status}</span>
+                  <span className="state">{activityStateLabel(item.status)}</span>
                 </div>
 
                 {isSubmitted ? (
