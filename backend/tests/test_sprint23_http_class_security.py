@@ -103,14 +103,12 @@ def test_assessor_cannot_read_class_roster_even_with_valid_org_class() -> None:
     cohort = SimpleNamespace(id=COHORT)
     db = FakeDb([
         [(offering, cohort)],
-        [(CANDIDATE, "CANDIDATE"), (OTHER_CANDIDATE, "CANDIDATE")],
-        [INSTRUCTOR],
-        [],  # No active Assessor grant for this class.
+        [],  # No grant: do not even load private member/instructor rows.
     ])
     with as_actor(ASSESSOR, "ASSESSOR", db) as client:
         response = client.get(f"/api/v1/class-offerings/{CLASS}/roster")
         assert response.status_code == 404
-    assert len(db.statements) == 4
+    assert len(db.statements) == 2
     assert db.batches == []
 
 
