@@ -184,3 +184,98 @@ def test_invalid_intervals_fail_schema_validation():
     with pytest.raises(ValidationError):
         GrantExtendRequest(expected_version=1, ends_at=T0.replace(tzinfo=None),
                            reason="invalid timestamp", idempotency_key="naive")
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_real_scoped_grant_with_atomic_audit_event():
+    now = datetime.now(UTC)
+    body = GrantCreateRequest(
+        assessor_person_id=ASSESSOR,
+        starts_at=now - timedelta(minutes=5),
+        ends_at=now + timedelta(days=3),
+        idempotency_key="valid-create",
+    )
+    offering = SimpleNamespace(id=CLASS, status="ACTIVE")
+    cohort = SimpleNamespace(id=COHORT, status="ACTIVE")
+    db = FakeDB([[(offering, cohort)], [UUID(int=8209)], [], []])
+    result = await create_assessor_class_grant(
+        CLASS, body, actor(), cast(AsyncSession, db)
+    )
+    assert result.assessor_person_id == ASSESSOR
+    assert result.class_offering_id == CLASS
+    assert result.organization_context_id == ORG
+    assert result.version == 1 and result.revoked_at is None
+    assert db.commits == 1 and not db.batches
+    created = [x for x in db.added if isinstance(x, AssessorClassGrant)]
+    revisions = [x for x in db.added if isinstance(x, AssessorClassGrantRevision)]
+    assert len(created) == 1 and len(revisions) == 1
+    assert revisions[0].action == "CREATE"
+    assert revisions[0].actor_id == ADMIN
+    assert revisions[0].grant_id == created[0].id
+    role_query = db.statements[1].compile().params.values()
+    assert ORG in role_query and ASSESSOR in role_query and "ASSESSOR" in role_query
+
+
+@pytest.mark.asyncio
+async def test_create_retry_replays_original_immutable_revision_not_later_grant_state():
+    now = datetime.now(UTC)
+    start = now - timedelta(minutes=5)
+    end = now + timedelta(days=2)
+    original = AssessorClassGrantRevision(
+        id=UUID(int=8210), grant_id=UUID(int=8211),
+        organization_context_id=ORG, class_offering_id=CLASS,
+        assessor_person_id=ASSESSOR, actor_id=ADMIN, action="CREATE",
+        reason=None, expected_version=0, resulting_version=1,
+        starts_at=start, ends_at=end, revoked_at=None,
+        idempotency_key="replay-create", occurred_at=now,
+    )
+    offering = SimpleNamespace(id=CLASS, status="ACTIVE")
+    cohort = SimpleNamespace(id=COHORT, status="ACTIVE")
+    db = FakeDB([[(offering, cohort)], [UUID(int=8212)], [original]])
+    result = await create_assessor_class_grant(
+        CLASS,
+        GrantCreateRequest(
+            assessor_person_id=ASSESSOR,
+            starts_at=start, ends_at=end,
+            idempotency_key="replay-create",
+        ),
+        actor(), cast(AsyncSession, db),
+    )
+    assert result.grant_id == original.grant_id
+    assert result.version == 1 and result.ends_at == end
+    assert not db.batches and db.commits == 0
+
+
+@pytest.mark.asyncio
+async def test_admin_extend_then_revoke_preserves_source_grant_and_history():
+    now = datetime.now(UTC)
+    existing = grant(
+        starts_at=now - timedelta(minutes=1),
+        ends_at=now + timedelta(days=1),
+    )
+    offering = SimpleNamespace(id=CLASS, status="ACTIVE")
+    cohort = SimpleNamespace(id=COHORT, status="ACTIVE")
+    extend_db = FakeDB([[existing], [], [(offering, cohort)]])
+    extended = await extend_assessor_class_grant(
+        existing.id,
+        GrantExtendRequest(
+            expected_version=1, ends_at=now + timedelta(days=3),
+            reason="approved extension", idempotency_key="extend-valid",
+        ),
+        actor(), cast(AsyncSession, extend_db),
+    )
+    assert extended.version == 2 and extended.ends_at > now
+    assert extend_db.commits == 1
+    assert [x.action for x in extend_db.added if isinstance(x, AssessorClassGrantRevision)] == ["EXTEND"]
+
+    revoke_db = FakeDB([[existing], []])
+    revoked = await revoke_assessor_class_grant(
+        existing.id,
+        GrantRevokeRequest(
+            expected_version=2, reason="mission closed", idempotency_key="revoke-valid",
+        ),
+        actor(), cast(AsyncSession, revoke_db),
+    )
+    assert revoked.version == 3 and revoked.revoked_at is not None
+    assert revoke_db.commits == 1
+    assert [x.action for x in revoke_db.added if isinstance(x, AssessorClassGrantRevision)] == ["REVOKE"]
