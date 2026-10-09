@@ -152,7 +152,7 @@ export function CandidateReportCardView({
             ) : null}
             <div className="stack">
               {report.subjects.map((subject) => (
-                <article className="learning-card" key={subject.capability_version_id}>
+                <article className="report-subject-card" key={subject.capability_version_id}>
                   <div className="assignment-head">
                     <h3>{subject.capability_name ?? "عنوان درس در دسترس نیست"}</h3>
                     <span className="state">{learningLabel(subject.learning_state)}</span>
