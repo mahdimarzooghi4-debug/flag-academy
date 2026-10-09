@@ -142,6 +142,56 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     },
   );
   expect(forbiddenMutation.status()).toBe(403);
+
+  // P23-10: a real Instructor may submit versioned, UNPUBLISHED knowledge Drafts.
+  // A Draft must never become approved AI knowledge, Evidence or training data.
+  const knowledgeSourceKey = `decision-case-${crypto.randomUUID().slice(0, 8)}`;
+  const knowledgeRequest = {
+    source_key: knowledgeSourceKey,
+    content_text: "Teach tradeoffs, acknowledge uncertainty, and separate outcomes from decision quality.",
+    idempotency_key: crypto.randomUUID(),
+  };
+  const instructorDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: knowledgeRequest,
+  });
+  expect(instructorDraft.status()).toBe(201);
+  const draftVersion = (await instructorDraft.json()) as {
+    source_id: string; source_version_id: string; version_number: number;
+    source_key: string; status: string; classification: string; content_digest: string;
+  };
+  expect(draftVersion.source_key).toBe(knowledgeSourceKey);
+  expect(draftVersion.version_number).toBe(1);
+  expect(draftVersion.status).toBe("DRAFT");
+  expect(draftVersion.classification).toBe("INTERNAL");
+  expect(draftVersion.content_digest).toMatch(/^[0-9a-f]{64}$/);
+  const replayDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: knowledgeRequest,
+  });
+  expect(replayDraft.status()).toBe(201);
+  expect((await replayDraft.json()).source_version_id).toBe(draftVersion.source_version_id);
+  const conflictingDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: { ...knowledgeRequest, content_text: "Changed content under the same key" },
+  });
+  expect(conflictingDraft.status()).toBe(409);
+  const nextDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: { ...knowledgeRequest, content_text: "Revised teacher-authored draft", idempotency_key: crypto.randomUUID() },
+  });
+  expect(nextDraft.status()).toBe(201);
+  expect((await nextDraft.json()).version_number).toBe(2);
+  const myDrafts = await page.request.get(`${API}/api/v1/knowledge/my-drafts`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+  });
+  expect(myDrafts.status()).toBe(200);
+  const myDraftPage = (await myDrafts.json()) as {
+    items: Array<{ source_key: string; status: string; version_number: number }>;
+  };
+  expect(myDraftPage.items.filter((x) => x.source_key === knowledgeSourceKey)
+    .map((x) => x.version_number)).toEqual([1, 2]);
+  expect(JSON.stringify(myDraftPage)).not.toContain("content_text");
   await logout(page);
 
   // Only Academy Admin records PRESENT through the actual browser command.
@@ -166,6 +216,16 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   });
   await expect(row.locator("span").nth(1)).toHaveText("ثبت نشده؛ غیبت محسوب نمی‌شود");
   const adminToken = await tokenForCurrentUser(page);
+  const adminDrafts = await page.request.get(`${API}/api/v1/admin/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  expect(adminDrafts.status()).toBe(200);
+  const draftCatalog = (await adminDrafts.json()) as {
+    items: Array<{ source_key: string; status: string; content_digest: string }>;
+  };
+  expect(draftCatalog.items.filter((x) => x.source_key === knowledgeSourceKey)).toHaveLength(2);
+  expect(draftCatalog.items.every((x) => x.status === "DRAFT")).toBe(true);
+  expect(JSON.stringify(draftCatalog)).not.toContain("content_text");
   await row.getByRole("button", { name: "ثبت حاضر" }).click();
   await expect(row.locator("span").nth(1)).toHaveText("حاضر");
 
