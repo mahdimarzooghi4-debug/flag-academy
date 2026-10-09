@@ -606,12 +606,19 @@ Evidence:
 - exact-head CI `37905068610` — SUCCESS (Backend, Frontend, E2E with live OIDC and AI Governance).
 - PR #21 remains Draft/Open/Unmerged; no Code Review sign-off, Stage, QA Gate, Release Approval or Production.
 
-### P23-12 — Live OIDC E2E + Stage Acceptance
-- Candidate / Instructor / Assessor / Admin view same class truth appropriately;
-- no private cross-role leakage;
-- no score invention;
-- no attendance-driven progression;
-- no AI-driven consequential decision.
+### P23-12 — Live OIDC Browser E2E — CODE/CI VERIFIED (PARTIAL; Stage NOT RUN)
+- New Playwright browser scenario `frontend/tests/e2e/class-workspaces.spec.ts` logs in through live development Keycloak/OIDC as Candidate, Assessor, Instructor and Academy Admin; calls the actual FastAPI with each real identity token and uses the existing ephemeral `backend/app/seed.py` Organization/Cohort/Class/Session.
+- Candidate observes only the own-class qualitative report, explicit unrecorded Session attendance, an unknown authoritative `proof_state`, and cannot read another person's private report (404). No grade/average/rank is created.
+- Global ASSESSOR can continue using existing formal Evidence workspace, but cannot open Academy roster, activity or report-card APIs (non-disclosing 404) or Admin Cohort catalog (403). No class-assessor binding or Evidence-to-ClassOffering inference is invented (P23-09 remains DECISION BLOCKED).
+- Assigned Instructor sees the same class Sessions and absent attendance record without treating it as `ABSENT`; admin-only attendance mutation rejects Instructor (403).
+- Academy Admin selects the real cohort/class/session and records `PRESENT` through the browser's existing authorized button. A separate attempted `ABSENT` command with an obsolete `expected_version=0` and a fresh idempotency key fails with `409 ATTENDANCE_VERSION_CONFLICT`; the recorded value stays `PRESENT`. Candidate later sees the same human-recorded status while `proof_state` remains null.
+- Browser assertions and backend authorization are both exercised; this is not a mock-only UI test. No Production data, provider credentials, new permissions, artificial Evidence, Profile Apply, Gate decision, or AI model change is involved.
+
+Evidence and scoped technical Code Review:
+- Browser test commit `8de5aa69b7eb7c90fffd2f68df1fcca1397f1e9d`; exact-head CI `37907027359` SUCCESS (Backend, Frontend, E2E with live OIDC and AI governance checks).
+- Technical review of this **test-only** package: source fixture IDs match the development Seed, recorded status comes from the authoritative Attendance command, stale update is rejected by the existing version check, and negative-role requests use real bearer tokens. No blocker found for this bounded test addition; this is not independent human Code Review approval for the whole Sprint.
+- Remaining Browser acceptance coverage: independently authorized second-class and cross-tenant live fixtures, additional session/class switch and concurrent mutation cases, and the Assessor's positive class-context journey once P23-09 receives a formal permission and lineage contract.
+- P23-12 remains PARTIAL. No Stage Acceptance, QA Gate, Release Approval, Merge or Production was performed or authorized. PR #21 stays Draft/Open.
 
 ## Explicit unresolved product decisions
 
