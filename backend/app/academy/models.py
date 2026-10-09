@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -226,3 +227,41 @@ class AssessorClassGrantRevision(Base):
     )
     idempotency_key: Mapped[str] = mapped_column(String(160))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ClassAssessorObservation(Base):
+    """Immutable factual Academy observation; not an EvidenceCase or formal claim."""
+
+    __tablename__ = "class_assessor_observations"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id", "observer_person_id", "idempotency_key",
+            name="uq_class_observation_actor_idempotency",
+        ),
+        CheckConstraint(
+            "observed_at <= recorded_at", name="ck_class_observation_recorded_after_observed"
+        ),
+        CheckConstraint(
+            "length(trim(observed_fact)) > 0", name="ck_class_observation_nonblank_fact"
+        ),
+        { "schema": "academy" },
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_context_id: Mapped[UUID]
+    class_offering_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.class_offerings.id")
+    )
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.sessions.id")
+    )
+    candidate_person_id: Mapped[UUID]
+    observer_person_id: Mapped[UUID]
+    grant_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.assessor_class_grants.id")
+    )
+    grant_version: Mapped[int] = mapped_column(BigInteger)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    observed_fact: Mapped[str] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(160))

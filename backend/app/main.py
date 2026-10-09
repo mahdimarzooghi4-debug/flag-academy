@@ -13,6 +13,7 @@ from app.academy.assessor_classes_api import router as assessor_classes_router
 from app.academy.assessor_grants_api import router as assessor_grants_router
 from app.academy.candidate_class_api import router as candidate_class_router
 from app.academy.class_sessions_api import router as class_sessions_router
+from app.academy.class_observations_api import router as class_observations_router
 from app.academy.report_card_api import router as class_report_card_router
 from app.ai_governance_api import router as ai_governance_router
 from app.config import get_settings
@@ -55,6 +56,7 @@ app.include_router(assessor_grants_router)
 app.include_router(class_activity_router)
 app.include_router(candidate_class_router)
 app.include_router(class_sessions_router)
+app.include_router(class_observations_router)
 app.include_router(class_report_card_router)
 app.include_router(knowledge_router)
 app.include_router(learning_router)
