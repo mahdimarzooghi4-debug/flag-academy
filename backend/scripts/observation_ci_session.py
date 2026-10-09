@@ -31,6 +31,7 @@ async def main() -> None:
                 updated_at=now,
             )
         )
+        await db.flush()  # Foreign key requires the new Person row first.
         db.add(
             OrganizationMembership(
                 id=UUID("00000000-0000-0000-0000-000000000115"),
