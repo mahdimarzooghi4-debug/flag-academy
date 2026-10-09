@@ -569,10 +569,11 @@ Implementation and CI evidence:
 - PR #21 remains Draft/Open/Unmerged. No Code Review sign-off, Stage, QA Gate, Release Approval, or Production.
 
 
-### P23-09 — Assessor class-context binding
-- explicit authorized class context;
-- Evidence workspace can display class/session context;
-- global ASSESSOR role alone is insufficient for unrestricted class roster access.
+### P23-09 — Assessor class-context binding — DECISION BLOCKED
+- An approved mechanism to authorize an Assessor to a specific ClassOffering does **not** yet exist. The Sprint 23 contract explicitly lists this as an unresolved product decision (item 3).
+- The Evidence bounded context currently has subject/source provenance, not an authoritative class-assessor grant or a guaranteed Academy ClassOffering/Session linkage for every observation. Candidate identity, organization membership, shared CapabilityVersion, or a bare ASSESSOR role are **not** an approved authorization or mapping.
+- No inferred AssessorAssignment, unrestricted roster permission, Evidence-to-class mapping, or cross-context persistence foreign key has been introduced. Existing Evidence review permissions remain unchanged and do not grant Academy class roster access.
+- Resume this slice only with an explicit authorized class-assessor binding/permission contract and reliable observation-to-class source lineage; then test cross-tenant and non-assigned denial before any class-context display.
 
 ### P23-10 — Academy Knowledge foundation — ACTIVE
 - versioned/approved/traceable source contract;
@@ -591,13 +592,19 @@ Implementation and CI evidence:
 - real Academy-environment Seed approval has not been executed;
 - Academy Knowledge retrieval/indexing and model-runtime technology remain unresolved and are not selected in this slice.
 
-### P23-11 — Interaction / stale-safety / security tests
-- role isolation;
-- tenant isolation;
-- missing attendance safety;
-- report-card provenance;
-- stale projection behavior;
-- no formal-growth mutation from report card.
+### P23-11 — Interaction / stale-safety / security tests — CODE/CI VERIFIED (first hardening package)
+- New ASGI/TestClient authorization regressions execute FastAPI dependencies for Academy Admin cohort/class catalog, Assessor roster denial, Candidate own-only roster, unassigned Instructor session denial, and cross-tenant class hiding. Candidate/Instructor/Assessor cannot use Admin-only discovery: 403 before tenant data reads; 404 conceals unsupported class context where required.
+- The Admin Academy React workspace now fail-closes on mismatched `cohort_id` in class catalogs, mismatched `class_offering_id` or `cohort_id` in roster data, sessions whose class does not match the selected class, and report cards whose cohort/class/person context differs from the current selection. This also prevents constructing attendance requests from an unrelated session or a report request from a stale roster.
+- Frontend React Query tests simulate wrong-cohort class catalogs, wrong-class rosters and wrong-class sessions and assert no private detail rendering, no unauthorized report/attendance fetches and no attendance POST.
+- Human attendance remains explicit; `NOT_RECORDED` is not converted into `ABSENT`, and no report-card action produces Evidence, CapabilityClaim, Gate transition, score or automated progression.
+- This is an incremental P23-11 security hardening package, not exhaustive penetration testing or Stage acceptance. Additional real-browser cross-class/cross-role and stale-mutation acceptance remains in P23-12.
+
+Evidence:
+- HTTP role/tenant tests commit `052649816d40dd2e93a460cde47a87ac6f0f85a1`;
+- fail-closed Admin Academy scope checks commit `b8df24c68dab1cd2fb3895c1169e5b368ad184b1`;
+- stale-context React tests and accepted code HEAD `6835e8b4b3444ccb323fe214f7703957707f3014`;
+- exact-head CI `37905068610` — SUCCESS (Backend, Frontend, E2E with live OIDC and AI Governance).
+- PR #21 remains Draft/Open/Unmerged; no Code Review sign-off, Stage, QA Gate, Release Approval or Production.
 
 ### P23-12 — Live OIDC E2E + Stage Acceptance
 - Candidate / Instructor / Assessor / Admin view same class truth appropriately;
