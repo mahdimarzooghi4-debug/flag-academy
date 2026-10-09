@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeApi } from "../api/client";
+import { AssessorGrantAdminWorkspace } from "./AssessorGrantAdminWorkspace";
 import type {
   InstructorAttendance,
   InstructorClassActivity,
@@ -474,6 +475,7 @@ export function AdminAcademyOperationsWorkspace({
     setChosenPersonId(undefined);
   };
   return (
+    <>
     <AdminAcademyOperationsView
       cohorts={cohorts.data}
       cohortId={cohortId}
@@ -508,5 +510,15 @@ export function AdminAcademyOperationsWorkspace({
       loading={loading}
       errors={errors}
     />
+    {classId && verifiedClassPage && errors.length === 0 ? (
+      <AssessorGrantAdminWorkspace
+        key={`${organizationId}:${classId}`}
+        accessToken={accessToken}
+        organizationId={organizationId}
+        personId={personId}
+        classId={classId}
+      />
+    ) : null}
+    </>
   );
 }
