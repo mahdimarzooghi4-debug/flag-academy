@@ -23,6 +23,7 @@ import {
   type MissionCatalogItem,
   type MissionInstance,
 } from "./components/MissionWorkspace";
+import { AdminAcademyOperationsWorkspace } from "./components/AdminAcademyOperationsWorkspace";
 import {
   AcademyStudio,
   type CapabilityOption,
@@ -1200,6 +1201,13 @@ function AuthenticatedApp({
           خروج
         </button>
       </header>
+      {isAdmin && me.data ? (
+        <AdminAcademyOperationsWorkspace
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+        />
+      ) : null}
       {isAdmin &&
       capabilities.data &&
       missionTemplates.data &&
