@@ -323,8 +323,10 @@ export function AdminAcademyOperationsWorkspace({
       return data as AdminClassPage;
     },
   });
-  const classId = classes.data?.items.some((item) => item.class_offering_id === chosenClassId)
-    ? chosenClassId : classes.data?.items[0]?.class_offering_id;
+  const verifiedClassPage = classes.data?.cohort_id === cohortId
+    ? classes.data : undefined;
+  const classId = verifiedClassPage?.items.some((item) => item.class_offering_id === chosenClassId)
+    ? chosenClassId : verifiedClassPage?.items[0]?.class_offering_id;
   const roster = useQuery({
     queryKey: ["admin-academy-roster", organizationId, personId, classId],
     enabled: Boolean(classId),
@@ -347,8 +349,10 @@ export function AdminAcademyOperationsWorkspace({
       return data as InstructorSession[];
     },
   });
-  const sessionId = sessions.data?.some((item) => item.session_id === chosenSessionId)
-    ? chosenSessionId : sessions.data?.[0]?.session_id;
+  const verifiedSessions = sessions.data?.every((item) => item.class_offering_id === classId)
+    ? sessions.data : undefined;
+  const sessionId = verifiedSessions?.some((item) => item.session_id === chosenSessionId)
+    ? chosenSessionId : verifiedSessions?.[0]?.session_id;
   const attendance = useQuery({
     queryKey: ["admin-academy-attendance", organizationId, personId, classId, sessionId],
     enabled: Boolean(classId && sessionId),
@@ -371,7 +375,12 @@ export function AdminAcademyOperationsWorkspace({
       return data as InstructorClassActivity;
     },
   });
-  const learners = (roster.data?.members ?? []).filter((x) => x.member_type === "CANDIDATE");
+  const verifiedRoster =
+    roster.data?.class_offering_id === classId && roster.data?.cohort_id === cohortId
+      ? roster.data : undefined;
+  const learners = (verifiedRoster?.members ?? []).filter(
+    (x) => x.member_type === "CANDIDATE",
+  );
   const selectedPersonId = learners.some((x) => x.person_id === chosenPersonId)
     ? chosenPersonId : learners[0]?.person_id;
   const report = useQuery({
@@ -420,6 +429,22 @@ export function AdminAcademyOperationsWorkspace({
   const errors = [cohorts, classes, roster, sessions, attendance, activity, report]
     .filter((query) => query.isError)
     .map((query) => query.error?.message ?? "دریافت اطلاعات ناموفق بود.");
+  if (classes.data && classes.data.cohort_id !== cohortId) {
+    errors.push("شناسه گروه فهرست کلاس‌ها تطبیق ندارد.");
+  }
+  if (roster.data && !verifiedRoster) {
+    errors.push("فهرست افراد با کلاس و گروه انتخاب‌شده تطبیق ندارد.");
+  }
+  if (sessions.data && !verifiedSessions) {
+    errors.push("جلسات با کلاس انتخاب‌شده تطبیق ندارند.");
+  }
+  if (report.data && (
+    report.data.class_offering_id !== classId ||
+    report.data.cohort_id !== cohortId ||
+    report.data.person_id !== selectedPersonId
+  )) {
+    errors.push("کارنامه با کلاس یا فراگیر انتخاب‌شده تطبیق ندارد.");
+  }
   if (saveAttendance.isError) {
     errors.push(saveAttendance.error.message);
   }
@@ -455,13 +480,13 @@ export function AdminAcademyOperationsWorkspace({
       onCohortChange={changeCohort}
       cohortOffset={cohortOffset}
       onCohortOffset={changeCohortOffset}
-      classes={classes.data?.cohort_id === cohortId ? classes.data : undefined}
+      classes={verifiedClassPage}
       classId={classId}
       onClassChange={changeClass}
       classOffset={classOffset}
       onClassOffset={changeClassOffset}
-      roster={roster.data?.class_offering_id === classId ? roster.data : undefined}
-      sessions={sessions.data}
+      roster={verifiedRoster}
+      sessions={verifiedSessions}
       sessionId={sessionId}
       onSessionChange={setChosenSessionId}
       attendance={attendance.data?.session_id === sessionId ? attendance.data : undefined}
@@ -469,7 +494,9 @@ export function AdminAcademyOperationsWorkspace({
       selectedPersonId={selectedPersonId}
       onPersonChange={setChosenPersonId}
       report={
-        report.data?.class_offering_id === classId && report.data?.person_id === selectedPersonId
+        report.data?.class_offering_id === classId &&
+        report.data?.cohort_id === cohortId &&
+        report.data?.person_id === selectedPersonId
           ? report.data : undefined
       }
       onRecordAttendance={(learnerId, status) => {
