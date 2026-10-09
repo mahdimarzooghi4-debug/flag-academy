@@ -32,7 +32,9 @@ def test_roster_is_tenant_scoped_and_fail_closed() -> None:
     assert "actor.person_id in instructor_rows" in roster
     assert "person_id == actor.person_id" in roster
     assert 'raise AppError("CLASS_NOT_FOUND"' in roster
-    assert '"ASSESSOR" in actor.roles' not in roster
+    assert '"ASSESSOR" in actor.roles' in roster
+    assert "await has_live_assessor_class_access(" in roster
+    # The global role is not itself sufficient for Academy class visibility.
 
 
 def test_roster_has_no_evidence_gate_or_attendance_write_side_effect() -> None:
