@@ -70,14 +70,21 @@ async def propose_knowledge_draft(
     ):
         raise AppError("INSUFFICIENT_PERMISSION", "Current instructor role required.", status_code=403)
 
-    # Serialize competing source versions across replicas before unique-key/replay checks.
-    lock = int.from_bytes(
-        hashlib.sha256(
-            f"knowledge:{actor.organization_context_id}:{body.source_key}".encode()
-        ).digest()[:8],
-        byteorder="big", signed=True,
+    # Both the author/idempotency key and the shared source identity are serialized.
+    # Stable lock order prevents cross-replica deadlocks across overlapping commands.
+    identities = (
+        f"knowledge:actor:{actor.organization_context_id}:{actor.person_id}:{body.idempotency_key}",
+        f"knowledge:source:{actor.organization_context_id}:{body.source_key}",
     )
-    await db.execute(text("SELECT pg_advisory_xact_lock(:key)").bindparams(key=lock))
+    locks = sorted({
+        int.from_bytes(
+            hashlib.sha256(value.encode("utf-8")).digest()[:8],
+            byteorder="big", signed=True,
+        )
+        for value in identities
+    })
+    for lock in locks:
+        await db.execute(text("SELECT pg_advisory_xact_lock(:key)").bindparams(key=lock))
     digest = hashlib.sha256(body.content_text.encode("utf-8")).hexdigest()
 
     prior = (
@@ -86,6 +93,7 @@ async def propose_knowledge_draft(
             .join(KnowledgeSource, KnowledgeSourceVersion.source_id == KnowledgeSource.id)
             .where(
                 KnowledgeSourceVersion.organization_context_id == actor.organization_context_id,
+                KnowledgeSource.organization_context_id == actor.organization_context_id,
                 KnowledgeSourceVersion.author_person_id == actor.person_id,
                 KnowledgeSourceVersion.idempotency_key == body.idempotency_key,
             )
