@@ -24,6 +24,7 @@ import {
   type MissionInstance,
 } from "./components/MissionWorkspace";
 import { AdminAcademyOperationsWorkspace } from "./components/AdminAcademyOperationsWorkspace";
+import { SeedLearningApprovalWorkspace } from "./components/SeedLearningApprovalWorkspace";
 import { AssessorClassWorkspace } from "./components/AssessorClassWorkspace";
 import {
   AcademyStudio,
@@ -1239,6 +1240,14 @@ function AuthenticatedApp({
       ) : null}
       {isAdmin && aiGovernance.data ? (
         <AIGovernanceWorkspace data={aiGovernance.data} />
+      ) : null}
+      {isAdmin && me.data ? (
+        <SeedLearningApprovalWorkspace
+          key={`${me.data.organization_context_id}:${me.data.person_id}:decision-making-v1`}
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+        />
       ) : null}
       {!isAdmin &&
       isCandidate &&
