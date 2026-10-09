@@ -179,7 +179,7 @@ test("academy admin authors, activates, and candidate runs a deterministic missi
   }
 
   await login(page, "academy-admin", adminPassword);
-  await expect(page.getByText("طراحی مأموریت")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "طراحی مأموریت", exact: true })).toBeVisible();
 
   await page.getByLabel("کد مأموریت").fill("OWNERSHIP_RECOVERY_E2E");
   await page.getByLabel("نام Template").fill("Ownership Recovery E2E");
