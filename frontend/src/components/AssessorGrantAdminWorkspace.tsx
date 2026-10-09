@@ -17,7 +17,7 @@ export type AssessorGrantPage = {
   next_offset: number | null;
 };
 const LIMIT = 50;
-const UUID_RE = /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
+const UUID_RE = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 
 export function explicitUtcInstant(value: string): string {
   // No implicit timezone: a grant is an explicit human authorization window.
