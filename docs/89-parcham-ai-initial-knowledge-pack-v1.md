@@ -268,3 +268,13 @@ This Knowledge Pack does not select:
 - numeric evaluation thresholds.
 
 Those require separate implementation/evidence decisions.
+
+## Draft Knowledge Registry Foundation — implementation status (2026-10-09)
+
+P23-10 now has a separate `knowledge`-owned PostgreSQL registry for Instructor-authored immutable `DRAFT` source versions. Each source version is attributable, versioned, source- and organization-scoped, SHA-256 attested and audit-traceable. Only same-org Instructor authors can create drafts; Admin can inspect draft **metadata only**. Any proposal stays unavailable to Candidate, AI runtime retrieval or Training. Revisions never rewrite old content.
+
+The initial canonical Knowledge Pack documents listed above remain **approved for authoring**, not automatically published registry entries. This phase does not silently ingest them, classify them as live knowledge, or confer Knowledge-use or AI-learning authorization.
+
+The Scientific Council member identities/roles, quorum, review actions, Admin final publish/withdraw actions, class+role+purpose+mode retrieval authorization, content access for reviewer verification, indexing and Gemma inference remain separate unfinished contracts. No assumption about these missing decisions was coded.
+
+Technical self-review: `docs/reviews/28-sprint-23-knowledge-draft-registry-code-review.md`. Implementation `b973d8a622f3b5bbef0804e2fa83dd947c2c7f59`, exact-head [CI 37929363329](https://github.com/mahdimarzooghi4-debug/flag-academy/actions/runs/37929363329) SUCCESS, including live OIDC + PostgreSQL draft versioning tests. PR #21 remains Draft/Open/Unmerged; no Stage/Production admission.
