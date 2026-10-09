@@ -534,13 +534,22 @@ Code and CI evidence:
 - Scope is current-cohort learner experience only, not unrestricted multi-cohort admin or instructor experience. PR #21 remains Draft/Open/Unmerged. Stage/QA/Release/Production not performed.
 
 
-### P23-07 — Instructor Class Workspace
-- class roster;
-- attendance read state;
-- recent activity;
-- feedback work queue;
-- report-card view;
-- same underlying class context as Candidate.
+### P23-07 — Instructor Class Workspace — CODE/CI VERIFIED (foundation)
+- New read-only `GET /api/v1/class-offerings/{class_offering_id}/sessions` resolves the exact organization of `ClassOffering` through its `Cohort`, then requires either a real same-class InstructorAssignment or ACADEMY_ADMIN. An unauthorized request is 404 before any Session data is read; no attendance writes or ownership inference.
+- Existing `/me/instructor-home` supplies assigned-class choices and the existing feedback-action queues. React `InstructorClassWorkspace` embeds alongside `InstructorHome`, preserving its actual feedback submission actions rather than inventing new mutations.
+- For the selected assigned class, the UI uses the existing class roster and activity read models; the new authorized class sessions list; existing session attendance GET; and existing per-person qualitative report card. Each backend endpoint independently enforces its own tenant/assignment/person scope.
+- Candidate roster persons only are shown for attendance and report selection. An absent AttendanceRecord is displayed as `NOT_RECORDED`, never `ABSENT`; attendance remains ACADEMY_ADMIN-write only.
+- Activity shows real source type/ID/state and truncation, with no raw practice text in the timeline. Feedback pending summaries originate from the instructor home read projection and are explicitly labeled as across the instructor's assigned classes, not inferred per selected class.
+- Report shows per-CapabilityVersion educational LearningState, human-reviewed claim independently, and unknown ProofState without converting one into another. No grades, readiness, weighted averages, Evidence mutation, or automatic Gate decision.
+- Backend tests verify GET-only OpenAPI, tenant and assignment isolation including unassigned/other-org 404, and admin read. React tests cover class/session/person selection, absent attendance, no class, error handling, source context, and separation of reviewed claim versus formal proof.
+- Dedicated real-browser tests for every new P23-07 flow and cross-class denial are still required as part of P23-11/12; the existing live OIDC/browser and AI governance E2E regression suite is green.
+
+Implementation and CI evidence:
+- sessions backend `1c8fd84724dff55fde77d4756e47c97f2eed0303`; router `dffdbbb56800c51a945e7aeeeefb0c53c604a2bf`; backend tests `b144f35ae0f8fd59afa97c26f28c4682d11272ab`.
+- Instructor UI `7b5900924e35e95e06236f531cf756dca138b162`; App integration `4e9745c4e765ae00c3346d1aba7ea9141ca6e0d0`; UI tests and tested HEAD `8bed43e417b27c72d9503bd5864c15a40e277764`.
+- Exact-head CI `37900696895` SUCCESS: Backend, Frontend and E2E (including live OIDC and AI Governance).
+- PR #21 remains Draft/Open/Unmerged. No Stage, QA Gate, human Release Approval, or Production.
+
 
 ### P23-08 — Academy Admin Operations Workspace
 - people;
