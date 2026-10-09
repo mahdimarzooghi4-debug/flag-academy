@@ -105,11 +105,12 @@ def test_assessor_cannot_read_class_roster_even_with_valid_org_class() -> None:
         [(offering, cohort)],
         [(CANDIDATE, "CANDIDATE"), (OTHER_CANDIDATE, "CANDIDATE")],
         [INSTRUCTOR],
+        [],  # No active Assessor grant for this class.
     ])
     with as_actor(ASSESSOR, "ASSESSOR", db) as client:
         response = client.get(f"/api/v1/class-offerings/{CLASS}/roster")
         assert response.status_code == 404
-    assert len(db.statements) == 3
+    assert len(db.statements) == 4
     assert db.batches == []
 
 
