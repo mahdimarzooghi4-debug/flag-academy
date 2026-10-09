@@ -68,7 +68,7 @@ export function AssessorClassView({
     activity?.class_offering_id === selected.class_offering_id;
   const learners = scoped && roster ? roster.members.filter((item) => item.member_type === "CANDIDATE") : [];
   const recorded = new Map(
-    attendance?.session_id === sessionId
+    attendance && attendance.session_id === sessionId
       ? attendance.items.map((item) => [item.person_id, item.status])
       : [],
   );
