@@ -1,0 +1,41 @@
+# 91 — Sprint 23 approved business governance decisions (9 October 2026)
+
+**Status:** BUSINESS APPROVED; TECHNICAL IMPLEMENTATION PENDING
+**Source:** Explicit ten-answer product interview, 2026-10-09
+**Target:** Sprint 23, PR #21 (Draft/Open)
+**Supersedes:** the undecided Assessor scope described in DEC-638, **only to the extent answered below**. Existing security, Evidence, Gate, and AI governance remain binding.
+
+## Business decisions — explicitly approved
+
+1. **Assessor appointing authority.** Only `ACADEMY_ADMIN` appoints an Assessor to a class. Administrative grant and revocation must be traceable to the accountable administrator.
+2. **Scope.** Appointment covers **all Candidate members of exactly one ClassOffering** in its organization, not other classes, cohorts, or tenants. Being an ASSESSOR in the organization is never itself a class grant.
+3. **Role-aware visibility.** During a valid appointment an Assessor may read the authorized class roster, recorded attendance, activity, instructor feedback, qualitative report card, and **separately authorized** Evidence/Observation information. Other reviewers' confidential notes, concealed assessment mechanisms, privileged decisions and hidden AI data are excluded unless separately authorized under their owning bounded contexts. Academy appointment does not enlarge Evidence/Gate/Flag Profile privileges.
+4. **Observations.** During or after a class, the appointed Assessor may record **factual** observations about an authorized Candidate with explicit ClassOffering, Session, Candidate, observer, actual observed-at time, and recorded-at time. Historical and later entry are distinct. A recorded Observation is **not** accepted Evidence; its processing still requires review, lineage, context, integrity, and explicit human governance. No automatic Profile/Gate mutation.
+5. **Appointment lifetime.** Admin provides explicit start and end times. Admin can extend or revoke early. Class completion also terminates operational access. After cessation, private classroom operational views fail closed while durable audit history remains available through separately authorized audit pathways. No automatic resurrection from old grants.
+6. **Report card proof.** Show `LearningState`, authoritative *human-applied* `CapabilityClaim`, and a separate **authoritatively sourced** `ProofState`. Until an independent ProofState public read contract is approved and built, display `null`. Never convert attendance/completion/Claim presentation into invented ProofState.
+7. **Next learning focus.** Approved curriculum supplies the boundaries. Parcham-owned AI may offer a constrained proposal from role-permitted, policy-approved sources; the assigned Instructor explicitly decides the resulting focus. No AI automation of curriculum progression or proof. Until that review/write contract exists, `next_learning_focus=null`.
+8. **Knowledge governance.** Responsible Instructor authors/proposes knowledge; Scientific Council reviews domain quality; Academy Admin gives **final publication authorization**. Knowledge must be versioned, attributable, and withdrawable with history intact. Exact council membership/role assignment, quorum, delegation and workflow API are **not yet defined**; do not create guessed roles or approval shortcuts.
+9. **Knowledge access.** Parcham AI knowledge-use is role-, purpose-, mode- and class/assignment-scoped. Candidate receives approved learning-safe knowledge; Instructor teaching guidance; appointed Assessor only assessment knowledge permitted for the current assignment; Academy Admin only its authorized management scope. Hidden assessment materials are excluded from Candidate outputs. Knowledge-use approval never implies AI-learning eligibility or Training/Promotion authorization.
+10. **Attendance finalization.** Finalized attendance is locked for ordinary mutation; `ACADEMY_ADMIN` alone may make an **explicit, reasoned, audited correction** retaining previous values and versions. No Instructor correction. The finalization trigger/lifecycle, whether and when it occurs, and precise correction API and policy **remain to be specified**. Never assume Session `ends_at` finalizes attendance, or silently enforce an invented cutoff. Existing audited AttendanceRecord mutation remains effective pending the separate contract.
+
+## Technical boundary for P23-09
+
+- Owner of class-assessor appointment is **Academy**. Its stable identity is scoped to `organization_context_id + class_offering_id + assessor_person_id` with explicit effective interval, accountable Admin, version, and grant/revoke history. No cross-bounded-context FK; membership of the appointed Assessor in the same organization and with membership role `ASSESSOR` must be checked against authoritative Identity, and the class must resolve through `ClassOffering → Cohort → organization`. A user having an unscoped `ASSESSOR` role is insufficient.
+- All class data endpoints independently check **live** appointment, time-window, revocation and class operational eligibility, never a previously fetched UI permission. Checks occur before any private roster/activity/feedback/report rows are returned. Missing/mismatched grants produce non-disclosing 404. Admin mutations use explicit actor accountability, optimistic version, idempotency, audit, and concurrency-safe storage. Pending or expired appointments confer no live access.
+- Classroom read models can expose operational/class-sourced data only. Evidence, Profile and Gate domain API access remains separately authorized; no Evidence-to-ClassOffering mapping inferred from Candidate identity, cohort, shared CapabilityVersion, or Mission identity. Assessor access to Observation lineage requires a **verified** class/session source identity.
+- For post-class Observation entry: validate observation belongs to a **real past authorized observation interval**. Do not allow expired access to private class read models merely because backdated entry was approved in the business contract; historical entry authorization and privacy policy still need a domain-specific endpoint/contract.
+- Class completion cutoff is approved in principle, but the current `ClassOffering.status` persistence has no approved terminal state machine or exact class-completion timestamp. Do not equate `Cohort.ends_on`, last Session `ends_at`, or arbitrary status strings to authoritative completion; deny when the class is not in an explicitly authorized operational state until the lifecycle contract exists.
+- An Assessor class grant **never** permits: attendance mutation; instructor grading; Evidence acceptance without its own authorization; reviewer-private notes; auto-accepted Evidence; Profile Apply; Gate PASS/FAIL; AI Training; external AI.
+- Observe `DEC-628..631`, `DEC-632..642` and `docs/88-sprint-23-class-simulator-foundation.md`.
+
+## Package sequencing and acceptance
+
+**Package A: authorization foundation.** Academy-owned scoped appointment and time window; Admin grant/extend/revoke; immutable audit, tests for cross-org/non-ASSSESSOR/expired/revoked/other-class grants, and non-disclosing no-grant; no Observation ingestion yet. Maintain class-only permissions.
+
+**Package B: authorized read paths.** After A's CI is green, join Roster, Sessions, recorded Attendance, Activity, and learner ReportCard behind the same authorization helper; never expose private Assessment internals. Contract and permission test suites before frontend.
+
+**Package C: factual classroom observation.** Explicit person/session/class provenance and observed-at vs recorded-at; separately reviewed Evidence ingestion if and only if source contract has been established; history/late-entry access reviewed. No automatic Evidence conversion.
+
+**Package D: remaining approved governance contracts.** Independent ProofState public read, Instructor-approved focus, Scientific Council knowledge review and role/mode-scoped knowledge access, reasoned attendance finalization/correction. Design each owning context's authority and acceptance tests before code.
+
+Every package: Contract → Tests → Code → CI → Code Review. PR #21 must remain Draft/Open. No Stage, QA Gate, Release, Production or merge without explicit user instruction. This document records **approved business decisions, not completed implementations**.
