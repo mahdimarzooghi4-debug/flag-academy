@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.academy.activity_api import router as class_activity_router
+from app.academy.assessor_grants_api import router as assessor_grants_router
 from app.academy.admin_operations_api import router as admin_academy_router
 from app.academy.api import router as academy_router
 from app.academy.candidate_class_api import router as candidate_class_router
@@ -47,6 +48,7 @@ app.include_router(gate_assessment_router)
 app.include_router(curriculum_router)
 app.include_router(academy_router)
 app.include_router(admin_academy_router)
+app.include_router(assessor_grants_router)
 app.include_router(class_activity_router)
 app.include_router(candidate_class_router)
 app.include_router(class_sessions_router)
