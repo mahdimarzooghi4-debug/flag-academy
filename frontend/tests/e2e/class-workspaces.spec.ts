@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 const CLASS_ID = "00000000-0000-0000-0000-000000000220";
 const CANDIDATE_ID = "00000000-0000-0000-0000-000000000101";
 const ASSESSOR_ID = "00000000-0000-0000-0000-000000000104";
+const INDEPENDENT_REVIEWER_ID = "00000000-0000-0000-0000-000000000105";
 const INSTRUCTOR_ID = "00000000-0000-0000-0000-000000000102";
 const SESSION_ID = "00000000-0000-0000-0000-000000000241";
 // Ephemeral in-progress Session created by scripts/observation_ci_session.py ONLY in CI.
@@ -58,6 +59,7 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     candidate: process.env.PARCHAM_DEV_CANDIDATE_PASSWORD,
     instructor: process.env.PARCHAM_DEV_INSTRUCTOR_PASSWORD,
     assessor: process.env.PARCHAM_DEV_ASSESSOR_PASSWORD,
+    reviewer: process.env.PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD,
     admin: process.env.PARCHAM_DEV_ADMIN_PASSWORD,
   };
   if (Object.values(passwords).some((value) => !value)) {
@@ -374,6 +376,11 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     { headers: observationHeaders, data: { ...observationBody, idempotency_key: crypto.randomUUID() } },
   );
   expect(crossClassObservation.status()).toBe(404);
+  const authorCannotReview = await page.request.get(
+    `${API}/api/v1/classroom-observations/${observation.observation_id}/review-source`,
+    { headers: observationHeaders },
+  );
+  expect(authorCannotReview.status()).toBe(404);
   // The separate Evidence API has no implicit link to this new Academy source.
   expect(JSON.stringify(observation)).not.toContain("evidence_case_id");
 
@@ -383,6 +390,106 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     },
   );
   expect(assessorStillCannotAdmin.status()).toBe(403);
+  await logout(page);
+
+  // P23-09C human source review: SECOND real Keycloak identity, scoped to
+  // the same class by an independent Admin appointment. No Evidence admission.
+  const sourceReviewUrl = `${API}/api/v1/classroom-observations/${observation.observation_id}/review-source`;
+  await login(page, "assessor-reviewer", passwords.reviewer!);
+  const reviewerUnassignedToken = await tokenForCurrentUser(page);
+  const beforeReviewerGrant = await page.request.get(sourceReviewUrl, {
+    headers: { Authorization: `Bearer ${reviewerUnassignedToken}` },
+  });
+  expect(beforeReviewerGrant.status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const adminReviewToken = await tokenForCurrentUser(page);
+  const reviewerGrantResponse = await page.request.post(
+    `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
+      headers: { Authorization: `Bearer ${adminReviewToken}` },
+      data: {
+        assessor_person_id: INDEPENDENT_REVIEWER_ID,
+        starts_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+        ends_at: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(reviewerGrantResponse.status()).toBe(200);
+  const reviewerGrant = (await reviewerGrantResponse.json()) as {
+    grant_id: string; version: number;
+  };
+  expect(reviewerGrant.version).toBe(1);
+  await logout(page);
+
+  await login(page, "assessor-reviewer", passwords.reviewer!);
+  const reviewerToken = await tokenForCurrentUser(page);
+  const reviewerHeaders = { Authorization: `Bearer ${reviewerToken}` };
+  const reviewerSource = await page.request.get(sourceReviewUrl, { headers: reviewerHeaders });
+  expect(reviewerSource.status()).toBe(200);
+  const scopedSource = (await reviewerSource.json()) as {
+    observation_id: string; observer_person_id: string; candidate_person_id: string;
+    source_sha256: string; observed_fact: string;
+  };
+  expect(scopedSource.observation_id).toBe(observation.observation_id);
+  expect(scopedSource.observer_person_id).toBe(ASSESSOR_ID);
+  expect(scopedSource.candidate_person_id).toBe(CANDIDATE_ID);
+  expect(scopedSource.source_sha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(scopedSource.observed_fact).toBe(observationBody.observed_fact);
+  const reviewBody = {
+    expected_source_sha256: scopedSource.source_sha256,
+    decision: "VERIFIED",
+    rationale: "Independently reviewed this particular source and authorized classroom interval",
+  };
+  const [reviewA, reviewB] = await Promise.all([
+    page.request.post(sourceReviewUrl, { headers: reviewerHeaders, data: reviewBody }),
+    page.request.post(sourceReviewUrl, { headers: reviewerHeaders, data: reviewBody }),
+  ]);
+  expect(reviewA.status()).toBe(201);
+  expect(reviewB.status()).toBe(201);
+  const reviewResult = (await reviewA.json()) as {
+    review_id: string; reviewer_person_id: string;
+    decision: string; source_sha256: string;
+  };
+  expect((await reviewB.json()).review_id).toBe(reviewResult.review_id);
+  expect(reviewResult.reviewer_person_id).toBe(INDEPENDENT_REVIEWER_ID);
+  expect(reviewResult.decision).toBe("VERIFIED");
+  expect(reviewResult.source_sha256).toBe(scopedSource.source_sha256);
+  expect(JSON.stringify(reviewResult)).not.toContain("evidence_case_id");
+  const staleSource = await page.request.post(sourceReviewUrl, {
+    headers: reviewerHeaders,
+    data: { ...reviewBody, expected_source_sha256: "0".repeat(64) },
+  });
+  expect(staleSource.status()).toBe(409);
+  const conflictingSource = await page.request.post(sourceReviewUrl, {
+    headers: reviewerHeaders,
+    data: { ...reviewBody, decision: "REJECTED" },
+  });
+  expect(conflictingSource.status()).toBe(409);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const revokeReviewerToken = await tokenForCurrentUser(page);
+  const revokeReviewer = await page.request.post(
+    `${API}/api/v1/admin/academy/assessor-grants/${reviewerGrant.grant_id}/revoke`, {
+      headers: { Authorization: `Bearer ${revokeReviewerToken}` },
+      data: {
+        expected_version: reviewerGrant.version,
+        reason: "CI verification that review authorization is live only",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(revokeReviewer.status()).toBe(200);
+  await logout(page);
+
+  await login(page, "assessor-reviewer", passwords.reviewer!);
+  const revokedReviewerToken = await tokenForCurrentUser(page);
+  const revokedSource = await page.request.get(sourceReviewUrl, {
+    headers: { Authorization: `Bearer ${revokedReviewerToken}` },
+  });
+  expect(revokedSource.status()).toBe(404);
   await logout(page);
 
   // Human revocation closes the same grant immediately without erasing audit.

@@ -12,6 +12,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import DBAPIError
 
 from app.academy.models import ClassAssessorObservation
+from app.evidence.models import ClassroomObservationSourceReview, EvidenceCase
 from app.db import SessionFactory, engine
 from app.platform.models import DomainEvent, OutboxEvent
 
@@ -19,6 +20,7 @@ ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
 CLASS_ID = UUID("00000000-0000-0000-0000-000000000220")
 SESSION_ID = UUID("00000000-0000-0000-0000-000000000243")
 ASSESSOR_ID = UUID("00000000-0000-0000-0000-000000000104")
+REVIEWER_ID = UUID("00000000-0000-0000-0000-000000000105")
 
 
 async def main() -> None:
@@ -36,6 +38,40 @@ async def main() -> None:
         assert len(items) == 1, "Concurrent requests must produce exactly one source row"
         item = items[0]
         assert item.recorded_at >= item.observed_at
+        review_rows = (
+            await db.execute(select(ClassroomObservationSourceReview).where(
+                ClassroomObservationSourceReview.organization_context_id == ORG_ID,
+                ClassroomObservationSourceReview.source_observation_id == item.id,
+            ))
+        ).scalars().all()
+        assert len(review_rows) == 1, "Concurrent reviewers must produce one decision"
+        review = review_rows[0]
+        assert review.reviewer_person_id == REVIEWER_ID
+        assert review.observer_person_id == ASSESSOR_ID
+        assert review.decision == "VERIFIED"
+        assert review.source_sha256 and len(review.source_sha256) == 64
+        assert (
+            await db.execute(
+                select(EvidenceCase.id).where(EvidenceCase.source_observation_id == item.id)
+            )
+        ).scalar_one_or_none() is None, "A source review must not auto-create Evidence"
+        reviews = (
+            await db.execute(select(DomainEvent).where(
+                DomainEvent.aggregate_id == review.id,
+                DomainEvent.event_type == "evidence.classroom_source_reviewed.v1",
+                DomainEvent.organization_context_id == ORG_ID,
+            ))
+        ).scalars().all()
+        assert len(reviews) == 1
+        assert reviews[0].actor == {"type": "PERSON", "id": str(REVIEWER_ID)}
+        assert item.observed_fact not in str(reviews[0].payload)
+        review_outbox = (
+            await db.execute(select(OutboxEvent).where(
+                OutboxEvent.event_id == reviews[0].event_id
+            ))
+        ).scalar_one()
+        assert item.observed_fact not in str(review_outbox.payload)
+        assert review.rationale not in str(review_outbox.payload)
         events = (
             await db.execute(
                 select(DomainEvent).where(
@@ -66,6 +102,11 @@ async def main() -> None:
             delete(ClassAssessorObservation).where(
                 ClassAssessorObservation.id == item.id
             ),
+            update(ClassroomObservationSourceReview)
+            .where(ClassroomObservationSourceReview.id == review.id)
+            .values(decision="REJECTED"),
+            delete(ClassroomObservationSourceReview)
+            .where(ClassroomObservationSourceReview.id == review.id),
         ):
             savepoint = await conn.begin_nested()
             try:
@@ -86,6 +127,10 @@ async def main() -> None:
             )
         ).scalar_one()
         assert restored.observed_fact == item.observed_fact
+        persisted_review = (await db.execute(select(ClassroomObservationSourceReview).where(
+            ClassroomObservationSourceReview.id == review.id
+        ))).scalar_one()
+        assert persisted_review.decision == "VERIFIED"
 
 
 if __name__ == "__main__":

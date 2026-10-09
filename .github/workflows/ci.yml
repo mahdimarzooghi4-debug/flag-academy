@@ -126,6 +126,7 @@ jobs:
           set_secret PARCHAM_DEV_INSTRUCTOR_PASSWORD
           set_secret PARCHAM_DEV_ADMIN_PASSWORD
           set_secret PARCHAM_DEV_ASSESSOR_PASSWORD
+          set_secret PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD
       - name: Build database URL
         shell: bash
         run: echo "PARCHAM_DATABASE_URL=postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB" >> "$GITHUB_ENV"
@@ -138,7 +139,9 @@ jobs:
             sleep 2
           done
       - name: Seed Keycloak development users
-        run: ./scripts/dev-seed-keycloak.sh
+        run: |
+          ./scripts/dev-seed-keycloak.sh
+          sh ./scripts/ci-seed-independent-assessor.sh
       - name: Install and seed backend
         working-directory: backend
         run: |
