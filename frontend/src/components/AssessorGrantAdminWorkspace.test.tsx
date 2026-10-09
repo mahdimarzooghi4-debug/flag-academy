@@ -104,7 +104,7 @@ describe("Class Assessor admin mandate", () => {
     const actions = setup({
       grants: { items: [{ ...grant, revoked_at: "2026-10-09T14:00:00Z" }], next_offset: 50 },
     });
-    expect(screen.getByText("2026-10-09T14:00:00Z")).toBeInTheDocument();
+    expect(screen.getByTestId("selected-assessor-grant")).toHaveTextContent("2026-10-09T14:00:00Z");
     expect(screen.queryByRole("button", { name: "تمدید مأموریت" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "لغو مأموریت" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "صفحه بعد مأموریت‌ها" }));
