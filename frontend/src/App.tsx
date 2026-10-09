@@ -8,6 +8,7 @@ import {
   type MissionTemplateResponse,
 } from "./api/client";
 import { CandidateHome } from "./components/CandidateHome";
+import { CandidateReportWorkspace } from "./components/CandidateReportWorkspace";
 import { InstructorHome } from "./components/InstructorHome";
 import {
   AssessorEvidenceWorkspace,
@@ -1260,6 +1261,14 @@ function AuthenticatedApp({
               submitAssignment.isPending ? submitAssignment.variables?.assignmentId : undefined
             }
           />
+          {me.data ? (
+            <CandidateReportWorkspace
+              accessToken={accessToken}
+              organizationId={me.data.organization_context_id}
+              personId={me.data.person_id}
+              cohortId={candidate.data.cohort.id}
+            />
+          ) : null}
           <CandidateGatePanel projection={candidateGates.data ?? { gates: [] }} />
           <main className="page-shell mission-shell">
             <MissionWorkspace
