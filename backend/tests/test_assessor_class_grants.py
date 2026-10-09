@@ -17,7 +17,7 @@ from app.academy.assessor_grants_api import (
     extend_assessor_class_grant,
     revoke_assessor_class_grant,
 )
-from app.academy.assessor_grants_policy import active_class_grant
+from app.academy.assessor_grants_policy import GrantWindow, active_class_grant
 from app.academy.models import AssessorClassGrant, AssessorClassGrantRevision
 from app.errors import AppError
 from app.identity.auth import ActorContext
@@ -87,13 +87,13 @@ class FakeDB:
 
 
 def test_grant_policy_is_fail_closed_for_time_role_and_class_state():
-    g = grant()
+    g = GrantWindow(starts_at=T0 - timedelta(days=1), ends_at=T0 + timedelta(days=1), revoked_at=None)
     assert active_class_grant(g, now=T0, class_status="ACTIVE", cohort_status="ACTIVE")
     assert not active_class_grant(g, now=T0 - timedelta(days=2), class_status="ACTIVE", cohort_status="ACTIVE")
     assert not active_class_grant(g, now=g.ends_at, class_status="ACTIVE", cohort_status="ACTIVE")
     assert not active_class_grant(g, now=T0, class_status="COMPLETED", cohort_status="ACTIVE")
     assert not active_class_grant(g, now=T0, class_status="ACTIVE", cohort_status="CANCELLED")
-    assert not active_class_grant(grant(revoked_at=T0), now=T0, class_status="ACTIVE", cohort_status="ACTIVE")
+    assert not active_class_grant(GrantWindow(g.starts_at, g.ends_at, T0), now=T0, class_status="ACTIVE", cohort_status="ACTIVE")
 
 
 def test_grant_schema_has_tenant_class_identity_and_immutable_audit():
