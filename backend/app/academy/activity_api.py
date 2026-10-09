@@ -72,6 +72,15 @@ async def _visible_candidate_ids(
     if row is None:
         raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
     offering, cohort = row
+    is_scoped_assessor = False
+    if "ASSESSOR" in actor.roles:
+        is_scoped_assessor = await has_live_assessor_class_access(
+            db, actor=actor, class_offering_id=class_offering_id
+        )
+        if not is_scoped_assessor and not actor.roles.intersection(
+            {"ACADEMY_ADMIN", "INSTRUCTOR", "CANDIDATE"}
+        ):
+            raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
     candidate_ids = list(
         (
             await db.execute(
@@ -99,9 +108,7 @@ async def _visible_candidate_ids(
             return candidate_ids
     if "CANDIDATE" in actor.roles and actor.person_id in candidate_ids:
         return [actor.person_id]
-    if await has_live_assessor_class_access(
-        db, actor=actor, class_offering_id=class_offering_id
-    ):
+    if is_scoped_assessor:
         return candidate_ids
     # Global Assessor role alone is never authorization.
     raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
