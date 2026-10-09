@@ -6,8 +6,8 @@ from app.flag_profile import models as flag_profile_models  # noqa: F401
 from app.gate_assessment import models as gate_assessment_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.journey import models as journey_models  # noqa: F401
-from app.learning import models as learning_models  # noqa: F401
 from app.knowledge import models as knowledge_models  # noqa: F401
+from app.learning import models as learning_models  # noqa: F401
 from app.mission_design import models as mission_design_models  # noqa: F401
 from app.mission_runtime import models as mission_runtime_models  # noqa: F401
 from app.patterns import models as pattern_models  # noqa: F401
