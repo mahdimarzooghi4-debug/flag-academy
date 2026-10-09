@@ -227,6 +227,7 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   })).toBeDisabled();
   // E2E only previews: there is NO implicit human AI-learning approval in CI.
   await expect(adminWorkspace.getByLabel("کلاس واقعی")).toHaveValue(CLASS_ID);
+  await adminWorkspace.getByLabel("جلسه کلاس").selectOption(SESSION_ID);
   await expect(adminWorkspace.getByLabel("جلسه کلاس")).toHaveValue(SESSION_ID);
   const row = adminWorkspace.locator(".admin-ops-attendance-row").filter({
     hasText: CANDIDATE_ID,
