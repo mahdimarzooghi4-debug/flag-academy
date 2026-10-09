@@ -631,6 +631,11 @@ Implementation and CI evidence:
 - real Academy-environment Seed approval has not been executed;
 - Academy Knowledge retrieval/indexing and model-runtime technology remain unresolved and are not selected in this slice.
 
+- **P23-10 Admin Seed learning approval UI — CODE/CI VERIFIED (2026-10-09):** An explicit ACADEMY_ADMIN-only workspace shows the authoritative fixed 24-record Decision-Making Seed v1 digest/policy/approval status. It requires independently reviewed source content, an actual Human approval reference and the matching full SHA-256 before submitting to the *existing* approved event bridge. Invalid/mismatched data and changing digests fail closed. It never creates Dataset or starts Training directly.
+- Exact implementation HEAD `4c63a18fc3bc9e6a393f23f67832109438b26f3c` and [CI #37925534341](https://github.com/mahdimarzooghi4-debug/flag-academy/actions/runs/37925534341) **SUCCESS** (Backend, Frontend, live OIDC E2E and AI governance acceptance). Scoped technical review: `docs/reviews/27-sprint-23-seed-learning-admin-ui-code-review.md`.
+- **The real initial Dataset Version is still NOT created.** Live Academy Admin source review and explicit target-environment AI-learning approval, followed by live Outbox/NATS/Dataset Builder verification, remain pending; CI-only ephemeral Dataset Version 1 is not a persistent Academy artifact. Knowledge retrieval and self-hosted Gemma runtime/trainer also remain open.
+
+
 ### P23-11 — Interaction / stale-safety / security tests — CODE/CI VERIFIED (first hardening package)
 - New ASGI/TestClient authorization regressions execute FastAPI dependencies for Academy Admin cohort/class catalog, Assessor roster denial, Candidate own-only roster, unassigned Instructor session denial, and cross-tenant class hiding. Candidate/Instructor/Assessor cannot use Admin-only discovery: 403 before tenant data reads; 404 conceals unsupported class context where required.
 - The Admin Academy React workspace now fail-closes on mismatched `cohort_id` in class catalogs, mismatched `class_offering_id` or `cohort_id` in roster data, sessions whose class does not match the selected class, and report cards whose cohort/class/person context differs from the current selection. This also prevents constructing attendance requests from an unrelated session or a report request from a stale roster.
