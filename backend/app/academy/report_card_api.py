@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.academy.assessor_access import has_live_assessor_class_access
 from app.academy.models import (
     AttendanceRecord,
     ClassOffering,
@@ -140,7 +141,11 @@ async def _authorized_report_card_context(
             return offering, cohort
     if "CANDIDATE" in actor.roles and actor.person_id == person_id:
         return offering, cohort
-    # ASSESSOR is not implicitly scoped to this class.
+    if await has_live_assessor_class_access(
+        db, actor=actor, class_offering_id=offering.id
+    ):
+        return offering, cohort
+    # Global Assessor role cannot reveal a learner's private report.
     raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
 
 
