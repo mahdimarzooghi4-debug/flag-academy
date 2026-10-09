@@ -126,7 +126,7 @@ async def test_author_creates_immutable_draft_and_outbox_atomically():
     assert len([i for i in db.added if isinstance(i, KnowledgeSourceVersion)]) == 1
     assert len(db.added) == 4  # source, version, domain event, transactional outbox
     assert ORG in set(db.statements[2].compile().params.values())
-    assert AUTHOR in set(db.statements[1].compile().params.values())
+    assert AUTHOR in set(db.statements[2].compile().params.values())
     assert "pg_advisory_xact_lock" in str(db.statements[1])
 
 
