@@ -120,3 +120,31 @@ class CandidateResponse(Base):
     response_text: Mapped[str] = mapped_column(Text)
     idempotency_key: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ClassroomObservationSourceReview(Base):
+    """Evidence-owned, immutable independent human source attestation, not Evidence."""
+
+    __tablename__ = "classroom_observation_source_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id", "source_observation_id",
+            name="uq_classroom_source_review_per_observation",
+        ),
+        {"schema": "evidence"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_context_id: Mapped[UUID]
+    source_observation_id: Mapped[UUID]
+    class_offering_id: Mapped[UUID]
+    session_id: Mapped[UUID]
+    subject_person_id: Mapped[UUID]
+    observer_person_id: Mapped[UUID]
+    reviewer_person_id: Mapped[UUID]
+    reviewer_grant_id: Mapped[UUID]
+    reviewer_grant_version: Mapped[int] = mapped_column(BigInteger)
+    source_sha256: Mapped[str] = mapped_column(String(64))
+    decision: Mapped[str] = mapped_column(String(16))
+    rationale: Mapped[str] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

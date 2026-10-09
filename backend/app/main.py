@@ -21,6 +21,7 @@ from app.curriculum.api import router as curriculum_router
 from app.db import engine
 from app.errors import AppError, app_error_handler
 from app.evidence.api import router as evidence_router
+from app.evidence.classroom_source_review_api import router as classroom_source_review_router
 from app.flag_profile.api import router as flag_profile_router
 from app.gate_assessment.api import router as gate_assessment_router
 from app.identity.api import router as identity_router
@@ -46,6 +47,7 @@ app.add_middleware(
 app.include_router(identity_router)
 app.include_router(ai_governance_router)
 app.include_router(evidence_router)
+app.include_router(classroom_source_review_router)
 app.include_router(flag_profile_router)
 app.include_router(gate_assessment_router)
 app.include_router(curriculum_router)
