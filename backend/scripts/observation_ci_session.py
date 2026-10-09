@@ -5,6 +5,7 @@ No production bootstrap, sample approval, or operational Session state is change
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -25,7 +26,7 @@ async def main() -> None:
         db.add(
             Person(
                 id=REVIEWER_PERSON_ID,
-                external_subject="55555555-5555-5555-5555-555555555555",
+                external_subject=str(UUID(os.environ["PARCHAM_CI_REVIEWER_SUBJECT"])),
                 display_name="CI-only independent Assessor",
                 created_at=now,
                 updated_at=now,
