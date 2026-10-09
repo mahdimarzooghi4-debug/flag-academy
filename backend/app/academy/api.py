@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.academy.assessor_access import has_live_assessor_class_access
 from app.academy.domain import attendance_resulting_version
 from app.academy.models import (
     AttendanceRecord,
@@ -165,20 +166,22 @@ async def _require_attendance_read_access(
 ) -> None:
     if "ACADEMY_ADMIN" in actor.roles:
         return
-    assignment = (
-        await db.execute(
-            select(InstructorAssignment.id).where(
-                InstructorAssignment.class_offering_id == class_offering_id,
-                InstructorAssignment.person_id == actor.person_id,
+    if "INSTRUCTOR" in actor.roles:
+        assignment = (
+            await db.execute(
+                select(InstructorAssignment.id).where(
+                    InstructorAssignment.class_offering_id == class_offering_id,
+                    InstructorAssignment.person_id == actor.person_id,
+                )
             )
-        )
-    ).scalar_one_or_none()
-    if assignment is None:
-        raise AppError(
-            "SESSION_NOT_FOUND",
-            "Session not found.",
-            status_code=404,
-        )
+        ).scalar_one_or_none()
+        if assignment is not None:
+            return
+    if await has_live_assessor_class_access(
+        db, actor=actor, class_offering_id=class_offering_id
+    ):
+        return
+    raise AppError("SESSION_NOT_FOUND", "Session not found.", status_code=404)
 
 
 def _attendance_response(
@@ -217,7 +220,7 @@ async def list_session_attendance(
     session_id: UUID,
     actor: Annotated[
         ActorContext,
-        Depends(require_role("ACADEMY_ADMIN", "INSTRUCTOR")),
+        Depends(require_role("ACADEMY_ADMIN", "INSTRUCTOR", "ASSESSOR")),
     ],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> AttendanceListResponse:
@@ -474,13 +477,19 @@ async def class_offering_roster(
         "CANDIDATE" in actor.roles
         and any(person_id == actor.person_id for person_id, _ in member_rows)
     )
-    if not (is_admin or is_assigned_instructor or is_member):
-        # A global ASSESSOR role never grants roster access.
+    is_scoped_assessor = (
+        not (is_admin or is_assigned_instructor or is_member)
+        and await has_live_assessor_class_access(
+            db, actor=actor, class_offering_id=offering.id
+        )
+    )
+    if not (is_admin or is_assigned_instructor or is_member or is_scoped_assessor):
+        # No global Assessor role may grant roster access.
         raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
 
     visible_members = (
         member_rows
-        if is_admin or is_assigned_instructor
+        if is_admin or is_assigned_instructor or is_scoped_assessor
         else [
             (person_id, member_type)
             for person_id, member_type in member_rows
@@ -497,7 +506,9 @@ async def class_offering_roster(
             for person_id, member_type in visible_members
         ],
         instructor_person_ids=(
-            list(instructor_rows) if is_admin or is_assigned_instructor else []
+            list(instructor_rows)
+            if is_admin or is_assigned_instructor or is_scoped_assessor
+            else []
         ),
     )
 
