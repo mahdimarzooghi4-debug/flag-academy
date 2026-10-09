@@ -10,6 +10,7 @@ import {
 import { CandidateHome } from "./components/CandidateHome";
 import { CandidateReportWorkspace } from "./components/CandidateReportWorkspace";
 import { InstructorHome } from "./components/InstructorHome";
+import { InstructorClassWorkspace } from "./components/InstructorClassWorkspace";
 import {
   AssessorEvidenceWorkspace,
   CandidateEvidenceWorkspace,
@@ -1608,6 +1609,14 @@ function AuthenticatedApp({
             }
           />
         </>
+      ) : null}
+      {!isAdmin && !isCandidate && isInstructor && instructor.data && me.data ? (
+        <InstructorClassWorkspace
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+          data={instructor.data}
+        />
       ) : null}
       {!isAdmin && !isCandidate && isInstructor && instructor.data ? (
         <InstructorHome
