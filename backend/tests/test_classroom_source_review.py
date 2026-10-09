@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
+from typing import Literal, cast
 from uuid import UUID
 
 import pytest
@@ -112,7 +112,7 @@ def batches(source: ClassAssessorObservation | None = None,
 
 
 def command(source: ClassAssessorObservation | None = None,
-            decision: str = "VERIFIED", rationale: str = "Reviewed factual context") -> ClassroomReviewCommand:
+            decision: Literal["VERIFIED", "REJECTED"] = "VERIFIED", rationale: str = "Reviewed factual context") -> ClassroomReviewCommand:
     return ClassroomReviewCommand(
         expected_source_sha256=classroom_source_digest(source or observation()),
         decision=decision,
