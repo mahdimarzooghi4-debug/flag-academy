@@ -7,6 +7,8 @@ const CANDIDATE_ID = "00000000-0000-0000-0000-000000000101";
 const ASSESSOR_ID = "00000000-0000-0000-0000-000000000104";
 const INSTRUCTOR_ID = "00000000-0000-0000-0000-000000000102";
 const SESSION_ID = "00000000-0000-0000-0000-000000000241";
+// Ephemeral in-progress Session created by scripts/observation_ci_session.py ONLY in CI.
+const OBSERVATION_SESSION_ID = "00000000-0000-0000-0000-000000000243";
 const API = process.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function login(page: Page, username: string, password: string) {
@@ -113,6 +115,12 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     });
     expect(response.status(), `Assessor must not read ${path}`).toBe(404);
   }
+  const preGrantObservation = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`, {
+      headers: { Authorization: `Bearer ${assessorToken}` },
+    },
+  );
+  expect(preGrantObservation.status()).toBe(404);
   const assessorAdmin = await page.request.get(`${API}/api/v1/admin/academy/cohorts`, {
     headers: { Authorization: `Bearer ${assessorToken}` },
   });
@@ -134,6 +142,15 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   await expect(instructorWorkspace.getByText("ثبت نشده؛ به معنی غیبت نیست").first()).toBeVisible();
   await expect(instructorWorkspace.getByRole("button", { name: "ثبت حاضر" })).toHaveCount(0);
   const instructorToken = await tokenForCurrentUser(page);
+  const forbiddenObservation = await page.request.post(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`, {
+      headers: { Authorization: `Bearer ${instructorToken}` },
+      data: { session_id: OBSERVATION_SESSION_ID, candidate_person_id: CANDIDATE_ID,
+        observed_at: new Date().toISOString(), observed_fact: "Instructor must not impersonate Assessor",
+        idempotency_key: crypto.randomUUID() },
+    },
+  );
+  expect(forbiddenObservation.status()).toBe(403);
   const forbiddenMutation = await page.request.post(
     `${API}/api/v1/sessions/${SESSION_ID}/attendance/${CANDIDATE_ID}`,
     {
@@ -292,6 +309,73 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     });
     expect(result.status(), `Assigned Assessor needs scoped GET ${path}`).toBe(200);
   }
+  // P23-09C — actual OIDC/FastAPI/PostgreSQL writer, no Evidence admission.
+  // This synthetic current Session exists ONLY in the isolated GitHub Actions fixture.
+  const observationUrl = `${API}/api/v1/class-offerings/${CLASS_ID}/observations`;
+  const observationHeaders = { Authorization: `Bearer ${grantedAssessorToken}` };
+  const beforeObservation = await page.request.get(observationUrl, { headers: observationHeaders });
+  expect(beforeObservation.status()).toBe(200);
+  expect(await beforeObservation.json()).toEqual([]);
+  const observationBody = {
+    session_id: OBSERVATION_SESSION_ID,
+    candidate_person_id: CANDIDATE_ID,
+    observed_at: new Date().toISOString(),
+    observed_fact: "CI factual classroom observation: learner separated evidence from interpretation.",
+    idempotency_key: crypto.randomUUID(),
+  };
+  // Two concurrent physical HTTP requests use independent DB transactions.
+  const [firstObservation, concurrentReplay] = await Promise.all([
+    page.request.post(observationUrl, { headers: observationHeaders, data: observationBody }),
+    page.request.post(observationUrl, { headers: observationHeaders, data: observationBody }),
+  ]);
+  expect(firstObservation.status()).toBe(201);
+  expect(concurrentReplay.status()).toBe(201);
+  const observation = (await firstObservation.json()) as {
+    observation_id: string; grant_version: number; observed_at: string;
+    recorded_at: string; observer_person_id: string; candidate_person_id: string;
+    session_id: string; observed_fact: string;
+  };
+  expect((await concurrentReplay.json()).observation_id).toBe(observation.observation_id);
+  expect(observation.session_id).toBe(OBSERVATION_SESSION_ID);
+  expect(observation.candidate_person_id).toBe(CANDIDATE_ID);
+  expect(observation.observer_person_id).toBe(ASSESSOR_ID);
+  expect(observation.observed_fact).toBe(observationBody.observed_fact);
+  expect(new Date(observation.recorded_at).getTime()).toBeGreaterThanOrEqual(
+    new Date(observation.observed_at).getTime(),
+  );
+  const historical = await page.request.get(observationUrl, { headers: observationHeaders });
+  expect(historical.status()).toBe(200);
+  const history = (await historical.json()) as Array<{ observation_id: string }>;
+  expect(history).toHaveLength(1);
+  expect(history[0]?.observation_id).toBe(observation.observation_id);
+  const conflictingReplay = await page.request.post(observationUrl, {
+    headers: observationHeaders,
+    data: { ...observationBody, observed_fact: "changed source under the same replay key" },
+  });
+  expect(conflictingReplay.status()).toBe(409);
+  for (const invalid of [
+    { ...observationBody, idempotency_key: crypto.randomUUID(), candidate_person_id: ASSESSOR_ID },
+    { ...observationBody, idempotency_key: crypto.randomUUID(), session_id: SESSION_ID },
+  ]) {
+    const bad = await page.request.post(observationUrl, {
+      headers: observationHeaders, data: invalid,
+    });
+    expect([404, 409]).toContain(bad.status());
+  }
+  const futureObservation = await page.request.post(observationUrl, {
+    headers: observationHeaders,
+    data: { ...observationBody, observed_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+      idempotency_key: crypto.randomUUID() },
+  });
+  expect(futureObservation.status()).toBe(409);
+  const crossClassObservation = await page.request.post(
+    `${API}/api/v1/class-offerings/${crypto.randomUUID()}/observations`,
+    { headers: observationHeaders, data: { ...observationBody, idempotency_key: crypto.randomUUID() } },
+  );
+  expect(crossClassObservation.status()).toBe(404);
+  // The separate Evidence API has no implicit link to this new Academy source.
+  expect(JSON.stringify(observation)).not.toContain("evidence_case_id");
+
   const assessorStillCannotAdmin = await page.request.get(
     `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
       headers: { Authorization: `Bearer ${grantedAssessorToken}` },
@@ -323,5 +407,17 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     },
   );
   expect(afterRevoke.status()).toBe(404);
+  const revokedObservationRead = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`,
+    { headers: { Authorization: `Bearer ${revokedAssessorToken}` } },
+  );
+  expect(revokedObservationRead.status()).toBe(404);
+  const revokedObservationWrite = await page.request.post(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`, {
+      headers: { Authorization: `Bearer ${revokedAssessorToken}` },
+      data: { ...observationBody, idempotency_key: crypto.randomUUID() },
+    },
+  );
+  expect(revokedObservationWrite.status()).toBe(404);
 
 });

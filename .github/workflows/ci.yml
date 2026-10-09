@@ -145,6 +145,9 @@ jobs:
           pip install -e ".[dev]"
           alembic upgrade head
           python -m app.seed
+      - name: Prepare isolated classroom observation E2E session
+        working-directory: backend
+        run: python scripts/observation_ci_session.py
       - name: Start event workers
         working-directory: backend
         shell: bash
@@ -184,6 +187,9 @@ jobs:
       - name: Browser E2E with live OIDC
         working-directory: frontend
         run: npm run e2e
+      - name: Verify classroom observation PostgreSQL integrity
+        working-directory: backend
+        run: python scripts/observation_integrity_acceptance.py
       - name: Verify governed AI Dataset Builder
         working-directory: backend
         run: python scripts/ai_dataset_builder_acceptance.py
