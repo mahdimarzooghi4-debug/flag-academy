@@ -99,6 +99,9 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   await expect(page.getByTestId("candidate-report-workspace")).toHaveCount(0);
   await expect(page.getByTestId("instructor-class-workspace")).toHaveCount(0);
   await expect(page.getByTestId("admin-academy-operations")).toHaveCount(0);
+  const unassignedClassView = page.getByTestId("assessor-class-workspace");
+  await expect(unassignedClassView.getByText("اکنون مأموریت معتبر کلاسی ندارید.")).toBeVisible();
+  await expect(unassignedClassView.getByLabel("کلاس منصوب‌شده")).toHaveCount(0);
   const assessorToken = await tokenForCurrentUser(page);
   for (const path of [
     `/class-offerings/${CLASS_ID}/roster`,
@@ -192,6 +195,13 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   // Same real OIDC Assessor can read authorized classroom projections ONLY
   // while the mandate is valid; the pre-grant 404 checks above still apply.
   await login(page, "assessor", passwords.assessor!);
+  const assignedClassView = page.getByTestId("assessor-class-workspace");
+  await expect(assignedClassView.getByLabel("کلاس منصوب‌شده")).toHaveValue(CLASS_ID);
+  await expect(assignedClassView.getByLabel("فراگیر کلاس")).toHaveValue(CANDIDATE_ID);
+  await expect(assignedClassView.getByText(
+    "اثبات رسمی مستقل: داده معتبر مستقل موجود نیست"
+  )).toBeVisible();
+  await expect(assignedClassView).not.toContainText("معدل");
   const grantedAssessorToken = await tokenForCurrentUser(page);
   for (const path of [
     `/class-offerings/${CLASS_ID}/roster`,
@@ -225,6 +235,10 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   await expect(revocationPanel).toContainText("مأموریت لغوشده قابل تمدید نیست.");
   await logout(page);
   await login(page, "assessor", passwords.assessor!);
+  const revokedClassView = page.getByTestId("assessor-class-workspace");
+  await expect(revokedClassView.getByText("اکنون مأموریت معتبر کلاسی ندارید.")).toBeVisible();
+  await expect(revokedClassView.getByLabel("کلاس منصوب‌شده")).toHaveCount(0);
+  await expect(revokedClassView).not.toContainText(CANDIDATE_ID);
   const revokedAssessorToken = await tokenForCurrentUser(page);
   const afterRevoke = await page.request.get(
     `${API}/api/v1/class-offerings/${CLASS_ID}/roster`, {
