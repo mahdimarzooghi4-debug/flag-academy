@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -42,7 +42,7 @@ class Result:
 class DB:
     def __init__(self, batches: list[list[object]]):
         self.batches = batches
-        self.statements: list[object] = []
+        self.statements: list[Any] = []
 
     async def execute(self, statement):
         self.statements.append(statement)
