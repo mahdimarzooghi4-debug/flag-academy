@@ -9,13 +9,13 @@ from uuid import UUID
 
 import pytest
 
+from app.ai_control_plane import local_gemma
 from app.ai_control_plane.local_gemma import (
     CheckpointFile,
-    _checkpoint_from_registered_artifact,
-    attest_registered_offline_checkpoint,
     ExplicitTextGeneration,
     OfflineGemmaCheckpoint,
     attest_offline_checkpoint,
+    attest_registered_offline_checkpoint,
     generate_offline_text,
 )
 from app.errors import AppError
@@ -216,7 +216,7 @@ def registered_fixture(tmp_path: Path):
 
 def assert_registry_denied(*, version, artifact, run, checkpoint_directory):
     with pytest.raises(AppError) as error:
-        _checkpoint_from_registered_artifact(
+        local_gemma._checkpoint_from_registered_artifact(
             version=version,
             artifact=artifact,
             run=run,
