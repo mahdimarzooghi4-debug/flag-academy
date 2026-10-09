@@ -159,3 +159,70 @@ class AttendanceRevision(Base):
     changed_by: Mapped[UUID]
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     idempotency_key: Mapped[str] = mapped_column(String(160))
+
+
+class AssessorClassGrant(Base):
+    """Academy-owned authorization; no cross-context foreign keys."""
+
+    __tablename__ = "assessor_class_grants"
+    __table_args__ = (
+        UniqueConstraint(
+            "class_offering_id", "assessor_person_id",
+            name="uq_assessor_grant_class_person",
+        ),
+        CheckConstraint("ends_at > starts_at", name="ck_assessor_grant_window"),
+        CheckConstraint("version >= 1", name="ck_assessor_grant_version"),
+        {"schema": "academy"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    organization_context_id: Mapped[UUID]
+    class_offering_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.class_offerings.id")
+    )
+    assessor_person_id: Mapped[UUID]
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_by: Mapped[UUID]
+    updated_by: Mapped[UUID]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AssessorClassGrantRevision(Base):
+    """Append-only human grant command record; replay keys are actor/tenant scoped."""
+
+    __tablename__ = "assessor_class_grant_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id", "actor_id", "idempotency_key",
+            name="uq_assessor_grant_revision_actor_key",
+        ),
+        CheckConstraint("expected_version >= 0", name="ck_assessor_revision_expected"),
+        CheckConstraint("resulting_version >= 1", name="ck_assessor_revision_version"),
+        {"schema": "academy"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    grant_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academy.assessor_class_grants.id")
+    )
+    organization_context_id: Mapped[UUID]
+    class_offering_id: Mapped[UUID]
+    assessor_person_id: Mapped[UUID]
+    actor_id: Mapped[UUID]
+    action: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    expected_version: Mapped[int] = mapped_column(BigInteger)
+    resulting_version: Mapped[int] = mapped_column(BigInteger)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
