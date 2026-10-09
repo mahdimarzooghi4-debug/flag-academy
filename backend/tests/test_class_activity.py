@@ -174,11 +174,11 @@ async def test_unassigned_instructor_and_global_assessor_fail_closed() -> None:
     assert instructor_error.value.status_code == 404
     assert len(instructor_db.statements) == 3
 
-    assessor_db = FakeSession([class_rows(), [CANDIDATE]])
+    assessor_db = FakeSession([class_rows(), [CANDIDATE], []])
     with pytest.raises(AppError) as assessor_error:
         await class_activity(CLASS, actor(ASSESSOR, "ASSESSOR"), cast(AsyncSession, assessor_db), limit=50)
     assert assessor_error.value.status_code == 404
-    assert len(assessor_db.statements) == 2
+    assert len(assessor_db.statements) == 3
 
 
 @pytest.mark.asyncio
