@@ -1,7 +1,7 @@
 """Class mandates are time- and organization-scoped; no global Assessor access."""
 
-from datetime import UTC, datetime
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
