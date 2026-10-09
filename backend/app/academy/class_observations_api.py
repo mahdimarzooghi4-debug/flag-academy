@@ -8,7 +8,7 @@ valid and the original observation falls inside the grant and real Session windo
 
 from datetime import UTC, datetime
 from hashlib import sha256
-from typing import Annotated
+from typing import Annotated, Never
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query
@@ -88,7 +88,7 @@ def _response(item: ClassAssessorObservation) -> ClassObservationRead:
     )
 
 
-def _not_found() -> None:
+def _not_found() -> Never:
     raise AppError("CLASS_OBSERVATION_SCOPE_NOT_FOUND", "Class context not found.", status_code=404)
 
 
