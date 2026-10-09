@@ -49,12 +49,12 @@ test("candidate learns, submits; instructor gives feedback; proof remains separa
 
   await login(page, "candidate", candidatePassword);
   await expect(page.getByText("الان چه چیزی باید یاد بگیرم؟")).toBeVisible();
-  await expect(page.getByText("پیش‌مطالعه: مالکیت مسئله تا نتیجه")).toBeVisible();
-  await expect(page.getByText("تمرین هدایت‌شده: مسئله بدون صاحب")).toBeVisible();
-  await expect(page.getByText("مطالعه موردی: انتشار ناموفق")).toBeVisible();
+  await expect(page.getByText("پیش‌مطالعه: مالکیت مسئله تا نتیجه", { exact: true })).toBeVisible();
+  await expect(page.getByText("تمرین هدایت‌شده: مسئله بدون صاحب", { exact: true })).toBeVisible();
+  await expect(page.getByText("مطالعه موردی: انتشار ناموفق", { exact: true })).toBeVisible();
   await expect(page.getByText("تمرین هدایت‌شده").first()).toBeVisible();
   await expect(page.getByText("مطالعه موردی").first()).toBeVisible();
-  await expect(page.getByText("تکلیف: Ownership Memo")).toBeVisible();
+  await expect(page.getByText("تکلیف: Ownership Memo", { exact: true })).toBeVisible();
   await expect(page.getByText("TO_LEARN").first()).toBeVisible();
   await expect(page.getByText("UNPROVEN").first()).toBeVisible();
 
