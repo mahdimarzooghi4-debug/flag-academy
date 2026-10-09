@@ -1,6 +1,5 @@
 """Existing Evidence org-wide APIs must fail closed for private classroom sources."""
 
-from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
