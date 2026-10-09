@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -234,6 +234,50 @@ async def _save_command(
         ),
     )
     await db.commit()
+
+
+
+class GrantPage(BaseModel):
+    items: list[GrantResponse]
+    next_offset: int | None
+
+
+@router.get(
+    "/classes/{class_offering_id}/assessor-grants",
+    response_model=GrantPage,
+)
+async def list_assessor_class_grants(
+    class_offering_id: UUID,
+    actor: Annotated[ActorContext, Depends(require_role("ACADEMY_ADMIN"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> GrantPage:
+    """Tenant-first discovery. Historical/revoked mandates remain visible to Admin."""
+    await _class_in_tenant(
+        db, class_offering_id=class_offering_id,
+        organization_id=actor.organization_context_id,
+    )
+    rows = (
+        await db.execute(
+            select(AssessorClassGrant)
+            .where(
+                AssessorClassGrant.organization_context_id
+                == actor.organization_context_id,
+                AssessorClassGrant.class_offering_id == class_offering_id,
+            )
+            .order_by(
+                AssessorClassGrant.assessor_person_id,
+                AssessorClassGrant.id,
+            )
+            .offset(offset)
+            .limit(limit + 1)
+        )
+    ).scalars().all()
+    return GrantPage(
+        items=[_response(row) for row in rows[:limit]],
+        next_offset=offset + limit if len(rows) > limit else None,
+    )
 
 
 @router.post(
