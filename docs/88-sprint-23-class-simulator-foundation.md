@@ -551,14 +551,23 @@ Implementation and CI evidence:
 - PR #21 remains Draft/Open/Unmerged. No Stage, QA Gate, human Release Approval, or Production.
 
 
-### P23-08 — Academy Admin Operations Workspace
-- people;
-- classes;
-- sessions;
-- attendance;
-- recent activity;
-- report-card summaries;
-- Mission / assessment operational queues under authorization.
+### P23-08 — Academy Admin Operations Workspace — CODE/CI VERIFIED (bounded foundation)
+- Academy Admin-only GET `/api/v1/admin/academy/cohorts` lists only the authenticated organization's real Cohort records, with stable code/ID ordering, bounded `limit <= 100`, `offset >= 0`, and explicit `next_offset` (never a silently complete catalog).
+- Academy Admin-only GET `/api/v1/admin/academy/cohorts/{cohort_id}/classes` validates exact Cohort organization before reading ClassOffering records; same bounded and stable pagination, non-disclosing 404 on unknown/cross-org cohort. No new business ownership inferred.
+- React `AdminAcademyOperationsWorkspace` is mounted only for authenticated ACADEMY_ADMIN. It supports paged Cohort and class selection, then reads the existing authorized class roster, sessions, recorded Session attendance, source-linked activity and a selected learner's qualitative report card; every underlying API independently enforces organization/class/person scope.
+- Class members and instructor assignment IDs originate from CohortMembership/InstructorAssignment (no invented person display names). Attendance `NOT_RECORDED` is explicitly distinct from human-recorded `ABSENT`. Admin's PRESENT/ABSENT buttons invoke ONLY the existing admin-authorized attendance mutation with actual current `expected_version` and independent idempotency key; successful commands refresh attendance, activity and report, while errors are surfaced without success claims.
+- The report remains per real CapabilityVersion. Educational LearningState and human-applied Flag Profile Claim are shown separately; formal ProofState is unknown until an independently approved contract exists. There is no score, grade, auto-gate decision, automatic Evidence, or new authorization.
+- Existing AcademyStudio retains authorized Mission template/assignment work; assessment/Evidence/Gate operations are NOT consolidated into a new cross-role administrative queue or inferred via capability matching. No new Mission-to-ClassOffering linkage is invented.
+- Backend tests cover GET-only OpenAPI, query bounds, exact organization filter, non-disclosing cross-org rejection, paging and empty catalogs. React tests cover true missing attendance, explicit status-action callbacks, selector and paging changes, error privacy, and formal proof separation.
+- Existing browser E2E with live OIDC and AI Governance regression passed; a comprehensive dedicated browser acceptance for new admin navigation/attendance and negative-role cases remains under P23-11/12, and is not a Stage pass.
+
+Implementation and CI evidence:
+- backend discovery `d9813a149819063dd5fbf67802544b5261e7f7c7`, router `871286adf138dbd6cc03d3f6b37ab75da8aa44aa`, backend tests `63b3f418cbbf5b8a7d4f011217e7f73b35822a54`;
+- admin UI `07df06f296f780fa3fecac00be7fe53b4249f0a1`, App integration `74f7538a30fbbdd02d9ffc4ac1791c52b1da8cd2`, frontend tests `7e8472ad10f48e375dd454766276824aabc92cf2`;
+- type-safety CI fix `f43286f305b4dfbd7ae76556f3d95f9430424b23`, E2E heading selector fix / tested HEAD `05ee6fb6962c4910787804a47f8a9168eefe7e92`;
+- exact-head CI `37902990284`: SUCCESS (Backend, Frontend, E2E with live OIDC and AI Governance verification).
+- PR #21 remains Draft/Open/Unmerged. No Code Review sign-off, Stage, QA Gate, Release Approval, or Production.
+
 
 ### P23-09 — Assessor class-context binding
 - explicit authorized class context;
