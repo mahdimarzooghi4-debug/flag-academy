@@ -114,7 +114,7 @@ def test_draft_contract_requires_separate_governed_publication():
 
 @pytest.mark.asyncio
 async def test_author_creates_immutable_draft_and_outbox_atomically():
-    db = DB([[UUID(int=100)], [], [], []])
+    db = DB([[UUID(int=100)], [], [], [], []])
     response = await propose_knowledge_draft(draft(), actor(), cast(AsyncSession, db))
     assert response.source_key == "decision-guidance"
     assert response.version_number == 1 and response.status == "DRAFT"
@@ -124,36 +124,51 @@ async def test_author_creates_immutable_draft_and_outbox_atomically():
     assert len([i for i in db.added if isinstance(i, KnowledgeSource)]) == 1
     assert len([i for i in db.added if isinstance(i, KnowledgeSourceVersion)]) == 1
     assert len(db.added) == 4  # source, version, domain event, transactional outbox
-    assert ORG in set(db.statements[2].compile().params.values())
-    assert AUTHOR in set(db.statements[2].compile().params.values())
-    assert "pg_advisory_xact_lock" in str(db.statements[1])
+    assert ORG in set(db.statements[3].compile().params.values())
+    assert AUTHOR in set(db.statements[3].compile().params.values())
+    assert all("pg_advisory_xact_lock" in str(db.statements[i]) for i in (1, 2))
+    assert len({db.statements[i].compile().params["key"] for i in (1, 2)}) == 2
 
 
 @pytest.mark.asyncio
 async def test_retry_replays_same_snapshot_but_rejects_different_payload():
     s = source()
     v = version(s)
-    ok = DB([[UUID(int=100)], [], [(v, s)]])
+    ok = DB([[UUID(int=100)], [], [], [(v, s)]])
     reply = await propose_knowledge_draft(draft(), actor(), cast(AsyncSession, ok))
     assert reply.source_version_id == v.id
     assert reply.version_number == 1 and ok.commits == 0 and not ok.added
 
-    wrong = DB([[UUID(int=100)], [], [(v, s)]])
+    wrong = DB([[UUID(int=100)], [], [], [(v, s)]])
     with pytest.raises(AppError) as exc:
         await propose_knowledge_draft(draft(content_text="different"), actor(), cast(AsyncSession, wrong))
     assert exc.value.status_code == 409 and not wrong.added
 
 
 @pytest.mark.asyncio
+async def test_same_idempotency_key_on_other_source_fails_without_writes():
+    owned = source()
+    prior = version(owned)
+    db = DB([[UUID(int=100)], [], [], [(prior, owned)]])
+    with pytest.raises(AppError) as exc:
+        await propose_knowledge_draft(
+            draft(source_key="another-proposal"), actor(), cast(AsyncSession, db)
+        )
+    assert exc.value.status_code == 409
+    assert not db.added
+    assert not db.commits
+
+
+@pytest.mark.asyncio
 async def test_second_version_preserves_source_and_checks_ownership():
     s = source()
-    db = DB([[UUID(int=100)], [], [], [s], [1]])
+    db = DB([[UUID(int=100)], [], [], [], [s], [1]])
     reply = await propose_knowledge_draft(draft(key="two"), actor(), cast(AsyncSession, db))
     assert reply.version_number == 2
     assert db.flushes == 0 and db.commits == 1
     assert len([i for i in db.added if isinstance(i, KnowledgeSourceVersion)]) == 1
 
-    foreign_owner = DB([[UUID(int=100)], [], [], [source(owner=OTHER)]])
+    foreign_owner = DB([[UUID(int=100)], [], [], [], [source(owner=OTHER)]])
     with pytest.raises(AppError) as exc:
         await propose_knowledge_draft(draft(key="two"), actor(), cast(AsyncSession, foreign_owner))
     assert exc.value.status_code == 404 and not foreign_owner.added
