@@ -7,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.academy.activity_api import router as class_activity_router
-from app.academy.assessor_grants_api import router as assessor_grants_router
 from app.academy.admin_operations_api import router as admin_academy_router
 from app.academy.api import router as academy_router
+from app.academy.assessor_grants_api import router as assessor_grants_router
 from app.academy.candidate_class_api import router as candidate_class_router
 from app.academy.class_sessions_api import router as class_sessions_router
 from app.academy.report_card_api import router as class_report_card_router
