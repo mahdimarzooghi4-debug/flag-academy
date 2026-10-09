@@ -23,6 +23,7 @@ from app.evidence.api import router as evidence_router
 from app.flag_profile.api import router as flag_profile_router
 from app.gate_assessment.api import router as gate_assessment_router
 from app.identity.api import router as identity_router
+from app.knowledge.api import router as knowledge_router
 from app.learning.api import router as learning_router
 from app.mission_design.api import router as mission_design_router
 from app.mission_runtime.api import router as mission_runtime_router
@@ -55,6 +56,7 @@ app.include_router(class_activity_router)
 app.include_router(candidate_class_router)
 app.include_router(class_sessions_router)
 app.include_router(class_report_card_router)
+app.include_router(knowledge_router)
 app.include_router(learning_router)
 app.include_router(mission_design_router)
 app.include_router(mission_runtime_router)
