@@ -120,4 +120,33 @@ describe("Class Assessor admin mandate", () => {
     expect(screen.getByRole("button", { name: "صفحه بعد مأموریت‌ها" })).toBeDisabled();
     expect(actions.onExtend).not.toHaveBeenCalled();
   });
+
+  it("invalidates human confirmation when a concurrent admin changes the grant version", () => {
+    const onRevoke = vi.fn();
+    const props = {
+      classId: "class-one",
+      offset: 0,
+      grants: { items: [grant], next_offset: null },
+      onCreate: vi.fn(),
+      onExtend: vi.fn(),
+      onRevoke,
+      onOffset: vi.fn(),
+    };
+    const { rerender } = render(<AssessorGrantAdminView {...props} />);
+    fireEvent.change(screen.getByLabelText("دلیل تمدید یا لغو"), {
+      target: { value: "Review complete" },
+    });
+    fireEvent.click(screen.getByLabelText(
+      "لغو مأموریت این ارزیاب در همین کلاس را تأیید می‌کنم."
+    ));
+    expect(screen.getByRole("button", { name: "لغو مأموریت" })).toBeEnabled();
+    rerender(<AssessorGrantAdminView
+      {...props}
+      grants={{ items: [{ ...grant, version: 3 }], next_offset: null }}
+    />);
+    expect(screen.getByRole("button", { name: "لغو مأموریت" })).toBeDisabled();
+    expect(screen.getByLabelText("دلیل تمدید یا لغو")).toHaveValue("");
+    expect(onRevoke).not.toHaveBeenCalled();
+  });
+
 });
