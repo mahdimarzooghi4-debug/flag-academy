@@ -569,11 +569,11 @@ Implementation and CI evidence:
 - PR #21 remains Draft/Open/Unmerged. No Code Review sign-off, Stage, QA Gate, Release Approval, or Production.
 
 
-### P23-09 — Assessor class-context binding — DECISION BLOCKED
-- An approved mechanism to authorize an Assessor to a specific ClassOffering does **not** yet exist. The Sprint 23 contract explicitly lists this as an unresolved product decision (item 3).
-- The Evidence bounded context currently has subject/source provenance, not an authoritative class-assessor grant or a guaranteed Academy ClassOffering/Session linkage for every observation. Candidate identity, organization membership, shared CapabilityVersion, or a bare ASSESSOR role are **not** an approved authorization or mapping.
-- No inferred AssessorAssignment, unrestricted roster permission, Evidence-to-class mapping, or cross-context persistence foreign key has been introduced. Existing Evidence review permissions remain unchanged and do not grant Academy class roster access.
-- Resume this slice only with an explicit authorized class-assessor binding/permission contract and reliable observation-to-class source lineage; then test cross-tenant and non-assigned denial before any class-context display.
+### P23-09 — Assessor class-context binding — BUSINESS APPROVED / TECHNICAL FOUNDATION PENDING
+- On 2026-10-09 the user explicitly approved **ACADEMY_ADMIN-appointed Assessor grants covering all Candidate members of one ClassOffering**, with role-aware scoped class visibility, explicit start/end dates, Admin extension/revocation, class-completion expiration, and separated observation/recording timestamps. New decisions DEC-643..646 and detailed contract `docs/91-sprint-23-approved-governance-decisions.md` supersede the previously unresolved assignment business question.
+- A global ASSESSOR membership still grants **zero** class access. Any grant implementation must require real same-org `ASSESSOR` membership, real class ownership, live validity, ClassOffering eligibility, audit, optimistic version and denied cross-tenant/other-class access.
+- The Evidence bounded context currently has subject/source provenance but does **not** have a guaranteed Academy ClassOffering/Session linkage. Candidate identity, organization membership, shared CapabilityVersion or Mission identity may not be used to guess this mapping. Observation ingestion and the Evidence bridge remain separate packages.
+- This is **business-contract acceptance, NOT a new implemented authorization**, and no Assessor positive class access is claimed until gated tests and code pass. No cross-context FK, unrestricted permission, auto-Evidence or Gate mutation.
 
 ### P23-10 — Academy Knowledge foundation — ACTIVE
 - versioned/approved/traceable source contract;
@@ -626,11 +626,18 @@ These MUST NOT be guessed in code:
 
 1. Do future attendance statuses beyond PRESENT / ABSENT exist (late, excused, remote, etc.)?
 2. Does a Session become attendance-locked after a defined lifecycle state?
-3. What explicit mechanism scopes an Assessor to a class?
+3. **ANSWERED (DEC-643..646):** Admin-appointed, class-wide, time-bounded and revocable Assessor mandate; implementation and class-completion lifecycle semantics still pending.
 4. Does Parcham ever introduce numeric subject grades? If yes, the formula/scale/governance requires a separate contract.
 5. What storage/index/retrieval technology serves Academy Knowledge?
 6. Which Academy Knowledge categories are permitted to reach each AI mode?
 7. Which instructor content-generation actions may eventually execute automatically versus requiring confirmation?
+
+## Approved follow-on business decisions — 2026-10-09
+
+- All ten product responses have been written as DEC-643..652 and the precise Business/Technical boundary is in `docs/91-sprint-23-approved-governance-decisions.md`.
+- Approved: class-wide Assessor grant and scoped role views, factual recorded/observed timestamp separation, grant lifetime, distinct authoritative ProofState, curriculum + AI proposal + Instructor approval, Instructor → Scientific Council → Academy Admin knowledge publication, AI role-scoped knowledge, and reasoned Admin-only correction after formal attendance finalization.
+- Still unresolved as **technical/business mechanics**: authoritative ClassOffering completion transition and effective timing, late Observation authorization after a revoked/ended mandate, Scientific Council identity/decision quorum, ProofState reader source, Instructor decision command, Knowledge serving/runtime, and attendance finalization transition. Do not guess these when writing code.
+- Next delivery sequence: P23-09 Academy-owned grant foundation → scoped class read APIs → governed Observation source → remaining separate contextual contracts → Browser E2E/security → independent Code Review. No Stage without explicit instruction.
 
 ## First implementation slice — COMPLETE
 
