@@ -12,6 +12,18 @@ $COMPOSE exec -T keycloak "$KCADM" config credentials \
   --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null
 $COMPOSE exec -T keycloak "$KCADM" create users -r parcham \
   -s id=55555555-5555-5555-5555-555555555555 \
-  -s username=assessor-reviewer -s enabled=true >/dev/null
+  -s username=assessor-reviewer -s enabled=true \
+  -s email=assessor-reviewer@ci.parcham.invalid -s emailVerified=true \
+  -s firstName=CI -s lastName=Reviewer >/dev/null
 $COMPOSE exec -T keycloak "$KCADM" set-password -r parcham \
   --username assessor-reviewer --new-password "$PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD"
+
+# Fail before Playwright if Keycloak did not retain the exact subject mapped in CI DB.
+$COMPOSE exec -T keycloak "$KCADM" get users -r parcham \
+  -q username=assessor-reviewer --fields id,username | python3 -c '
+import json, sys
+users = json.load(sys.stdin)
+assert len(users) == 1 and users[0]["id"] == "55555555-5555-5555-5555-555555555555", (
+    "The isolated OIDC subject does not match its mapped CI Person"
+)
+'
