@@ -184,8 +184,9 @@ async def test_metadata_reads_are_tenant_and_author_scoped_and_exclude_content()
     result = await list_admin_knowledge_drafts(actor("ACADEMY_ADMIN"), cast(AsyncSession, admin), limit=5, offset=0)
     assert result.items[0].status == "DRAFT"
     assert "organization_context_id" in str(admin.statements[1])
-    where_clause = str(admin.statements[1]).split(" WHERE ", 1)[1].split(" ORDER BY ", 1)[0]
-    assert "author_person_id" not in where_clause
+    # Bound predicates, not the selected ORM columns, define data access.
+    assert AUTHOR not in set(admin.statements[1].compile().params.values())
+    assert AUTHOR in set(instructor.statements[1].compile().params.values())
 
 
 def test_migration_has_append_only_db_trigger_and_exact_model_columns():
