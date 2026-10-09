@@ -66,14 +66,14 @@ export function AssessorClassView({
     roster?.cohort_id === selected.cohort_id &&
     sessions?.every((item) => item.class_offering_id === selected.class_offering_id) &&
     activity?.class_offering_id === selected.class_offering_id;
-  const learners = scoped ? roster.members.filter((item) => item.member_type === "CANDIDATE") : [];
+  const learners = scoped && roster ? roster.members.filter((item) => item.member_type === "CANDIDATE") : [];
   const recorded = new Map(
     attendance?.session_id === sessionId
       ? attendance.items.map((item) => [item.person_id, item.status])
       : [],
   );
   const validReport = scoped && report &&
-    report.class_offering_id === classId && report.cohort_id === selected.cohort_id &&
+    report.class_offering_id === classId && report.cohort_id === selected?.cohort_id &&
     report.person_id === personId && learners.some((item) => item.person_id === personId);
 
   return (
@@ -126,12 +126,12 @@ export function AssessorClassView({
               <p className="assessor-class-member" key={learner.person_id} dir="ltr">{learner.person_id}</p>
             ))}
             {learners.length === 0 ? <p>فراگیری ثبت نشده است.</p> : null}
-            {sessions.length > 0 ? (
+            {(sessions ?? []).length > 0 ? (
               <div className="form-stack">
                 <label htmlFor="assessor-class-session">جلسه مجاز</label>
                 <select id="assessor-class-session" value={sessionId ?? ""}
                   onChange={(e) => onSessionChange(e.target.value)}>
-                  {sessions.map((item) => (
+                  {(sessions ?? []).map((item) => (
                     <option key={item.session_id} value={item.session_id}>{item.title}</option>
                   ))}
                 </select>
@@ -147,15 +147,15 @@ export function AssessorClassView({
           </section>
           <section className="panel">
             <h2>فعالیت‌های کلاس</h2>
-            {activity.items.length === 0 ? <p>فعالیت ثبت نشده است.</p> : null}
-            {activity.items.map((item) => (
+            {activity?.items.length === 0 ? <p>فعالیت ثبت نشده است.</p> : null}
+            {activity?.items.map((item) => (
               <div key={`${item.source_type}-${item.source_id}`} className="assessor-class-activity">
                 <strong>{item.source_type}</strong>
                 <span dir="ltr">{item.person_id} · {item.source_id}</span>
                 <span>{item.state ?? "وضعیت ثبت نشده"}</span>
               </div>
             ))}
-            {activity.is_truncated ? <p className="muted">نمایش به جدیدترین فعالیت‌های صفحه محدود شده است.</p> : null}
+            {activity?.is_truncated ? <p className="muted">نمایش به جدیدترین فعالیت‌های صفحه محدود شده است.</p> : null}
           </section>
           <section className="panel">
             <h2>کارنامه کیفی فراگیر</h2>
@@ -304,7 +304,9 @@ export function AssessorClassWorkspace({
     refetchInterval: READ_REFRESH_MS,
   });
   const reads = [roster, sessions, attendance, activity, report];
-  const busy = !validPage || reads.some((query) => query.isFetching || query.isPending);
+  const busy = assigned.isPending || assigned.isFetching ||
+    (Boolean(classId) && reads.some((query) => query.isFetching ||
+      (query.isPending && query.fetchStatus === "fetching")));
   const errors = [assigned, ...reads].filter((query) => query.isError)
     .map((query) => query.error?.message ?? "دسترسی به کلاس نامعتبر است.");
   const mismatch = (roster.data && !validRoster) ||
