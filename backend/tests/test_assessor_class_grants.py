@@ -52,7 +52,7 @@ def grant(**overrides):
         updated_at=T0,
     )
     row.update(overrides)
-    return SimpleNamespace(**row)
+    return AssessorClassGrant(**row)
 
 
 class FakeResult:
@@ -156,17 +156,22 @@ async def test_non_assessor_membership_denied_without_grant_write():
 @pytest.mark.asyncio
 async def test_stale_extend_and_revoke_do_not_mutate_grant():
     existing = grant(version=3)
-    for command, payload in (
-        (extend_assessor_class_grant,
-         GrantExtendRequest(expected_version=2, ends_at=T0 + timedelta(days=7),
-                            reason="extend approved", idempotency_key="ext-1")),
-        (revoke_assessor_class_grant,
-         GrantRevokeRequest(expected_version=2, reason="appointment ended",
-                            idempotency_key="revoke-1")),
+    for payload in (
+        GrantExtendRequest(expected_version=2, ends_at=T0 + timedelta(days=7),
+                           reason="extend approved", idempotency_key="ext-1"),
+        GrantRevokeRequest(expected_version=2, reason="appointment ended",
+                           idempotency_key="revoke-1"),
     ):
         db = FakeDB([[existing], []])
         with pytest.raises(AppError) as err:
-            await command(existing.id, payload, actor(), cast(AsyncSession, db))
+            if isinstance(payload, GrantExtendRequest):
+                await extend_assessor_class_grant(
+                    existing.id, payload, actor(), cast(AsyncSession, db)
+                )
+            else:
+                await revoke_assessor_class_grant(
+                    existing.id, payload, actor(), cast(AsyncSession, db)
+                )
         assert err.value.status_code == 409
         assert db.commits == 0
 
