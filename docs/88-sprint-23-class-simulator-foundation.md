@@ -519,10 +519,20 @@ Implementation and CI evidence:
 - P23-05 remains PARTIAL: no Stage/QA Gate or final Sprint acceptance is claimed. Outstanding: authoritative ProofState public contract, next-focus policy and verified class-linked Mission participation.
 
 
-### P23-06 — Candidate report-card experience
-- own multi-subject report card;
-- plain-language missing-data state;
-- formal growth clearly separated.
+### P23-06 — Candidate report-card experience — CODE/CI VERIFIED (current-cohort foundation)
+- Candidate-only GET `/api/v1/cohorts/{cohort_id}/class-offerings` checks exact same-organization `CohortMembership(person_id, member_type=CANDIDATE)` before listing genuine `ClassOffering` items, including classes with no learning tasks. It performs no writes and discloses no cross-cohort class list.
+- React `CandidateReportWorkspace` is mounted only in authenticated Candidate UI, derives current cohort and person IDs from real CandidateHome and identity context, and reads a selectable class's own `/class-offerings/{id}/report-cards/{person_id}` API; server-side report authorization remains authoritative.
+- UI shows all returned CapabilityVersion subjects with recorded progress, feedback, class attendance, and candidate-safe human-reviewed claim. It explicitly distinguishes absent classes, absent sessions, unrecorded attendance (`NOT_RECORDED` ≠ `ABSENT`), missing lesson activities, no feedback, unavailable formal ProofState, and independently reviewed claims.
+- Report subject cards are display-only and have their own CSS selector; operational Learning cards preserve existing controls. No grade, threshold, automatic Evidence/Profile/Gate transition or guessed focus. Mission is not attributed to class until a verified mapping exists.
+- Backend source-scope/OpenAPI tests and React view/selection/missing-data tests added. Existing live OIDC browser E2E and AI Governance integration regression passed; a dedicated full report-card browser scenario remains for later P23-12 acceptance.
+
+Code and CI evidence:
+- candidate class discovery `9a9bfcd57b391ab0d9fdaad8b9ff0e0291878620`, router `a9365805e4d6ea0f8402c304ea046f27230abb42`, backend tests `aab5dc7a406693c2637bacf4974caf5d7bad0121`
+- web component `7341f5db95aa6b74d72603b94db240350b56d49d`, integration `16ff69216bcf98de2a7fe91006c150d453988356`, view tests `ad853f1d4f8844f6d5503db21e7d99422a8e525e`, vitest fixture cleanup `597afe01351e4deb190218ad4dbda34a910cb1e0`
+- browser regression fixes `cbfa7ff2dd40c44cc643103a42476d66a8bda7ae`, presentation selector `4621698b99e671e0bc28c783c746e9ea71ba8c50`, styles `b50194c56a0886e133e9817fab14d22b585d757e`.
+- CI `37897611025` — SUCCESS (Backend, Frontend, E2E with live OIDC and AI governance regressions).
+- Scope is current-cohort learner experience only, not unrestricted multi-cohort admin or instructor experience. PR #21 remains Draft/Open/Unmerged. Stage/QA/Release/Production not performed.
+
 
 ### P23-07 — Instructor Class Workspace
 - class roster;
