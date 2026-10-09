@@ -3,7 +3,6 @@
 import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID
 
