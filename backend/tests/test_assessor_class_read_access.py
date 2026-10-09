@@ -160,10 +160,10 @@ def test_live_assessor_roster_has_exact_class_scope_without_grade_or_evidence():
     )
     db = DB([
         [(offering, SimpleNamespace(id=COHORT, status="ACTIVE"))],
-        [(LEARNER, "CANDIDATE")],
-        [],
         grant_rows(),
         [UUID(int=8411)],
+        [(LEARNER, "CANDIDATE")],
+        [],
     ])
     with as_assessor(db) as client:
         result = client.get(f"/api/v1/class-offerings/{CLASS}/roster")
@@ -182,7 +182,7 @@ def test_global_assessor_without_grant_cannot_read_roster():
     )
     db = DB([
         [(offering, SimpleNamespace(id=COHORT, status="ACTIVE"))],
-        [(LEARNER, "CANDIDATE")], [], [],
+        [],  # No grant: deny before any roster/instructor read.
     ])
     with as_assessor(db) as client:
         result = client.get(f"/api/v1/class-offerings/{CLASS}/roster")
@@ -222,7 +222,7 @@ def test_live_assessor_activity_and_private_report_are_class_member_scoped():
     )
     cohort = SimpleNamespace(id=COHORT, status="ACTIVE", track_code="PM")
     activity_db = DB([
-        [(offering, cohort)], [LEARNER], grant_rows(), [UUID(int=8411)],
+        [(offering, cohort)], grant_rows(), [UUID(int=8411)], [LEARNER],
     ], empty_tail=True)
     with as_assessor(activity_db) as client:
         activity = client.get(f"/api/v1/class-offerings/{CLASS}/activity")
@@ -230,7 +230,7 @@ def test_live_assessor_activity_and_private_report_are_class_member_scoped():
     assert activity.json()["items"] == []
 
     report_db = DB([
-        [(offering, cohort)], [UUID(int=8411)], grant_rows(), [UUID(int=8412)],
+        [(offering, cohort)], grant_rows(), [UUID(int=8412)], [UUID(int=8411)],
     ], empty_tail=True)
     with as_assessor(report_db) as client:
         report = client.get(f"/api/v1/class-offerings/{CLASS}/report-cards/{LEARNER}")
@@ -238,10 +238,12 @@ def test_live_assessor_activity_and_private_report_are_class_member_scoped():
     assert report.json()["person_id"] == str(LEARNER)
     assert all(item["proof_state"] is None for item in report.json()["subjects"])
 
-    unregistered_member_db = DB([[(offering, cohort)], []])
+    unregistered_member_db = DB([
+        [(offering, cohort)], grant_rows(), [UUID(int=8411)], [],
+    ])
     with as_assessor(unregistered_member_db) as client:
         denied = client.get(
             f"/api/v1/class-offerings/{CLASS}/report-cards/{UUID(int=8500)}"
         )
     assert denied.status_code == 404
-    assert len(unregistered_member_db.queries) == 2
+    assert len(unregistered_member_db.queries) == 4
