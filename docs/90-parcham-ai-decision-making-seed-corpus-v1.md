@@ -309,3 +309,14 @@ After real Academy activity exists, future enrichment remains:
 → **new immutable Dataset Version**
 
 Raw classroom activity remains forbidden from direct Training ingestion.
+
+## P23-10: human Seed approval UI — Code/CI verified (2026-10-09)
+
+- An Academy-Admin-only `SeedLearningApprovalWorkspace` is mounted beside the existing **read-only** AI Governance workspace, using the real signed-in organization and person.
+- The existing preview API is the source of truth for exact Seed v1 identity, policy, content count, SHA-256, and current Human approval status. The Admin must explicitly review the original source content and confirm the *full* displayed SHA-256 with a separately recorded approval reference.
+- The form fails closed on invalid source identity/purpose/digest, missing Human acknowledgement, rejected API responses, and changed preview digest/version. The backend revalidates the digest and authenticated ACADEMY_ADMIN authority and appends the domain event/outbox entry in the same transaction.
+- The UI **does not** directly create a Dataset Version or start Training; approval merely authorizes the existing `ai.learning_input_approved.v1` → Outbox → NATS → automatic Dataset Builder path. A receipt from the approval API means the event was recorded, **not** that the first persistent Dataset Version exists.
+- Frontend tests and live Keycloak/OIDC Browser E2E cover exact preview and administrator/Assessor role isolation. The browser acceptance does **not** press the Human approval button or impersonate a real independent Academy approval.
+- Implementation HEAD `4c63a18fc3bc9e6a393f23f67832109438b26f3c`; [CI #37925534341](https://github.com/mahdimarzooghi4-debug/flag-academy/actions/runs/37925534341) **SUCCESS**. Scoped technical review: `docs/reviews/27-sprint-23-seed-learning-admin-ui-code-review.md`.
+- **Remaining real gate:** in an actual Academy target environment, a logged-in Academy Admin must review the exact fixed 24-item Seed and deliberately approve its digest, then verify an immutable Dataset Version exists from the live governed builder. Neither real approval nor persistent Dataset creation occurred during this implementation.
+
