@@ -162,7 +162,7 @@ def test_no_public_inference_or_training_api_was_added():
     assert "local_files_only=True" in adapter_source
     assert "trust_remote_code=False" in adapter_source
     assert "use_safetensors=True" in adapter_source
-    assert "from transformers import" in adapter_source
+    assert 'import_module("transformers")' in adapter_source
     assert "AutoModelForMultimodalLM" in adapter_source
     assert "https://" not in adapter_source
     assert "train(" not in adapter_source
