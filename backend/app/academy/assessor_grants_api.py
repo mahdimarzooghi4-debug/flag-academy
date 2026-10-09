@@ -91,6 +91,20 @@ def _response(grant: AssessorClassGrant) -> GrantResponse:
     )
 
 
+def _response_from_revision(item: AssessorClassGrantRevision) -> GrantResponse:
+    """Idempotent replay returns the original accepted command result, not live mutable state."""
+    return GrantResponse(
+        grant_id=item.grant_id,
+        version=item.resulting_version,
+        organization_context_id=item.organization_context_id,
+        class_offering_id=item.class_offering_id,
+        assessor_person_id=item.assessor_person_id,
+        starts_at=item.starts_at,
+        ends_at=item.ends_at,
+        revoked_at=item.revoked_at,
+    )
+
+
 async def _class_in_tenant(
     db: AsyncSession, *, class_offering_id: UUID, organization_id: UUID
 ) -> tuple[ClassOffering, Cohort]:
@@ -249,18 +263,7 @@ async def create_assessor_class_grant(
             assessor_id=body.assessor_person_id, expected_version=0,
             start=body.starts_at, end=body.ends_at,
         )
-        old = (
-            await db.execute(
-                select(AssessorClassGrant).where(
-                    AssessorClassGrant.id == previous.grant_id,
-                    AssessorClassGrant.organization_context_id
-                    == actor.organization_context_id,
-                )
-            )
-        ).scalar_one_or_none()
-        if old is None:
-            raise AppError("GRANT_NOT_FOUND", "Grant not found.", status_code=404)
-        return _response(old)
+        return _response_from_revision(previous)
 
     existing = (
         await db.execute(
@@ -326,7 +329,7 @@ async def extend_assessor_class_grant(
             expected_version=body.expected_version, end=body.ends_at,
             start=row.starts_at, reason=body.reason,
         )
-        return _response(row)
+        return _response_from_revision(old)
     if body.expected_version != row.version:
         raise AppError("GRANT_VERSION_CONFLICT", "Refresh grant version.", status_code=409)
     now = current_utc()
@@ -366,7 +369,7 @@ async def revoke_assessor_class_grant(
             expected_version=body.expected_version,
             start=row.starts_at, end=row.ends_at, reason=body.reason,
         )
-        return _response(row)
+        return _response_from_revision(old)
     if body.expected_version != row.version:
         raise AppError("GRANT_VERSION_CONFLICT", "Refresh grant version.", status_code=409)
     now = current_utc()
