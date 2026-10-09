@@ -469,7 +469,7 @@ export function AdminAcademyOperationsWorkspace({
       selectedPersonId={selectedPersonId}
       onPersonChange={setChosenPersonId}
       report={
-        report.data?.class_offering_id === classId && report.data.person_id === selectedPersonId
+        report.data?.class_offering_id === classId && report.data?.person_id === selectedPersonId
           ? report.data : undefined
       }
       onRecordAttendance={(learnerId, status) => {
