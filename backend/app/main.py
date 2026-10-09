@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from app.academy.activity_api import router as class_activity_router
 from app.academy.api import router as academy_router
+from app.academy.candidate_class_api import router as candidate_class_router
 from app.academy.report_card_api import router as class_report_card_router
 from app.ai_governance_api import router as ai_governance_router
 from app.config import get_settings
@@ -44,6 +45,7 @@ app.include_router(gate_assessment_router)
 app.include_router(curriculum_router)
 app.include_router(academy_router)
 app.include_router(class_activity_router)
+app.include_router(candidate_class_router)
 app.include_router(class_report_card_router)
 app.include_router(learning_router)
 app.include_router(mission_design_router)
