@@ -16,7 +16,11 @@ from app.academy.class_observations_api import (
     list_my_class_observations,
 )
 from app.academy.models import (
-    AssessorClassGrant, ClassAssessorObservation, ClassOffering, Cohort, Session,
+    AssessorClassGrant,
+    ClassAssessorObservation,
+    ClassOffering,
+    Cohort,
+    Session,
 )
 from app.errors import AppError
 from app.identity.auth import ActorContext

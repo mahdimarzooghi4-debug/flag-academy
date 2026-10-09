@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.academy.assessor_access import has_live_assessor_class_access
 from app.academy.assessor_grants_policy import GrantWindow, active_class_grant, current_utc
 from app.academy.models import (
     AssessorClassGrant,
@@ -25,7 +26,6 @@ from app.academy.models import (
     CohortMembership,
     Session,
 )
-from app.academy.assessor_access import has_live_assessor_class_access
 from app.db import get_session
 from app.errors import AppError
 from app.identity.auth import ActorContext, require_role
