@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from typing import Annotated, Literal, Never
+from typing import Annotated, Literal, Never, cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends
@@ -94,12 +94,14 @@ def classroom_source_digest(source: ClassAssessorObservation) -> str:
 
 
 def _result(review: ClassroomObservationSourceReview) -> ClassroomReviewResult:
+    if review.decision not in ("VERIFIED", "REJECTED"):
+        raise AppError("CLASSROOM_REVIEW_STATE_INVALID", "Unknown stored decision.", status_code=409)
     return ClassroomReviewResult(
         review_id=review.id,
         source_observation_id=review.source_observation_id,
         source_sha256=review.source_sha256,
         reviewer_person_id=review.reviewer_person_id,
-        decision=review.decision,
+        decision=cast(Literal["VERIFIED", "REJECTED"], review.decision),
         decided_at=review.decided_at,
     )
 
