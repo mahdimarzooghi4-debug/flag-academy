@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import hashlib
 import re
+from importlib import import_module
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Never, Protocol
 from uuid import UUID
 
 from app.errors import AppError
@@ -21,7 +22,7 @@ _BLOCKED_SUFFIXES = {".py", ".sh", ".bin", ".pt", ".pth", ".pkl", ".pickle", ".s
 _MODEL_FAMILY = "Gemma 4 12B Unified"
 
 
-def _deny(reason: str) -> None:
+def _deny(reason: str) -> Never:
     raise AppError("AI_LOCAL_CHECKPOINT_NOT_VERIFIED", reason, status_code=409)
 
 
@@ -149,18 +150,20 @@ class TransformersLocalGemmaBackend:
             _deny("A deployment-benchmarked device map is required.")
         # Optional GPU dependencies are intentionally not part of default API/CI packages.
         try:
-            from transformers import AutoModelForMultimodalLM, AutoProcessor
-        except ImportError as exc:
+            transformers = import_module("transformers")
+            model_class = transformers.AutoModelForMultimodalLM
+            processor_class = transformers.AutoProcessor
+        except (ImportError, AttributeError) as exc:
             raise AppError(
                 "AI_LOCAL_RUNTIME_UNAVAILABLE",
                 "Local Gemma runtime dependencies are not installed.",
                 status_code=503,
             ) from exc
         path = attestation.checkpoint.checkpoint_directory
-        self.processor: Any = AutoProcessor.from_pretrained(
+        self.processor: Any = processor_class.from_pretrained(
             path, local_files_only=True, trust_remote_code=False,
         )
-        self.model: Any = AutoModelForMultimodalLM.from_pretrained(
+        self.model: Any = model_class.from_pretrained(
             path, local_files_only=True, trust_remote_code=False,
             use_safetensors=True, device_map=device_map,
         )
@@ -168,7 +171,7 @@ class TransformersLocalGemmaBackend:
 
     def generate(self, prompt: str, policy: ExplicitTextGeneration) -> str:
         try:
-            import torch
+            torch = import_module("torch")
         except ImportError as exc:
             raise AppError(
                 "AI_LOCAL_RUNTIME_UNAVAILABLE",
