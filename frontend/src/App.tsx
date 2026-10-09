@@ -24,6 +24,7 @@ import {
   type MissionInstance,
 } from "./components/MissionWorkspace";
 import { AdminAcademyOperationsWorkspace } from "./components/AdminAcademyOperationsWorkspace";
+import { AssessorClassWorkspace } from "./components/AssessorClassWorkspace";
 import {
   AcademyStudio,
   type CapabilityOption,
@@ -1469,6 +1470,13 @@ function AuthenticatedApp({
             />
           ) : null}
         </>
+      ) : null}
+      {!isAdmin && !isCandidate && !isInstructor && isAssessor && me.data ? (
+        <AssessorClassWorkspace
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+        />
       ) : null}
       {!isAdmin &&
       !isCandidate &&
