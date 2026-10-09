@@ -647,7 +647,7 @@
 | DEC-635 | 2026-10-08 | کارنامه هر درس یک Read Model کیفی و provenance-aware برای person × capability_version × class/cohort context است و می‌تواند Attendance، Learning Activity، Mission Activity، Instructor Feedback، LearningState و فقط ProofState رسمیِ خوانده‌شده از منبع authoritative را نمایش دهد؛ کارنامه حق ساخت Grade/GPA/Rank یا mutation روی Evidence/Profile/Gate ندارد. | FINAL |
 | DEC-636 | 2026-10-08 | Academy Knowledge برای استفاده روزمره Parcham AI از Training Dataset جداست. تأیید یک منبع برای Knowledge-use به‌تنهایی AI-learning eligibility ایجاد نمی‌کند؛ فقط اگر همان منبع جداگانه طبق Policy برای AI learning مجاز شود، DEC-625/626/627 و Automatic Dataset Builder اعمال می‌شوند. | FINAL |
 | DEC-637 | 2026-10-08 | Academy Admin نمای عملیاتی مجاز از Classes، People/Roles، Sessions، Attendance، Activity، Mission و Report-card summary دارد، اما «همه اطلاعات» به معنی عبور از Tenant isolation، reviewer-private rationale، hidden assessment mechanics یا AI secret boundaries نیست. | FINAL |
-| DEC-638 | 2026-10-08 | نقش ASSESSOR به‌تنهایی دسترسی سراسری به Roster/Activity همه کلاس‌ها نمی‌دهد. Context کلاس برای Assessor باید explicit و scoped باشد؛ مکانیزم دقیق assignment در Sprint 23 هنوز unresolved است و نباید حدس زده شود. | FINAL |
+| DEC-638 | 2026-10-08 | نقش ASSESSOR به‌تنهایی دسترسی سراسری به Roster/Activity همه کلاس‌ها نمی‌دهد. Context کلاس برای Assessor باید explicit و scoped باشد؛ مکانیزم دقیق assignment در Sprint 23 هنوز unresolved است و نباید حدس زده شود. | SUPERSEDED → DEC-643 |
 
 | DEC-639 | 2026-10-08 | در Class Simulator v1 فقط ACADEMY_ADMIN مجاز به ثبت و اصلاح Attendance است. Instructor برای کلاس‌های تخصیص‌یافته Attendance را فقط می‌خواند. اصلاح Attendance باید versioned/auditable باشد و مقدار قبلی قابل بازسازی بماند؛ این تصمیم Maker-Checker یا تأییدکننده دوم اختراع نمی‌کند. | FINAL |
 
@@ -657,6 +657,17 @@
 | DEC-642 | 2026-10-08 | Decision-Making Seed v1 فقط از طریق Human Seed Learning Approval Bridge وارد مسیر AI-learning می‌شود: ACADEMY_ADMIN باید SHA-256 دقیق artifact را صریحاً تأیید کند؛ Bridge فقط event رسمی `ai.learning_input_approved.v1` و Outbox را ثبت می‌کند و Dataset را مستقیم نمی‌نویسد. Dataset Builder موجود تنها مرجع ایجاد Dataset Version است. Bridge حق شروع Training، Model creation، Promotion یا Runtime activation ندارد. | FINAL |
 
 ---
+
+| DEC-643 | 2026-10-09 | ACADEMY_ADMIN تنها مرجع انتصاب Assessor به یک ClassOffering واقعی در سازمان است؛ تخصیص فقط به همه فراگیران همان کلاس محدود است و نقش سراسری ASSESSOR بدون تخصیص معتبر هیچ دسترسی کلاسی ایجاد نمی‌کند؛ اختیار انتصاب و لغو باید ممیزی‌پذیر باشد. | FINAL |
+| DEC-644 | 2026-10-09 | Assessor منصوب در بازه مأموریت مجاز، Roster، Attendance ثبت‌شده، Activity، Feedback و کارنامه کیفی همان کلاس را با حفظ محرمانگی می‌بیند؛ یادداشت خصوصی ارزیابان دیگر و داده محرمانه Assessment/Gate فقط با مجوز مستقل Owner قابل مشاهده‌اند. | FINAL |
+| DEC-645 | 2026-10-09 | Assessor می‌تواند در حین کلاس یا پس از آن Observation واقعی ثبت کند، با شناسه ClassOffering/Session/Candidate/Observer و زمان وقوع جدا از زمان ثبت؛ Observation خام بدون Human Review به Accepted Evidence یا Profile/Gate تبدیل نمی‌شود و اتصال Source باید معتبر باشد. | FINAL |
+| DEC-646 | 2026-10-09 | مدیر آکادمی آغاز/پایان صریح مأموریت ارزیاب را تعیین و امکان تمدید یا لغو زودهنگام دارد؛ پایان رسمی کلاس نیز دسترسی عملیاتی را می‌بندد، تاریخچه ممیزی حفظ می‌شود و بعد از پایان مأموریت دسترسی خصوصی باقی نمی‌ماند؛ lifecycle دقیق اتمام کلاس نیازمند قرارداد جداست. | FINAL |
+| DEC-647 | 2026-10-09 | کارنامه LearningState، CapabilityClaim تأیید و اعمال‌شده انسانی، و ProofState مستقل معتبر را جداگانه نمایش می‌دهد؛ ProofState تا وجود قرارداد عمومی authoritative باید null بماند و از حضور/تکمیل/Claim استنتاج نمی‌شود. | FINAL |
+| DEC-648 | 2026-10-09 | تمرکز آموزشی بعدی زیر چارچوب Curriculum مصوب است؛ AI داخلی پرچم فقط پیشنهاد مجاز و قابل بازبینی می‌دهد و استاد مسئول تصمیم نهایی و ثبت صریح است؛ تا وجود قرارداد تصمیم استاد، next_learning_focus تهی می‌ماند. | FINAL |
+| DEC-649 | 2026-10-09 | مسئول محتوا/استاد نویسنده و پیشنهاددهنده است؛ شورای علمی بررسی اعتبار تخصصی می‌کند و ACADEMY_ADMIN تأیید نهایی انتشار دانش آکادمی را انجام می‌دهد؛ ترکیب/نصاب شورا و APIs اجرایی باید جداگانه تعیین شوند و قابل حدس نیستند. | FINAL |
+| DEC-650 | 2026-10-09 | استفاده Parcham AI از Knowledge مبتنی بر نقش، purpose، mode و scope مأموریت است؛ دانش آموزشی برای فراگیر، راهنمای تدریس برای استاد، معیارهای ارزیابی مأموریت برای Assessor و دانش مدیریتی مجاز برای Admin؛ داده پنهان به فراگیر افشا نمی‌شود؛ مجوز Knowledge-use به معنای AI-learning یا Promotion نیست. | FINAL |
+| DEC-651 | 2026-10-09 | حضور پس از Finalization رسمی قفل می‌شود؛ تنها ACADEMY_ADMIN اجازه اصلاح مستدل، Versioned و Audited با حفظ سوابق را دارد؛ زمان و trigger نهایی‌سازی و Command اصلاح هنوز قرارداد نشده و صرف پایان ساعت Session به معنی قفل خودکار نیست. | FINAL |
+| DEC-652 | 2026-10-09 | اجرای تصمیم‌های 643 تا 651 صرفاً از قرارداد Business → Technical → Tests → Code → CI → Code Review و با حفظ RBAC+ABAC، Tenant Isolation، Human Governance و عدم اختراع مجوز، Lifecycle، Score یا AI Production انجام می‌شود؛ برنامه تفصیلی در docs/91 ثبت است. | FINAL |
 
 ## مواردی که عمداً FINAL نشده‌اند
 
