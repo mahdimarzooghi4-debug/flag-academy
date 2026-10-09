@@ -30,6 +30,10 @@ from app.platform.events import new_event, record_event
 
 router = APIRouter(prefix="/api/v1", tags=["evidence"])
 
+# Reserved classroom source: generic org-wide Evidence reads must not reveal it.
+# A later Evidence-owned, assignment-specific contract must authorize access.
+CLASSROOM_SOURCE_CONTEXT = "CLASSROOM_OBSERVATION"
+
 
 class EvidenceLinkInput(BaseModel):
     target_type: str = Field(pattern="^(CAPABILITY|COMPETENCY|GATE)$")
@@ -184,7 +188,9 @@ async def _load_case(
     if for_update:
         stmt = stmt.with_for_update()
     case = (await db.execute(stmt)).scalar_one_or_none()
-    if case is None:
+    if case is None or case.source_context == CLASSROOM_SOURCE_CONTEXT:
+        # Classroom operational data is not made organization-wide by an
+        # ASSESSOR role or by an EvidenceCase identifier.
         raise AppError("EVIDENCE_CASE_NOT_FOUND", "Evidence case not found.", status_code=404)
     return case
 
@@ -393,7 +399,10 @@ async def list_evidence_cases(
     cases = (
         await db.execute(
             select(EvidenceCase)
-            .where(EvidenceCase.organization_context_id == actor.organization_context_id)
+            .where(
+                EvidenceCase.organization_context_id == actor.organization_context_id,
+                EvidenceCase.source_context != CLASSROOM_SOURCE_CONTEXT,
+            )
             .order_by(EvidenceCase.created_at, EvidenceCase.id)
         )
     ).scalars().all()
@@ -424,6 +433,7 @@ async def list_my_evidence_cases(
                 EvidenceCase.organization_context_id == actor.organization_context_id,
                 EvidenceCase.subject_person_id == actor.person_id,
                 EvidenceCase.candidate_visible.is_(True),
+                EvidenceCase.source_context != CLASSROOM_SOURCE_CONTEXT,
             )
             .order_by(EvidenceCase.created_at, EvidenceCase.id)
         )
