@@ -6,7 +6,9 @@ No public API, model promotion, GPU sizing, downloading, or training occurs here
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from importlib import import_module
@@ -14,6 +16,18 @@ from pathlib import Path
 from typing import Any, Never, Protocol
 from uuid import UUID
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.ai_control_plane.domain import TrainingRunState
+from app.ai_control_plane.models import (
+    AIDataset,
+    AIDatasetVersion,
+    AIModelArtifact,
+    AIModelVersion,
+    AITrainingRun,
+    AITrainingRunState,
+)
 from app.errors import AppError
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -230,3 +244,199 @@ def generate_offline_text(
             status_code=503,
         )
     return result
+
+
+# V1 contract for the already-versioned ModelArtifact, not a second registry.
+_REGISTERED_MANIFEST_FORMAT = "GEMMA4_CHECKPOINT_MANIFEST_V1"
+_REGISTERED_MANIFEST_MAX_BYTES = 1024 * 1024
+_REGISTERED_MANIFEST_MAX_FILES = 4096
+
+
+def _registry_deny(reason: str) -> Never:
+    raise AppError(
+        "AI_LOCAL_REGISTRY_ARTIFACT_NOT_VERIFIED", reason, status_code=409
+    )
+
+
+def _unique_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    obj: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in obj:
+            _registry_deny("Duplicate JSON keys are forbidden in registered manifests.")
+        obj[key] = value
+    return obj
+
+
+def _checkpoint_from_registered_artifact(
+    *,
+    version: AIModelVersion,
+    artifact: AIModelArtifact,
+    run: AITrainingRun,
+    checkpoint_directory: str,
+) -> OfflineGemmaCheckpoint:
+    """Read verified ModelVersion artifact bytes; mount path comes from the host."""
+    if (
+        artifact.artifact_format != _REGISTERED_MANIFEST_FORMAT
+        or version.model_artifact_id != artifact.id
+        or version.training_run_id != run.id
+        or artifact.training_run_id != run.id
+        or version.dataset_version_id != run.dataset_version_id
+        or version.model_family != run.model_family
+        or version.model_family != _MODEL_FAMILY
+        or version.attestation_sha256 != artifact.content_sha256
+        or version.attestation_byte_size != artifact.byte_size
+    ):
+        _registry_deny("Registry model, artifact and Training Run lineage are inconsistent.")
+    if (
+        not _SHA256.fullmatch(artifact.content_sha256)
+        or artifact.byte_size <= 0
+        or artifact.byte_size > _REGISTERED_MANIFEST_MAX_BYTES
+    ):
+        _registry_deny("Registered manifest attestation metadata is invalid.")
+
+    path = Path(artifact.artifact_reference)
+    try:
+        if (
+            "://" in artifact.artifact_reference
+            or not path.is_absolute()
+            or path == Path("/")
+            or path.is_symlink()
+            or path.resolve(strict=True) != path
+            or not path.is_file()
+        ):
+            _registry_deny("Registered artifact must be a canonical local regular file.")
+        before = path.stat()
+        if before.st_size != artifact.byte_size:
+            _registry_deny("Registered artifact byte size differs from the registry.")
+        with path.open("rb") as stream:
+            raw = stream.read(_REGISTERED_MANIFEST_MAX_BYTES + 1)
+        after = path.stat()
+    except OSError as exc:
+        raise AppError(
+            "AI_LOCAL_REGISTRY_ARTIFACT_NOT_VERIFIED",
+            "Registered manifest is unavailable on its private mount.",
+            status_code=409,
+        ) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_mtime_ns != after.st_mtime_ns
+        or before.st_size != after.st_size
+        or len(raw) != artifact.byte_size
+        or hashlib.sha256(raw).hexdigest() != artifact.content_sha256
+    ):
+        _registry_deny("Registered manifest bytes changed or failed SHA-256 attestation.")
+    try:
+        document = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object_pairs)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AppError(
+            "AI_LOCAL_REGISTRY_ARTIFACT_NOT_VERIFIED",
+            "Registered manifest must be valid UTF-8 JSON.",
+            status_code=409,
+        ) from exc
+
+    required = {
+        "schema_version",
+        "training_run_id",
+        "training_dataset_version_id",
+        "model_family",
+        "checkpoint_revision",
+        "files",
+    }
+    if not isinstance(document, dict) or set(document) != required:
+        _registry_deny("Registered manifest has missing or unknown schema fields.")
+    if (
+        type(document["schema_version"]) is not int
+        or document["schema_version"] != 1
+        or document["training_run_id"] != str(run.id)
+        or document["training_dataset_version_id"] != str(run.dataset_version_id)
+        or document["model_family"] != _MODEL_FAMILY
+        or not isinstance(document["checkpoint_revision"], str)
+        or not _REVISION.fullmatch(document["checkpoint_revision"])
+    ):
+        _registry_deny("Manifest schema, checkpoint revision or dataset lineage differs.")
+    records = document["files"]
+    if (
+        not isinstance(records, list)
+        or not records
+        or len(records) > _REGISTERED_MANIFEST_MAX_FILES
+    ):
+        _registry_deny("Registered checkpoint file list is absent or too large.")
+    files: list[CheckpointFile] = []
+    for record in records:
+        if (
+            not isinstance(record, dict)
+            or set(record) != {"path", "sha256", "byte_size"}
+            or not isinstance(record["path"], str)
+            or not isinstance(record["sha256"], str)
+            or type(record["byte_size"]) is not int
+        ):
+            _registry_deny("Registered checkpoint file entry has an invalid schema.")
+        files.append(CheckpointFile(**record))
+    return OfflineGemmaCheckpoint(
+        model_version_id=version.id,
+        training_dataset_version_id=run.dataset_version_id,
+        model_family=version.model_family,
+        checkpoint_revision=document["checkpoint_revision"],
+        checkpoint_directory=checkpoint_directory,
+        files=tuple(files),
+    )
+
+
+async def attest_registered_offline_checkpoint(
+    db: AsyncSession,
+    *,
+    organization_context_id: UUID,
+    model_version_id: UUID,
+    checkpoint_directory: str,
+) -> AttestedGemmaCheckpoint:
+    """Read-only tenant-scoped preflight, NEVER inference or Production admission."""
+    lineage = (
+        await db.execute(
+            select(AIModelVersion, AIModelArtifact, AITrainingRun)
+            .join(
+                AIModelArtifact,
+                AIModelArtifact.id == AIModelVersion.model_artifact_id,
+            )
+            .join(
+                AITrainingRun,
+                AITrainingRun.id == AIModelVersion.training_run_id,
+            )
+            .join(
+                AIDatasetVersion,
+                AIDatasetVersion.id == AIModelVersion.dataset_version_id,
+            )
+            .join(
+                AIDataset,
+                AIDataset.id == AIDatasetVersion.dataset_id,
+            )
+            .where(
+                AIModelVersion.id == model_version_id,
+                AITrainingRun.organization_context_id == organization_context_id,
+                AIDataset.organization_context_id == organization_context_id,
+                AIModelArtifact.training_run_id == AITrainingRun.id,
+                AITrainingRun.dataset_version_id == AIModelVersion.dataset_version_id,
+            )
+        )
+    ).one_or_none()
+    if lineage is None:
+        _registry_deny("A registered Model Version was not found for this organization.")
+    version, artifact, run = lineage
+    latest_state = (
+        await db.execute(
+            select(AITrainingRunState)
+            .where(AITrainingRunState.training_run_id == run.id)
+            .order_by(AITrainingRunState.sequence.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if latest_state is None or latest_state.state != TrainingRunState.SUCCEEDED.value:
+        _registry_deny("Only a SUCCEEDED Training Run can provide a Gemma checkpoint.")
+    checkpoint = await asyncio.to_thread(
+        _checkpoint_from_registered_artifact,
+        version=version,
+        artifact=artifact,
+        run=run,
+        checkpoint_directory=checkpoint_directory,
+    )
+    return await asyncio.to_thread(attest_offline_checkpoint, checkpoint)
