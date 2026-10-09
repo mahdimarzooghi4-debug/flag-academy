@@ -112,7 +112,7 @@ def test_grant_schema_has_tenant_class_identity_and_immutable_audit():
 
 def test_openapi_exposes_admin_only_commands_without_automatic_evidence():
     paths = app.openapi()["paths"]
-    assert set(paths["/api/v1/admin/academy/classes/{class_offering_id}/assessor-grants"]) == {"post"}
+    assert set(paths["/api/v1/admin/academy/classes/{class_offering_id}/assessor-grants"]) == {"get", "post"}
     assert set(paths["/api/v1/admin/academy/assessor-grants/{grant_id}/extend"]) == {"post"}
     assert set(paths["/api/v1/admin/academy/assessor-grants/{grant_id}/revoke"]) == {"post"}
     source = Path("app/academy/assessor_grants_api.py").read_text()
