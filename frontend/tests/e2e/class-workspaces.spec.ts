@@ -24,7 +24,9 @@ async function logout(page: Page) {
 }
 
 async function tokenForCurrentUser(page: Page): Promise<string> {
-  const token = await page.evaluate(() => {
+  // OIDC rehydration can lag behind the protected workspace rendering.
+  // Wait for real browser storage instead of assuming immediate persistence.
+  const handle = await page.waitForFunction(() => {
     for (const storage of [window.sessionStorage, window.localStorage]) {
       for (let i = 0; i < storage.length; i += 1) {
         const raw = storage.getItem(storage.key(i) ?? "");
@@ -40,8 +42,11 @@ async function tokenForCurrentUser(page: Page): Promise<string> {
       }
     }
     return null;
-  });
-  if (!token) throw new Error("Live OIDC access token not found");
+  }, undefined, { timeout: 15_000 });
+  const token = await handle.jsonValue();
+  if (typeof token !== "string" || !token) {
+    throw new Error("Live OIDC access token not found");
+  }
   return token;
 }
 
