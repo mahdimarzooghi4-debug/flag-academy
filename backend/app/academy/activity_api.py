@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.academy.assessor_access import has_live_assessor_class_access
 from app.academy.models import (
     AttendanceRecord,
     ClassOffering,
@@ -98,7 +99,11 @@ async def _visible_candidate_ids(
             return candidate_ids
     if "CANDIDATE" in actor.roles and actor.person_id in candidate_ids:
         return [actor.person_id]
-    # In particular ASSESSOR alone is not a class-wide authorization.
+    if await has_live_assessor_class_access(
+        db, actor=actor, class_offering_id=class_offering_id
+    ):
+        return candidate_ids
+    # Global Assessor role alone is never authorization.
     raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
 
 
