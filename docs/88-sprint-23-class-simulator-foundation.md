@@ -588,6 +588,14 @@ Implementation and CI evidence:
 - Still required: Admin grant discovery and assignment-management UI, signed-in positive Assessor workspace, independent second-class/cross-tenant/concurrency acceptance fixtures, P23-09C provenance-bound classroom Observation and Evidence review, and explicitly contracted class-completion/reappointment semantics. P23-09 remains **PARTIAL**.
 - PR #21 Draft/Open/Unmerged, no Stage, QA Gate, full Sprint Code Review approval, Release or Production.
 
+**P23-09B follow-up — Admin grant discovery — BACKEND CODE/CI VERIFIED (2026-10-09)**
+
+- Added `GET /api/v1/admin/academy/classes/{class_offering_id}/assessor-grants` to the existing admin-only create path. Bounded limit (1–100), offset, deterministic ordering, and explicit `next_offset` mirror existing Academy Admin catalog patterns.
+- The requested ClassOffering must first resolve through its Cohort in the current Admin organization's context (404 for unknown/other-tenant); grant rows are additionally constrained by organization and exact class. Historical and revoked grants remain visible to the authorized Academy Admin for operational/audit discovery, **never to unassigned Assessors**.
+- Dedicated contract tests cover paginated class-only reads, empty results, cross-tenant non-disclosure and OpenAPI bounds. The preexisting contract test was updated to recognize intentional GET + POST methods. No new class grants, Evidence/Observation, Profile/Gate, AI model, UI permission or Stage action.
+- Implementation and tested HEAD `38ef30852175f08afc02500cee05bba58049c765`; exact-head CI [37918150669](https://github.com/mahdimarzooghi4-debug/flag-academy/actions/runs/37918150669) **SUCCESS** (Backend/Frontend/Live OIDC E2E, AI governance regression checks).
+- This is Backend discovery only. Admin management UI and live positive grant-to-Assessor browser workflow remain pending; P23-09 overall **PARTIAL** and whole-Sprint Code Review has not been approved.
+
 ### P23-10 — Academy Knowledge foundation — ACTIVE
 - versioned/approved/traceable source contract;
 - explicit separation from AI Training Dataset;
