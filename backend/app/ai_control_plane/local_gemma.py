@@ -124,7 +124,7 @@ def attest_offline_checkpoint(checkpoint: OfflineGemmaCheckpoint) -> AttestedGem
     for name in sorted(manifest):
         record = manifest[name]
         manifest_digest.update(
-            f"\n{name}\0{record.sha256}\0{record.byte_size}".encode("utf-8")
+            f"\n{name}\0{record.sha256}\0{record.byte_size}".encode()
         )
     return AttestedGemmaCheckpoint(checkpoint, manifest_digest.hexdigest())
 
