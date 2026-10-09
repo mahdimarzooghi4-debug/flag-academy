@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeApi } from "../api/client";
 
@@ -54,6 +54,14 @@ export function AssessorGrantAdminView({
   const [validationError, setValidationError] = useState<string>();
   const selected = grants?.items.find((item) => item.grant_id === selectedId)
     ?? grants?.items[0];
+
+  // A newer grant version is a different administrative decision context.
+  // Never carry revocation confirmation or rationale across version changes.
+  useEffect(() => {
+    setNewEnd("");
+    setReason("");
+    setConfirmRevocation(false);
+  }, [selected?.grant_id, selected?.version]);
 
   const create = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -237,10 +245,10 @@ export function AssessorGrantAdminWorkspace({
   return (
     <AssessorGrantAdminView
       classId={classId}
-      grants={grants.data}
+      grants={grants.isSuccess && !grants.isError ? grants.data : undefined}
       offset={offset}
       onOffset={setOffset}
-      busy={mutation.isPending}
+      busy={mutation.isPending || !grants.isSuccess || grants.isFetching}
       error={grants.isError ? grants.error.message :
         mutation.isError ? mutation.error.message : undefined}
       onCreate={(assessorId, start, end) => mutation.mutate({ kind: "CREATE", assessorId, start, end })}
