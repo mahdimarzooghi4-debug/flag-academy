@@ -227,7 +227,7 @@ def assert_registry_denied(*, version, artifact, run, checkpoint_directory):
 
 def test_registered_manifest_binds_registry_and_checkpoint(tmp_path):
     source, version, artifact, run, _, _ = registered_fixture(tmp_path)
-    resolved = _checkpoint_from_registered_artifact(
+    resolved = local_gemma._checkpoint_from_registered_artifact(
         version=version,
         artifact=artifact,
         run=run,
