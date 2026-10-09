@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import re
-from importlib import import_module
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Never, Protocol
 from uuid import UUID
