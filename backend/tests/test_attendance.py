@@ -122,7 +122,7 @@ def test_attendance_api_has_no_formal_growth_mutation_dependency() -> None:
     source = Path("app/academy/api.py").read_text()
 
     assert 'require_role("ACADEMY_ADMIN")' in source
-    assert 'require_role("ACADEMY_ADMIN", "INSTRUCTOR")' in source
+    assert 'require_role("ACADEMY_ADMIN", "INSTRUCTOR", "ASSESSOR")' in source
     assert "academy.attendance_recorded.v1" in source
     assert "academy.attendance_corrected.v1" in source
 
