@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 // This suite checks actual FastAPI + PostgreSQL + Keycloak permissions, not mocked routes.
 const CLASS_ID = "00000000-0000-0000-0000-000000000220";
 const CANDIDATE_ID = "00000000-0000-0000-0000-000000000101";
+const ASSESSOR_ID = "00000000-0000-0000-0000-000000000104";
 const INSTRUCTOR_ID = "00000000-0000-0000-0000-000000000102";
 const SESSION_ID = "00000000-0000-0000-0000-000000000241";
 const API = process.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -45,7 +46,7 @@ async function tokenForCurrentUser(page: Page): Promise<string> {
 }
 
 test("P23-12: live role-isolated class report and human-only attendance", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const passwords = {
     candidate: process.env.PARCHAM_DEV_CANDIDATE_PASSWORD,
     instructor: process.env.PARCHAM_DEV_INSTRUCTOR_PASSWORD,
@@ -165,4 +166,66 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   await expect(updatedReport.locator(".report-subject-card").first()).toContainText(
     "وضعیت معتبر در این کارنامه ارائه نشده است.",
   );
+
+  // P23-09: REAL admin browser creates a time-bounded Academy-owned grant.
+  // This grants only the one class; never Evidence, Gate or a global roster.
+  await logout(page);
+  await login(page, "academy-admin", passwords.admin!);
+  const grantPanel = page.getByTestId("admin-assessor-grants");
+  await expect(grantPanel).toBeVisible();
+  await expect(grantPanel).toContainText("مأموریتی برای این کلاس ثبت نشده است.");
+  const start = new Date(Date.now() - 5 * 60_000).toISOString();
+  const end = new Date(Date.now() + 48 * 60 * 60_000).toISOString();
+  await grantPanel.getByLabel("شناسه ارزیاب عضو همین سازمان").fill(ASSESSOR_ID);
+  await grantPanel.getByLabel("آغاز مأموریت (ISO با منطقه زمانی)").fill(start);
+  await grantPanel.getByLabel("پایان مأموریت (ISO با منطقه زمانی)").fill(end);
+  await grantPanel.getByRole("button", { name: "ثبت انتصاب با تأیید مدیر" }).click();
+  await expect(grantPanel.getByTestId("selected-assessor-grant")).toContainText(ASSESSOR_ID);
+  await expect(grantPanel.getByTestId("selected-assessor-grant")).toContainText("لغو نشده");
+  await logout(page);
+
+  // Same real OIDC Assessor can read authorized classroom projections ONLY
+  // while the mandate is valid; the pre-grant 404 checks above still apply.
+  await login(page, "assessor", passwords.assessor!);
+  const grantedAssessorToken = await tokenForCurrentUser(page);
+  for (const path of [
+    `/class-offerings/${CLASS_ID}/roster`,
+    `/class-offerings/${CLASS_ID}/sessions`,
+    `/sessions/${SESSION_ID}/attendance`,
+    `/class-offerings/${CLASS_ID}/activity`,
+    `/class-offerings/${CLASS_ID}/report-cards/${CANDIDATE_ID}`,
+  ]) {
+    const result = await page.request.get(`${API}/api/v1${path}`, {
+      headers: { Authorization: `Bearer ${grantedAssessorToken}` },
+    });
+    expect(result.status(), `Assigned Assessor needs scoped GET ${path}`).toBe(200);
+  }
+  const assessorStillCannotAdmin = await page.request.get(
+    `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
+      headers: { Authorization: `Bearer ${grantedAssessorToken}` },
+    },
+  );
+  expect(assessorStillCannotAdmin.status()).toBe(403);
+  await logout(page);
+
+  // Human revocation closes the same grant immediately without erasing audit.
+  await login(page, "academy-admin", passwords.admin!);
+  const revocationPanel = page.getByTestId("admin-assessor-grants");
+  await expect(revocationPanel.getByTestId("selected-assessor-grant")).toContainText(ASSESSOR_ID);
+  await revocationPanel.getByLabel("دلیل تمدید یا لغو").fill("Assignment formally ended");
+  await revocationPanel.getByLabel(
+    "لغو مأموریت این ارزیاب در همین کلاس را تأیید می‌کنم."
+  ).check();
+  await revocationPanel.getByRole("button", { name: "لغو مأموریت" }).click();
+  await expect(revocationPanel).toContainText("مأموریت لغوشده قابل تمدید نیست.");
+  await logout(page);
+  await login(page, "assessor", passwords.assessor!);
+  const revokedAssessorToken = await tokenForCurrentUser(page);
+  const afterRevoke = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/roster`, {
+      headers: { Authorization: `Bearer ${revokedAssessorToken}` },
+    },
+  );
+  expect(afterRevoke.status()).toBe(404);
+
 });
