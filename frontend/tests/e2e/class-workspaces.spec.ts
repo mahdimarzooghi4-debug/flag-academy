@@ -117,6 +117,12 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     headers: { Authorization: `Bearer ${assessorToken}` },
   });
   expect(assessorAdmin.status()).toBe(403);
+  // The Seed learning approval surface remains Academy-Admin-only.
+  const forbiddenSeedPreview = await page.request.get(
+    `${API}/api/v1/admin/ai/seed-learning/decision-making-v1`,
+    { headers: { Authorization: `Bearer ${assessorToken}` } },
+  );
+  expect(forbiddenSeedPreview.status()).toBe(403);
   await logout(page);
 
   // Instructor observes the assigned class and its recorded/missing attendance,
@@ -142,6 +148,17 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   await login(page, "academy-admin", passwords.admin!);
   const adminWorkspace = page.getByTestId("admin-academy-operations");
   await expect(adminWorkspace).toBeVisible();
+  const seedPanel = page.getByTestId("seed-learning-approval-workspace");
+  await expect(seedPanel.getByText("تأیید انسانی دیتای اولیه تصمیم‌گیری")).toBeVisible();
+  await expect(seedPanel.getByTestId("seed-learning-metadata")).toContainText(
+    "docs/ai/seed/decision-making-v1.jsonl",
+  );
+  const exactDigest = await seedPanel.getByTestId("seed-learning-sha256").innerText();
+  expect(exactDigest).toMatch(/^[0-9a-f]{64}$/);
+  await expect(seedPanel.getByRole("button", {
+    name: "ثبت مجوز انسانی استفاده از Seed در دیتاست",
+  })).toBeDisabled();
+  // E2E only previews: there is NO implicit human AI-learning approval in CI.
   await expect(adminWorkspace.getByLabel("کلاس واقعی")).toHaveValue(CLASS_ID);
   await expect(adminWorkspace.getByLabel("جلسه کلاس")).toHaveValue(SESSION_ID);
   const row = adminWorkspace.locator(".admin-ops-attendance-row").filter({
