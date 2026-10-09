@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.academy.assessor_access import has_live_assessor_class_access
 from app.academy.models import ClassOffering, Cohort, InstructorAssignment, Session
 from app.db import get_session
 from app.errors import AppError
@@ -34,7 +35,7 @@ class ClassSessionRead(BaseModel):
 async def class_offering_sessions(
     class_offering_id: UUID,
     actor: Annotated[
-        ActorContext, Depends(require_role("INSTRUCTOR", "ACADEMY_ADMIN"))
+        ActorContext, Depends(require_role("INSTRUCTOR", "ACADEMY_ADMIN", "ASSESSOR"))
     ],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[ClassSessionRead]:
@@ -53,15 +54,20 @@ async def class_offering_sessions(
         raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
 
     if "ACADEMY_ADMIN" not in actor.roles:
-        assignment = (
-            await db.execute(
-                select(InstructorAssignment.id).where(
-                    InstructorAssignment.class_offering_id == class_offering_id,
-                    InstructorAssignment.person_id == actor.person_id,
+        assigned_instructor = False
+        if "INSTRUCTOR" in actor.roles:
+            assignment = (
+                await db.execute(
+                    select(InstructorAssignment.id).where(
+                        InstructorAssignment.class_offering_id == class_offering_id,
+                        InstructorAssignment.person_id == actor.person_id,
+                    )
                 )
-            )
-        ).scalar_one_or_none()
-        if assignment is None:
+            ).scalar_one_or_none()
+            assigned_instructor = assignment is not None
+        if not assigned_instructor and not await has_live_assessor_class_access(
+            db, actor=actor, class_offering_id=class_offering_id
+        ):
             raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
 
     sessions = (
