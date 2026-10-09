@@ -5,9 +5,11 @@ from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from uuid import UUID
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai_control_plane import local_gemma
 from app.ai_control_plane.local_gemma import (
@@ -18,6 +20,7 @@ from app.ai_control_plane.local_gemma import (
     attest_registered_offline_checkpoint,
     generate_offline_text,
 )
+from app.ai_control_plane.models import AIModelArtifact, AIModelVersion, AITrainingRun
 from app.errors import AppError
 
 
@@ -228,9 +231,9 @@ def assert_registry_denied(*, version, artifact, run, checkpoint_directory):
 def test_registered_manifest_binds_registry_and_checkpoint(tmp_path):
     source, version, artifact, run, _, _ = registered_fixture(tmp_path)
     resolved = local_gemma._checkpoint_from_registered_artifact(
-        version=version,
-        artifact=artifact,
-        run=run,
+        version=cast(AIModelVersion, version),
+        artifact=cast(AIModelArtifact, artifact),
+        run=cast(AITrainingRun, run),
         checkpoint_directory=source.checkpoint_directory,
     )
     assert resolved == source
@@ -323,7 +326,7 @@ async def test_registry_preflight_requires_scoped_version_and_succeeded_run(tmp_
         "checkpoint_directory": source.checkpoint_directory,
     }
     approved = _RegistryDB((version, artifact, run), SimpleNamespace(state="SUCCEEDED"))
-    result = await attest_registered_offline_checkpoint(approved, **kwargs)
+    result = await attest_registered_offline_checkpoint(cast(AsyncSession, approved), **kwargs)
     assert result.checkpoint == source
     assert approved.calls == 2
     for db in [
@@ -333,7 +336,7 @@ async def test_registry_preflight_requires_scoped_version_and_succeeded_run(tmp_
         _RegistryDB((version, artifact, run), SimpleNamespace(state="FAILED")),
     ]:
         with pytest.raises(AppError) as error:
-            await attest_registered_offline_checkpoint(db, **kwargs)
+            await attest_registered_offline_checkpoint(cast(AsyncSession, db), **kwargs)
         assert error.value.code == "AI_LOCAL_REGISTRY_ARTIFACT_NOT_VERIFIED"
     source_text = Path("app/ai_control_plane/local_gemma.py").read_text()
     assert "AIDataset.organization_context_id == organization_context_id" in source_text
