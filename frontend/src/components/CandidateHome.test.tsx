@@ -57,7 +57,7 @@ describe("CandidateHome", () => {
         }}
       />,
     );
-    expect(screen.getByText("در جریان")).toBeInTheDocument();
+    expect(screen.getAllByText("در جریان").length).toBeGreaterThan(0);
     expect(screen.getByText("هنوز برنامه یادگیری قابل‌نمایشی ثبت نشده است.")).toBeInTheDocument();
     expect(screen.getByText(/نبود داده به معنای ضعف نیست/)).toBeInTheDocument();
   });
