@@ -255,14 +255,14 @@ async def test_unassigned_instructor_and_global_assessor_fail_closed() -> None:
     assert error.value.status_code == 404
     assert len(db.queries) == 3
 
-    assessor = FakeSession([context(), [UUID(int=2000)]])
+    assessor = FakeSession([context(), [UUID(int=2000)], []])
     with pytest.raises(AppError) as denied:
         await qualitative_class_report_card(
             CLASS, LEARNER, actor(INSTRUCTOR, "ASSESSOR"),
             cast(AsyncSession, assessor)
         )
     assert denied.value.status_code == 404
-    assert len(assessor.queries) == 2
+    assert len(assessor.queries) == 3
 
 
 @pytest.mark.asyncio
