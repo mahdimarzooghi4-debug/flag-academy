@@ -164,7 +164,7 @@ async def test_stale_extend_and_revoke_do_not_mutate_grant():
          GrantRevokeRequest(expected_version=2, reason="appointment ended",
                             idempotency_key="revoke-1")),
     ):
-        db = FakeDB([[existing]])
+        db = FakeDB([[existing], []])
         with pytest.raises(AppError) as err:
             await command(existing.id, payload, actor(), cast(AsyncSession, db))
         assert err.value.status_code == 409
