@@ -1,10 +1,11 @@
 """Class mandates are time- and organization-scoped; no global Assessor access."""
 
 from datetime import UTC, datetime
-from typing import Protocol
+from dataclasses import dataclass
 
 
-class GrantWindow(Protocol):
+@dataclass(frozen=True)
+class GrantWindow:
     starts_at: datetime
     ends_at: datetime
     revoked_at: datetime | None
