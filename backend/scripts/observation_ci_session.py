@@ -9,8 +9,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from app.academy.models import Session
-from app.identity.models import OrganizationMembership, Person
 from app.db import SessionFactory
+from app.identity.models import OrganizationMembership, Person
 
 CLASS_ID = UUID("00000000-0000-0000-0000-000000000220")
 CI_SESSION_ID = UUID("00000000-0000-0000-0000-000000000243")

@@ -12,8 +12,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import DBAPIError
 
 from app.academy.models import ClassAssessorObservation
-from app.evidence.models import ClassroomObservationSourceReview, EvidenceCase
 from app.db import SessionFactory, engine
+from app.evidence.models import ClassroomObservationSourceReview, EvidenceCase
 from app.platform.models import DomainEvent, OutboxEvent
 
 ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
