@@ -454,6 +454,17 @@ async def class_offering_roster(
         raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
     offering, cohort = row
 
+    is_scoped_assessor = False
+    if "ASSESSOR" in actor.roles:
+        is_scoped_assessor = await has_live_assessor_class_access(
+            db, actor=actor, class_offering_id=offering.id
+        )
+        # Assessor-only users must be denied before roster/member DB reads.
+        if not is_scoped_assessor and not actor.roles.intersection(
+            {"ACADEMY_ADMIN", "INSTRUCTOR", "CANDIDATE"}
+        ):
+            raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+
     member_rows = (
         await db.execute(
             select(CohortMembership.person_id, CohortMembership.member_type)
@@ -476,12 +487,6 @@ async def class_offering_roster(
     is_member = (
         "CANDIDATE" in actor.roles
         and any(person_id == actor.person_id for person_id, _ in member_rows)
-    )
-    is_scoped_assessor = (
-        not (is_admin or is_assigned_instructor or is_member)
-        and await has_live_assessor_class_access(
-            db, actor=actor, class_offering_id=offering.id
-        )
     )
     if not (is_admin or is_assigned_instructor or is_member or is_scoped_assessor):
         # No global Assessor role may grant roster access.
