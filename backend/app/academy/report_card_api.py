@@ -114,6 +114,16 @@ async def _authorized_report_card_context(
         raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
     offering, cohort = row
 
+    is_scoped_assessor = False
+    if "ASSESSOR" in actor.roles:
+        is_scoped_assessor = await has_live_assessor_class_access(
+            db, actor=actor, class_offering_id=offering.id
+        )
+        if not is_scoped_assessor and not actor.roles.intersection(
+            {"ACADEMY_ADMIN", "INSTRUCTOR", "CANDIDATE"}
+        ):
+            raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
+
     membership = (
         await db.execute(
             select(CohortMembership.id).where(
@@ -141,9 +151,7 @@ async def _authorized_report_card_context(
             return offering, cohort
     if "CANDIDATE" in actor.roles and actor.person_id == person_id:
         return offering, cohort
-    if await has_live_assessor_class_access(
-        db, actor=actor, class_offering_id=offering.id
-    ):
+    if is_scoped_assessor:
         return offering, cohort
     # Global Assessor role cannot reveal a learner's private report.
     raise AppError("CLASS_NOT_FOUND", "Class not found.", status_code=404)
