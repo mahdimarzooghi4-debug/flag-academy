@@ -186,3 +186,36 @@ class ClassroomFinalEvidenceReviewMandate(Base):
         DateTime(timezone=True), nullable=True
     )
 
+
+
+class ClassroomFinalEvidenceMandateRevision(Base):
+    """Append-only accountable issuance/revocation, actor/tenant idempotency."""
+
+    __tablename__ = "classroom_final_evidence_mandate_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id", "actor_person_id", "idempotency_key",
+            name="uq_final_evidence_mandate_actor_key",
+        ),
+        UniqueConstraint("mandate_id", "resulting_version",
+                         name="uq_final_evidence_mandate_revision_version"),
+        {"schema": "evidence"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    mandate_id: Mapped[UUID] = mapped_column(
+        ForeignKey("evidence.classroom_final_evidence_review_mandates.id")
+    )
+    organization_context_id: Mapped[UUID]
+    evidence_case_id: Mapped[UUID]
+    actor_person_id: Mapped[UUID]
+    reviewer_person_id: Mapped[UUID]
+    action: Mapped[str] = mapped_column(String(16))
+    expected_version: Mapped[int] = mapped_column(BigInteger)
+    resulting_version: Mapped[int] = mapped_column(BigInteger)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reason: Mapped[str] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
