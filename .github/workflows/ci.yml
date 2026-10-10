@@ -126,6 +126,8 @@ jobs:
           set_secret PARCHAM_DEV_INSTRUCTOR_PASSWORD
           set_secret PARCHAM_DEV_ADMIN_PASSWORD
           set_secret PARCHAM_DEV_ASSESSOR_PASSWORD
+          set_secret PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD
+          set_secret PARCHAM_DEV_FINAL_REVIEWER_PASSWORD
       - name: Build database URL
         shell: bash
         run: echo "PARCHAM_DATABASE_URL=postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB" >> "$GITHUB_ENV"
@@ -138,13 +140,18 @@ jobs:
             sleep 2
           done
       - name: Seed Keycloak development users
-        run: ./scripts/dev-seed-keycloak.sh
+        run: |
+          ./scripts/dev-seed-keycloak.sh
+          sh ./scripts/ci-seed-independent-assessor.sh
       - name: Install and seed backend
         working-directory: backend
         run: |
           pip install -e ".[dev]"
           alembic upgrade head
           python -m app.seed
+      - name: Prepare isolated classroom observation E2E session
+        working-directory: backend
+        run: python scripts/observation_ci_session.py
       - name: Start event workers
         working-directory: backend
         shell: bash
@@ -184,9 +191,15 @@ jobs:
       - name: Browser E2E with live OIDC
         working-directory: frontend
         run: npm run e2e
+      - name: Verify classroom observation PostgreSQL integrity
+        working-directory: backend
+        run: python scripts/observation_integrity_acceptance.py
       - name: Verify governed AI Dataset Builder
         working-directory: backend
         run: python scripts/ai_dataset_builder_acceptance.py
+      - name: Verify Human Seed Learning Approval Bridge
+        working-directory: backend
+        run: python scripts/ai_seed_learning_approval_acceptance.py
       - name: Verify governed AI Training Run Control Plane
         working-directory: backend
         run: python scripts/ai_training_control_acceptance.py

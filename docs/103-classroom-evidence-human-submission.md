@@ -1,0 +1,9 @@
+# 103 — Classroom Evidence human Interpretation SUBMITTED
+
+**2026-10-10 — Scoped implementation, not final Evidence acceptance.**
+
+`POST /api/v1/classroom-evidence-cases/{case_id}/submit` accepts the existing Evidence `EvidenceSubmitRequest` with exact `expected_version`. It loads the Academy-owned immutable source and independent VERIFIED source-review under source/grant locks, checks the original Evidence provenance under the Evidence case lock, and records one explicit human-authored Interpretation v1 plus target-scoped links. All source and applicant identity is re-attested, current class-grant and organization Assessor membership remain required. The transition is only `DRAFT → SUBMITTED`. Duplicate or later submissions fail closed and may not create extra interpretation versions. The private GET endpoint may still read the SUBMITTED case only for its same human owner while appointment remains valid.
+
+A `evidence.interpretation_submitted.v1` event records metadata only; raw facts and interpretation rationale are excluded. Candidate visibility is unchanged (false), and general Evidence routes remain fail-closed. Live OIDC browser and independent PostgreSQL assertions prove SUBMITTED state, one human interpretation/link and one event/outbox. A synthetic opaque target link in CI is **not** authoritative, approved, a Capability Claim, or a Gate decision. No reviewer/decision is automatically selected.
+
+**Remaining:** a separate, live-appointed accountable Evidence reviewer with independence from author/source reviewer and subject must be governed before `SUBMITTED → UNDER_REVIEW → ACCEPTED/REJECTED` is enabled for private classroom cases. Current generic Evidence review routes continue to deny them. This slice does not issue human release permission, Figma sign-off, Stage, or merge.

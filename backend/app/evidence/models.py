@@ -1,7 +1,16 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -120,3 +129,93 @@ class CandidateResponse(Base):
     response_text: Mapped[str] = mapped_column(Text)
     idempotency_key: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ClassroomObservationSourceReview(Base):
+    """Evidence-owned, immutable independent human source attestation, not Evidence."""
+
+    __tablename__ = "classroom_observation_source_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id", "source_observation_id",
+            name="uq_classroom_source_review_per_observation",
+        ),
+        {"schema": "evidence"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_context_id: Mapped[UUID]
+    source_observation_id: Mapped[UUID]
+    class_offering_id: Mapped[UUID]
+    session_id: Mapped[UUID]
+    subject_person_id: Mapped[UUID]
+    observer_person_id: Mapped[UUID]
+    reviewer_person_id: Mapped[UUID]
+    reviewer_grant_id: Mapped[UUID]
+    reviewer_grant_version: Mapped[int] = mapped_column(BigInteger)
+    source_sha256: Mapped[str] = mapped_column(String(64))
+    decision: Mapped[str] = mapped_column(String(16))
+    rationale: Mapped[str] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+class ClassroomFinalEvidenceReviewMandate(Base):
+    """Inert Evidence-owned final-review mandate record; no issuance path is enabled.
+
+    Issuer authorization and revocation commands are not approved. These rows
+    cannot authorize a classroom Evidence transition under the DB safety gate.
+    """
+
+    __tablename__ = "classroom_final_evidence_review_mandates"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_classroom_final_mandate_version"),
+        CheckConstraint("ends_at > starts_at", name="ck_classroom_final_mandate_window"),
+        {"schema": "evidence"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    organization_context_id: Mapped[UUID]
+    evidence_case_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.evidence_cases.id"))
+    class_offering_id: Mapped[UUID]
+    reviewer_person_id: Mapped[UUID]
+    issued_by_person_id: Mapped[UUID]
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+
+class ClassroomFinalEvidenceMandateRevision(Base):
+    """Append-only accountable issuance/revocation, actor/tenant idempotency."""
+
+    __tablename__ = "classroom_final_evidence_mandate_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_context_id", "actor_person_id", "idempotency_key",
+            name="uq_final_evidence_mandate_actor_key",
+        ),
+        UniqueConstraint("mandate_id", "resulting_version",
+                         name="uq_final_evidence_mandate_revision_version"),
+        {"schema": "evidence"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    mandate_id: Mapped[UUID] = mapped_column(
+        ForeignKey("evidence.classroom_final_evidence_review_mandates.id")
+    )
+    organization_context_id: Mapped[UUID]
+    evidence_case_id: Mapped[UUID]
+    actor_person_id: Mapped[UUID]
+    reviewer_person_id: Mapped[UUID]
+    action: Mapped[str] = mapped_column(String(16))
+    expected_version: Mapped[int] = mapped_column(BigInteger)
+    resulting_version: Mapped[int] = mapped_column(BigInteger)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reason: Mapped[str] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

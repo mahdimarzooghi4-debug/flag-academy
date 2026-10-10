@@ -1,0 +1,1160 @@
+import { expect, test, type Page } from "@playwright/test";
+
+// These IDs belong to backend/app/seed.py's ephemeral development fixture.
+// This suite checks actual FastAPI + PostgreSQL + Keycloak permissions, not mocked routes.
+const CLASS_ID = "00000000-0000-0000-0000-000000000220";
+const SECOND_CLASS_ID = "00000000-0000-0000-0000-000000000221";
+const SECOND_SESSION_ID = "00000000-0000-0000-0000-000000000244";
+const FOREIGN_CLASS_ID = "00000000-0000-0000-0000-000000000222";
+const CANDIDATE_ID = "00000000-0000-0000-0000-000000000101";
+const ASSESSOR_ID = "00000000-0000-0000-0000-000000000104";
+const INDEPENDENT_REVIEWER_ID = "00000000-0000-0000-0000-000000000105";
+const FINAL_REVIEWER_ID = "00000000-0000-0000-0000-000000000106";
+const INSTRUCTOR_ID = "00000000-0000-0000-0000-000000000102";
+const SESSION_ID = "00000000-0000-0000-0000-000000000241";
+// Ephemeral in-progress Session created by scripts/observation_ci_session.py ONLY in CI.
+const OBSERVATION_SESSION_ID = "00000000-0000-0000-0000-000000000243";
+const API = process.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+async function login(page: Page, username: string, password: string) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "ورود به آکادمی" }).click();
+  await page.locator("#username").fill(username);
+  await page.locator("#password").fill(password);
+  await page.locator("#kc-login").click();
+}
+
+async function logout(page: Page) {
+  await page.getByRole("button", { name: "خروج" }).click();
+  await expect(page.getByRole("button", { name: "ورود به آکادمی" })).toBeVisible();
+  await page.context().clearCookies();
+}
+
+async function tokenForCurrentUser(page: Page): Promise<string> {
+  // OIDC rehydration can lag behind the protected workspace rendering.
+  // Wait for real browser storage instead of assuming immediate persistence.
+  const handle = await page.waitForFunction(() => {
+    for (const storage of [window.sessionStorage, window.localStorage]) {
+      for (let i = 0; i < storage.length; i += 1) {
+        const raw = storage.getItem(storage.key(i) ?? "");
+        if (!raw) continue;
+        try {
+          const value = JSON.parse(raw) as { access_token?: unknown };
+          if (typeof value.access_token === "string" && value.access_token) {
+            return value.access_token;
+          }
+        } catch {
+          // Ignore unrelated OIDC/browser entries.
+        }
+      }
+    }
+    return null;
+  }, undefined, { timeout: 15_000 });
+  const token = await handle.jsonValue();
+  if (typeof token !== "string" || !token) {
+    throw new Error("Live OIDC access token not found");
+  }
+  return token;
+}
+
+test("P23-12: live role-isolated class report and human-only attendance", async ({ page }) => {
+  test.setTimeout(240_000);
+  const passwords = {
+    candidate: process.env.PARCHAM_DEV_CANDIDATE_PASSWORD,
+    instructor: process.env.PARCHAM_DEV_INSTRUCTOR_PASSWORD,
+    assessor: process.env.PARCHAM_DEV_ASSESSOR_PASSWORD,
+    reviewer: process.env.PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD,
+    finalReviewer: process.env.PARCHAM_DEV_FINAL_REVIEWER_PASSWORD,
+    admin: process.env.PARCHAM_DEV_ADMIN_PASSWORD,
+  };
+  if (Object.values(passwords).some((value) => !value)) {
+    throw new Error("All four ephemeral OIDC development user passwords are required");
+  }
+
+  // Candidate sees own learning context, never an inferred absence or formal proof.
+  await login(page, "candidate", passwords.candidate!);
+  const candidateWorkspace = page.getByTestId("candidate-report-workspace");
+  await expect(candidateWorkspace).toBeVisible();
+  await expect(candidateWorkspace.getByLabel("انتخاب کلاس")).toHaveValue(CLASS_ID);
+  await expect(candidateWorkspace.getByText("حضور و غیاب هنوز ثبت نشده").first()).toBeVisible();
+  const candidateCard = candidateWorkspace.locator(".report-subject-card").first();
+  await expect(candidateCard).toContainText("Ownership & Accountability");
+  await expect(candidateCard).toContainText("وضعیت معتبر در این کارنامه ارائه نشده است.");
+  await expect(candidateWorkspace).not.toContainText("معدل");
+  const candidateToken = await tokenForCurrentUser(page);
+  const ownReport = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/report-cards/${CANDIDATE_ID}`,
+    { headers: { Authorization: `Bearer ${candidateToken}` } },
+  );
+  expect(ownReport.status()).toBe(200);
+  const ownSubjects = (await ownReport.json()) as {
+    person_id: string;
+    subjects: Array<{ proof_state: string | null }>;
+  };
+  expect(ownSubjects.person_id).toBe(CANDIDATE_ID);
+  expect(ownSubjects.subjects.length).toBeGreaterThan(0);
+  expect(ownSubjects.subjects.every((subject) => subject.proof_state === null)).toBe(true);
+  const anotherPersonReport = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/report-cards/${INSTRUCTOR_ID}`,
+    { headers: { Authorization: `Bearer ${candidateToken}` } },
+  );
+  expect(anotherPersonReport.status()).toBe(404);
+  await logout(page);
+
+  // An ASSESSOR role is not a class assignment. Existing formal-Evidence
+  // access must not be repurposed as Academy roster/report/activity authority.
+  await login(page, "assessor", passwords.assessor!);
+  await expect(page.getByText("فضای ارزیاب Evidence")).toBeVisible();
+  await expect(page.getByTestId("candidate-report-workspace")).toHaveCount(0);
+  await expect(page.getByTestId("instructor-class-workspace")).toHaveCount(0);
+  await expect(page.getByTestId("admin-academy-operations")).toHaveCount(0);
+  const unassignedClassView = page.getByTestId("assessor-class-workspace");
+  await expect(unassignedClassView.getByText("اکنون مأموریت معتبر کلاسی ندارید.")).toBeVisible();
+  await expect(unassignedClassView.getByLabel("کلاس منصوب‌شده")).toHaveCount(0);
+  const assessorToken = await tokenForCurrentUser(page);
+  for (const path of [
+    `/class-offerings/${CLASS_ID}/roster`,
+    `/class-offerings/${CLASS_ID}/activity`,
+    `/class-offerings/${CLASS_ID}/report-cards/${CANDIDATE_ID}`,
+  ]) {
+    const response = await page.request.get(`${API}/api/v1${path}`, {
+      headers: { Authorization: `Bearer ${assessorToken}` },
+    });
+    expect(response.status(), `Assessor must not read ${path}`).toBe(404);
+  }
+  const preGrantObservation = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`, {
+      headers: { Authorization: `Bearer ${assessorToken}` },
+    },
+  );
+  expect(preGrantObservation.status()).toBe(404);
+  const assessorAdmin = await page.request.get(`${API}/api/v1/admin/academy/cohorts`, {
+    headers: { Authorization: `Bearer ${assessorToken}` },
+  });
+  expect(assessorAdmin.status()).toBe(403);
+  // The Seed learning approval surface remains Academy-Admin-only.
+  const forbiddenSeedPreview = await page.request.get(
+    `${API}/api/v1/admin/ai/seed-learning/decision-making-v1`,
+    { headers: { Authorization: `Bearer ${assessorToken}` } },
+  );
+  expect(forbiddenSeedPreview.status()).toBe(403);
+  await logout(page);
+
+  // Instructor observes the assigned class and its recorded/missing attendance,
+  // but cannot use the admin-only attendance mutation endpoint.
+  await login(page, "instructor", passwords.instructor!);
+  const instructorWorkspace = page.getByTestId("instructor-class-workspace");
+  await expect(instructorWorkspace).toBeVisible();
+  await expect(instructorWorkspace.getByLabel("کلاس تخصیص‌یافته")).toHaveValue(CLASS_ID);
+  await expect(instructorWorkspace.getByText("ثبت نشده؛ به معنی غیبت نیست").first()).toBeVisible();
+  await expect(instructorWorkspace.getByRole("button", { name: "ثبت حاضر" })).toHaveCount(0);
+  const instructorToken = await tokenForCurrentUser(page);
+  const forbiddenObservation = await page.request.post(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`, {
+      headers: { Authorization: `Bearer ${instructorToken}` },
+      data: { session_id: OBSERVATION_SESSION_ID, candidate_person_id: CANDIDATE_ID,
+        observed_at: new Date().toISOString(), observed_fact: "Instructor must not impersonate Assessor",
+        idempotency_key: crypto.randomUUID() },
+    },
+  );
+  expect(forbiddenObservation.status()).toBe(403);
+  const forbiddenMutation = await page.request.post(
+    `${API}/api/v1/sessions/${SESSION_ID}/attendance/${CANDIDATE_ID}`,
+    {
+      headers: { Authorization: `Bearer ${instructorToken}` },
+      data: { status: "PRESENT", expected_version: 0, idempotency_key: crypto.randomUUID() },
+    },
+  );
+  expect(forbiddenMutation.status()).toBe(403);
+
+  // P23-10: a real Instructor may submit versioned, UNPUBLISHED knowledge Drafts.
+  // A Draft must never become approved AI knowledge, Evidence or training data.
+  const knowledgeSourceKey = `decision-case-${crypto.randomUUID().slice(0, 8)}`;
+  const knowledgeRequest = {
+    source_key: knowledgeSourceKey,
+    content_text: "Teach tradeoffs, acknowledge uncertainty, and separate outcomes from decision quality.",
+    idempotency_key: crypto.randomUUID(),
+  };
+  const instructorDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: knowledgeRequest,
+  });
+  expect(instructorDraft.status()).toBe(201);
+  const draftVersion = (await instructorDraft.json()) as {
+    source_id: string; source_version_id: string; version_number: number;
+    source_key: string; status: string; classification: string; content_digest: string;
+  };
+  expect(draftVersion.source_key).toBe(knowledgeSourceKey);
+  expect(draftVersion.version_number).toBe(1);
+  expect(draftVersion.status).toBe("DRAFT");
+  expect(draftVersion.classification).toBe("INTERNAL");
+  expect(draftVersion.content_digest).toMatch(/^[0-9a-f]{64}$/);
+  const replayDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: knowledgeRequest,
+  });
+  expect(replayDraft.status()).toBe(201);
+  expect((await replayDraft.json()).source_version_id).toBe(draftVersion.source_version_id);
+  const conflictingDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: { ...knowledgeRequest, content_text: "Changed content under the same key" },
+  });
+  expect(conflictingDraft.status()).toBe(409);
+  const nextDraft = await page.request.post(`${API}/api/v1/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+    data: { ...knowledgeRequest, content_text: "Revised teacher-authored draft", idempotency_key: crypto.randomUUID() },
+  });
+  expect(nextDraft.status()).toBe(201);
+  expect((await nextDraft.json()).version_number).toBe(2);
+  const myDrafts = await page.request.get(`${API}/api/v1/knowledge/my-drafts`, {
+    headers: { Authorization: `Bearer ${instructorToken}` },
+  });
+  expect(myDrafts.status()).toBe(200);
+  const myDraftPage = (await myDrafts.json()) as {
+    items: Array<{ source_key: string; status: string; version_number: number }>;
+  };
+  expect(myDraftPage.items.filter((x) => x.source_key === knowledgeSourceKey)
+    .map((x) => x.version_number)).toEqual([1, 2]);
+  expect(JSON.stringify(myDraftPage)).not.toContain("content_text");
+  await logout(page);
+
+  // Only Academy Admin records PRESENT through the actual browser command.
+  await login(page, "academy-admin", passwords.admin!);
+  const adminWorkspace = page.getByTestId("admin-academy-operations");
+  await expect(adminWorkspace).toBeVisible();
+  const seedPanel = page.getByTestId("seed-learning-approval-workspace");
+  await expect(seedPanel.getByText("تأیید انسانی دیتای اولیه تصمیم‌گیری")).toBeVisible();
+  await expect(seedPanel.getByTestId("seed-learning-metadata")).toContainText(
+    "docs/ai/seed/decision-making-v1.jsonl",
+  );
+  const exactDigest = await seedPanel.getByTestId("seed-learning-sha256").innerText();
+  expect(exactDigest).toMatch(/^[0-9a-f]{64}$/);
+  await expect(seedPanel.getByRole("button", {
+    name: "ثبت مجوز انسانی استفاده از Seed در دیتاست",
+  })).toBeDisabled();
+  // E2E only previews: there is NO implicit human AI-learning approval in CI.
+  await expect(adminWorkspace.getByLabel("کلاس واقعی")).toHaveValue(CLASS_ID);
+  await adminWorkspace.getByLabel("جلسه کلاس").selectOption(SESSION_ID);
+  await expect(adminWorkspace.getByLabel("جلسه کلاس")).toHaveValue(SESSION_ID);
+  const row = adminWorkspace.locator(".admin-ops-attendance-row").filter({
+    hasText: CANDIDATE_ID,
+  });
+  await expect(row.locator("span").nth(1)).toHaveText("ثبت نشده؛ غیبت محسوب نمی‌شود");
+  const adminToken = await tokenForCurrentUser(page);
+  const adminDrafts = await page.request.get(`${API}/api/v1/admin/knowledge/draft-versions`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  expect(adminDrafts.status()).toBe(200);
+  const draftCatalog = (await adminDrafts.json()) as {
+    items: Array<{ source_key: string; status: string; content_digest: string }>;
+  };
+  expect(draftCatalog.items.filter((x) => x.source_key === knowledgeSourceKey)).toHaveLength(2);
+  expect(draftCatalog.items.every((x) => x.status === "DRAFT")).toBe(true);
+  expect(JSON.stringify(draftCatalog)).not.toContain("content_text");
+  await row.getByRole("button", { name: "ثبت حاضر" }).click();
+  await expect(row.locator("span").nth(1)).toHaveText("حاضر");
+
+  // Replay with a NEW key but old version must fail rather than overwrite the human record.
+  const stale = await page.request.post(
+    `${API}/api/v1/sessions/${SESSION_ID}/attendance/${CANDIDATE_ID}`,
+    {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { status: "ABSENT", expected_version: 0, idempotency_key: crypto.randomUUID() },
+    },
+  );
+  expect(stale.status()).toBe(409);
+  expect((await stale.json()).code).toBe("ATTENDANCE_VERSION_CONFLICT");
+  await expect(row.locator("span").nth(1)).toHaveText("حاضر");
+  await logout(page);
+
+  // Candidate must see the exact human-recorded attendance in the same class,
+  // without interpreting it as formal ProofState or automatic progression.
+  await login(page, "candidate", passwords.candidate!);
+  const updatedReport = page.getByTestId("candidate-report-workspace");
+  await expect(updatedReport).toBeVisible();
+  await expect(updatedReport.getByText("حاضر", { exact: true })).toBeVisible();
+  await expect(updatedReport.locator(".report-subject-card").first()).toContainText(
+    "وضعیت معتبر در این کارنامه ارائه نشده است.",
+  );
+
+  // P23-09: REAL admin browser creates a time-bounded Academy-owned grant.
+  // This grants only the one class; never Evidence, Gate or a global roster.
+  await logout(page);
+  await login(page, "academy-admin", passwords.admin!);
+  const grantPanel = page.getByTestId("admin-assessor-grants");
+  await expect(grantPanel).toBeVisible();
+  await expect(grantPanel).toContainText("مأموریتی برای این کلاس ثبت نشده است.");
+  const start = new Date(Date.now() - 5 * 60_000).toISOString();
+  const end = new Date(Date.now() + 48 * 60 * 60_000).toISOString();
+  await grantPanel.getByLabel("شناسه ارزیاب عضو همین سازمان").fill(ASSESSOR_ID);
+  await grantPanel.getByLabel("آغاز مأموریت (ISO با منطقه زمانی)").fill(start);
+  await grantPanel.getByLabel("پایان مأموریت (ISO با منطقه زمانی)").fill(end);
+  await grantPanel.getByRole("button", { name: "ثبت انتصاب با تأیید مدیر" }).click();
+  await expect(grantPanel.getByTestId("selected-assessor-grant")).toContainText(ASSESSOR_ID);
+  await expect(grantPanel.getByTestId("selected-assessor-grant")).toContainText("لغو نشده");
+  await logout(page);
+
+  // Same real OIDC Assessor can read authorized classroom projections ONLY
+  // while the mandate is valid; the pre-grant 404 checks above still apply.
+  await login(page, "assessor", passwords.assessor!);
+  const assignedClassView = page.getByTestId("assessor-class-workspace");
+  await expect(assignedClassView.getByLabel("کلاس منصوب‌شده")).toHaveValue(CLASS_ID);
+  await expect(assignedClassView.getByLabel("فراگیر کلاس")).toHaveValue(CANDIDATE_ID);
+  await expect(assignedClassView.getByText(
+    "اثبات رسمی مستقل: داده معتبر مستقل موجود نیست"
+  )).toBeVisible();
+  await expect(assignedClassView).not.toContainText("معدل");
+  const grantedAssessorToken = await tokenForCurrentUser(page);
+  for (const path of [
+    `/class-offerings/${CLASS_ID}/roster`,
+    `/class-offerings/${CLASS_ID}/sessions`,
+    `/sessions/${SESSION_ID}/attendance`,
+    `/class-offerings/${CLASS_ID}/activity`,
+    `/class-offerings/${CLASS_ID}/report-cards/${CANDIDATE_ID}`,
+  ]) {
+    const result = await page.request.get(`${API}/api/v1${path}`, {
+      headers: { Authorization: `Bearer ${grantedAssessorToken}` },
+    });
+    expect(result.status(), `Assigned Assessor needs scoped GET ${path}`).toBe(200);
+  }
+  // P23-09C — actual OIDC/FastAPI/PostgreSQL writer, no Evidence admission.
+  // This synthetic current Session exists ONLY in the isolated GitHub Actions fixture.
+  const observationUrl = `${API}/api/v1/class-offerings/${CLASS_ID}/observations`;
+  const observationHeaders = { Authorization: `Bearer ${grantedAssessorToken}` };
+  const beforeObservation = await page.request.get(observationUrl, { headers: observationHeaders });
+  expect(beforeObservation.status()).toBe(200);
+  expect(await beforeObservation.json()).toEqual([]);
+  const observationBody = {
+    session_id: OBSERVATION_SESSION_ID,
+    candidate_person_id: CANDIDATE_ID,
+    observed_at: new Date().toISOString(),
+    observed_fact: "CI factual classroom observation: learner separated evidence from interpretation.",
+    idempotency_key: crypto.randomUUID(),
+  };
+  // Two concurrent physical HTTP requests use independent DB transactions.
+  const [firstObservation, concurrentReplay] = await Promise.all([
+    page.request.post(observationUrl, { headers: observationHeaders, data: observationBody }),
+    page.request.post(observationUrl, { headers: observationHeaders, data: observationBody }),
+  ]);
+  expect(firstObservation.status()).toBe(201);
+  expect(concurrentReplay.status()).toBe(201);
+  const observation = (await firstObservation.json()) as {
+    observation_id: string; grant_version: number; observed_at: string;
+    recorded_at: string; observer_person_id: string; candidate_person_id: string;
+    session_id: string; observed_fact: string;
+  };
+  expect((await concurrentReplay.json()).observation_id).toBe(observation.observation_id);
+  expect(observation.session_id).toBe(OBSERVATION_SESSION_ID);
+  expect(observation.candidate_person_id).toBe(CANDIDATE_ID);
+  expect(observation.observer_person_id).toBe(ASSESSOR_ID);
+  expect(observation.observed_fact).toBe(observationBody.observed_fact);
+  expect(new Date(observation.recorded_at).getTime()).toBeGreaterThanOrEqual(
+    new Date(observation.observed_at).getTime(),
+  );
+  const historical = await page.request.get(observationUrl, { headers: observationHeaders });
+  expect(historical.status()).toBe(200);
+  const history = (await historical.json()) as Array<{ observation_id: string }>;
+  expect(history).toHaveLength(1);
+  expect(history[0]?.observation_id).toBe(observation.observation_id);
+  const conflictingReplay = await page.request.post(observationUrl, {
+    headers: observationHeaders,
+    data: { ...observationBody, observed_fact: "changed source under the same replay key" },
+  });
+  expect(conflictingReplay.status()).toBe(409);
+  for (const invalid of [
+    { ...observationBody, idempotency_key: crypto.randomUUID(), candidate_person_id: ASSESSOR_ID },
+    { ...observationBody, idempotency_key: crypto.randomUUID(), session_id: SESSION_ID },
+  ]) {
+    const bad = await page.request.post(observationUrl, {
+      headers: observationHeaders, data: invalid,
+    });
+    expect([404, 409]).toContain(bad.status());
+  }
+  const futureObservation = await page.request.post(observationUrl, {
+    headers: observationHeaders,
+    data: { ...observationBody, observed_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+      idempotency_key: crypto.randomUUID() },
+  });
+  expect(futureObservation.status()).toBe(409);
+  const crossClassObservation = await page.request.post(
+    `${API}/api/v1/class-offerings/${crypto.randomUUID()}/observations`,
+    { headers: observationHeaders, data: { ...observationBody, idempotency_key: crypto.randomUUID() } },
+  );
+  expect(crossClassObservation.status()).toBe(404);
+  const authorCannotReview = await page.request.get(
+    `${API}/api/v1/classroom-observations/${observation.observation_id}/review-source`,
+    { headers: observationHeaders },
+  );
+  expect(authorCannotReview.status()).toBe(404);
+  // The separate Evidence API has no implicit link to this new Academy source.
+  expect(JSON.stringify(observation)).not.toContain("evidence_case_id");
+
+  const assessorStillCannotAdmin = await page.request.get(
+    `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
+      headers: { Authorization: `Bearer ${grantedAssessorToken}` },
+    },
+  );
+  expect(assessorStillCannotAdmin.status()).toBe(403);
+  await logout(page);
+
+  // P23-09C human source review: SECOND real Keycloak identity, scoped to
+  // the same class by an independent Admin appointment. No Evidence admission.
+  const sourceReviewUrl = `${API}/api/v1/classroom-observations/${observation.observation_id}/review-source`;
+  await login(page, "assessor-reviewer", passwords.reviewer!);
+  const reviewerUnassignedToken = await tokenForCurrentUser(page);
+  const beforeReviewerGrant = await page.request.get(sourceReviewUrl, {
+    headers: { Authorization: `Bearer ${reviewerUnassignedToken}` },
+  });
+  expect(beforeReviewerGrant.status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const adminReviewToken = await tokenForCurrentUser(page);
+  const reviewerGrantResponse = await page.request.post(
+    `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
+      headers: { Authorization: `Bearer ${adminReviewToken}` },
+      data: {
+        assessor_person_id: INDEPENDENT_REVIEWER_ID,
+        starts_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+        ends_at: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(reviewerGrantResponse.status()).toBe(200);
+  const reviewerGrant = (await reviewerGrantResponse.json()) as {
+    grant_id: string; version: number;
+  };
+  expect(reviewerGrant.version).toBe(1);
+  await logout(page);
+
+  await login(page, "assessor-reviewer", passwords.reviewer!);
+  const reviewerToken = await tokenForCurrentUser(page);
+  const reviewerHeaders = { Authorization: `Bearer ${reviewerToken}` };
+  const reviewerSource = await page.request.get(sourceReviewUrl, { headers: reviewerHeaders });
+  expect(reviewerSource.status()).toBe(200);
+  const scopedSource = (await reviewerSource.json()) as {
+    observation_id: string; observer_person_id: string; candidate_person_id: string;
+    source_sha256: string; observed_fact: string;
+  };
+  expect(scopedSource.observation_id).toBe(observation.observation_id);
+  expect(scopedSource.observer_person_id).toBe(ASSESSOR_ID);
+  expect(scopedSource.candidate_person_id).toBe(CANDIDATE_ID);
+  expect(scopedSource.source_sha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(scopedSource.observed_fact).toBe(observationBody.observed_fact);
+  const reviewBody = {
+    expected_source_sha256: scopedSource.source_sha256,
+    decision: "VERIFIED",
+    rationale: "Independently reviewed this particular source and authorized classroom interval",
+  };
+  const [reviewA, reviewB] = await Promise.all([
+    page.request.post(sourceReviewUrl, { headers: reviewerHeaders, data: reviewBody }),
+    page.request.post(sourceReviewUrl, { headers: reviewerHeaders, data: reviewBody }),
+  ]);
+  expect(reviewA.status()).toBe(201);
+  expect(reviewB.status()).toBe(201);
+  const reviewResult = (await reviewA.json()) as {
+    review_id: string; reviewer_person_id: string;
+    decision: string; source_sha256: string;
+  };
+  expect((await reviewB.json()).review_id).toBe(reviewResult.review_id);
+  expect(reviewResult.reviewer_person_id).toBe(INDEPENDENT_REVIEWER_ID);
+  expect(reviewResult.decision).toBe("VERIFIED");
+  expect(reviewResult.source_sha256).toBe(scopedSource.source_sha256);
+  expect(JSON.stringify(reviewResult)).not.toContain("evidence_case_id");
+  const staleSource = await page.request.post(sourceReviewUrl, {
+    headers: reviewerHeaders,
+    data: { ...reviewBody, expected_source_sha256: "0".repeat(64) },
+  });
+  expect(staleSource.status()).toBe(409);
+  const conflictingSource = await page.request.post(sourceReviewUrl, {
+    headers: reviewerHeaders,
+    data: { ...reviewBody, decision: "REJECTED" },
+  });
+  expect(conflictingSource.status()).toBe(409);
+
+  // P23-09C: a human explicitly creates a private, source-pinned Draft only
+  // AFTER independent VERIFIED review. Concurrent replay is one EvidenceCase.
+  const draftUrl = `${API}/api/v1/classroom-observations/${observation.observation_id}/evidence-draft`;
+  const draftCommand = {
+    expected_review_id: reviewResult.review_id,
+    expected_source_sha256: reviewResult.source_sha256,
+    submission_reason: "Explicit human request to open a private Draft for formal later review",
+  };
+  const [draftA, draftB] = await Promise.all([
+    page.request.post(draftUrl, { headers: reviewerHeaders, data: draftCommand }),
+    page.request.post(draftUrl, { headers: reviewerHeaders, data: draftCommand }),
+  ]);
+  expect(draftA.status()).toBe(201);
+  expect(draftB.status()).toBe(201);
+  const draft = (await draftA.json()) as {
+    evidence_case_id: string; status: string; candidate_visible: boolean;
+    source_review_id: string; source_observation_id: string; observed_fact: string;
+  };
+  expect((await draftB.json()).evidence_case_id).toBe(draft.evidence_case_id);
+  expect(draft.status).toBe("DRAFT");
+  expect(draft.candidate_visible).toBe(false);
+  expect(draft.source_review_id).toBe(reviewResult.review_id);
+  expect(draft.source_observation_id).toBe(observation.observation_id);
+  expect(draft.observed_fact).toBe(observationBody.observed_fact);
+  const privateDraftUrl = `${API}/api/v1/classroom-evidence-drafts/${draft.evidence_case_id}`;
+  const ownedDraft = await page.request.get(privateDraftUrl, { headers: reviewerHeaders });
+  expect(ownedDraft.status()).toBe(200);
+  expect((await ownedDraft.json()).evidence_case_id).toBe(draft.evidence_case_id);
+  const guessedOtherDraft = await page.request.get(
+    `${API}/api/v1/classroom-evidence-drafts/${crypto.randomUUID()}`,
+    { headers: reviewerHeaders },
+  );
+  expect(guessedOtherDraft.status()).toBe(404);
+  const authorCannotReadPrivateDraft = await page.request.get(
+    privateDraftUrl,
+    { headers: { Authorization: `Bearer ${grantedAssessorToken}` } },
+  );
+  expect(authorCannotReadPrivateDraft.status()).toBe(404);
+  const genericDetail = await page.request.get(
+    `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
+    { headers: reviewerHeaders },
+  );
+  expect(genericDetail.status()).toBe(404);
+  const genericList = await page.request.get(
+    `${API}/api/v1/evidence-cases`,
+    { headers: reviewerHeaders },
+  );
+  expect(genericList.status()).toBe(200);
+  expect(JSON.stringify(await genericList.json())).not.toContain(draft.evidence_case_id);
+  // A second explicit human command supplies Interpretation v1 and
+  // transitions to SUBMITTED only; no formal Evidence acceptance.
+  const humanSubmission = {
+    expected_version: 1,
+    interpretation: {
+      behaviour_code: "CLASSROOM_CI_INTERPRETATION",
+      behaviour_description: "Human interpretation of a recorded classroom fact",
+      signal: "NEUTRAL",
+      scope: "CI classroom session",
+      confidence: "LOW",
+      context_difficulty: "CI isolated",
+      prompt_contamination: "Unknown, recorded as an explicit human field",
+      ai_contribution: "NONE",
+      mode: "HUMAN",
+      rationale: "Human review of this observation, not accepted proof",
+      links: [{
+        target_type: "CAPABILITY",
+        target_ref: "CI_UNAPPROVED_OPAQUE_REFERENCE",
+        signal: "NEUTRAL",
+        scope: "CI isolated",
+        relevance: "LOW",
+        confidence: "LOW",
+      }],
+    },
+  };
+  const submitUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/submit`;
+  const submit = await page.request.post(submitUrl, {
+    headers: reviewerHeaders, data: humanSubmission,
+  });
+  expect(submit.status()).toBe(200);
+  const submission = (await submit.json()) as {
+    case_id: string; status: string; version: number;
+    candidate_visible: boolean; interpretation_id: string;
+  };
+  expect(submission.case_id).toBe(draft.evidence_case_id);
+  expect(submission.status).toBe("SUBMITTED");
+  expect(submission.version).toBe(2);
+  expect(submission.candidate_visible).toBe(false);
+  expect(submission.interpretation_id).toBeTruthy();
+  const nowSubmitted = await page.request.get(privateDraftUrl, { headers: reviewerHeaders });
+  expect(nowSubmitted.status()).toBe(200);
+  expect((await nowSubmitted.json()).status).toBe("SUBMITTED");
+  const staleSubmit = await page.request.post(submitUrl, {
+    headers: reviewerHeaders, data: humanSubmission,
+  });
+  expect(staleSubmit.status()).toBe(404);
+  const noGenericAccessAfterSubmit = await page.request.get(
+    `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
+    { headers: reviewerHeaders },
+  );
+  expect(noGenericAccessAfterSubmit.status()).toBe(404);
+  for (const changed of [
+    { ...draftCommand, expected_source_sha256: "0".repeat(64) },
+    { ...draftCommand, expected_review_id: crypto.randomUUID() },
+    { ...draftCommand, submission_reason: "Conflicting attempt to rewrite the human reason" },
+  ]) {
+    const rejected = await page.request.post(draftUrl, {
+      headers: reviewerHeaders, data: changed,
+    });
+    expect(rejected.status()).toBe(409);
+  }
+  // CI-only FINAL Evidence: third Keycloak human, distinct from observation,
+  // source review, Interpretation author and Candidate.
+  const finalReviewUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/final-review`;
+  const notFinal = await page.request.get(finalReviewUrl, { headers: reviewerHeaders });
+  expect(notFinal.status()).toBe(404);
+  const originalCannotDecide = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/review-start`, {
+      headers: { Authorization: `Bearer ${grantedAssessorToken}` },
+      data: { expected_version: 2, rationale: "Forbidden observer self-review" },
+    },
+  );
+  expect(originalCannotDecide.status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const finalAdminToken = await tokenForCurrentUser(page);
+  const adminHeaders = { Authorization: `Bearer ${finalAdminToken}` };
+  const finalGrantStart = new Date(Date.now() - 5 * 60_000).toISOString();
+  const finalGrantEnd = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+  const finalGrantReply = await page.request.post(
+    `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
+      headers: adminHeaders,
+      data: {
+        assessor_person_id: FINAL_REVIEWER_ID,
+        starts_at: finalGrantStart,
+        ends_at: finalGrantEnd,
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(finalGrantReply.status()).toBe(200);
+  const issueUrl = `${API}/api/v1/admin/academy/classroom-evidence-cases/${draft.evidence_case_id}/final-review-mandate`;
+  const mandateBody = {
+    reviewer_person_id: FINAL_REVIEWER_ID,
+    expected_case_version: 2,
+    expected_source_sha256: scopedSource.source_sha256,
+    starts_at: new Date(Date.now() - 2 * 60_000).toISOString(),
+    ends_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+    reason: "CI human admin appoints distinct Evidence final reviewer",
+    idempotency_key: crypto.randomUUID(),
+  };
+  const issued = await page.request.post(issueUrl, {
+    headers: adminHeaders, data: mandateBody,
+  });
+  expect(issued.status()).toBe(201);
+  const issuedMandate = (await issued.json()) as { mandate_id: string; version: number };
+  expect(issuedMandate.version).toBe(1);
+  const issuedReplay = await page.request.post(issueUrl, {
+    headers: adminHeaders, data: mandateBody,
+  });
+  expect(issuedReplay.status()).toBe(201);
+  expect((await issuedReplay.json()).mandate_id).toBe(issuedMandate.mandate_id);
+  const changedReplay = await page.request.post(issueUrl, {
+    headers: adminHeaders, data: { ...mandateBody, reason: "Changed reason cannot replay" },
+  });
+  expect(changedReplay.status()).toBe(409);
+  const changedDigestReplay = await page.request.post(issueUrl, {
+    headers: adminHeaders,
+    data: { ...mandateBody, expected_source_sha256: "0".repeat(64) },
+  });
+  expect(changedDigestReplay.status()).toBe(409);
+  await logout(page);
+
+  await login(page, "assessor-final", passwords.finalReviewer!);
+  const finalToken = await tokenForCurrentUser(page);
+  const finalHeaders = { Authorization: `Bearer ${finalToken}` };
+  const privateWorkspace = await page.request.get(finalReviewUrl, { headers: finalHeaders });
+  expect(privateWorkspace.status()).toBe(200);
+  const reviewWorkspace = (await privateWorkspace.json()) as {
+    status: string; observed_fact: string; interpretation: { created_by: string };
+  };
+  expect(reviewWorkspace.status).toBe("SUBMITTED");
+  expect(reviewWorkspace.observed_fact).toBe(observationBody.observed_fact);
+  expect(reviewWorkspace.interpretation.created_by).toBe(INDEPENDENT_REVIEWER_ID);
+  const startUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/review-start`;
+  const startBody = { expected_version: 2, rationale: "CI accountable independent review start" };
+  const [startA, startB] = await Promise.all([
+    page.request.post(startUrl, { headers: finalHeaders, data: startBody }),
+    page.request.post(startUrl, { headers: finalHeaders, data: startBody }),
+  ]);
+  expect([startA.status(), startB.status()].sort()).toEqual([200, 409]);
+  const started = (await (startA.status() === 200 ? startA : startB).json()) as {
+    status: string; version: number;
+  };
+  expect(started.status).toBe("UNDER_REVIEW");
+  expect(started.version).toBe(3);
+  const acceptUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/accept`;
+  const staleAccept = await page.request.post(acceptUrl, {
+    headers: finalHeaders, data: { expected_version: 2, rationale: "Stale decision" },
+  });
+  expect(staleAccept.status()).toBe(409);
+  const decision = await page.request.post(acceptUrl, {
+    headers: finalHeaders,
+    data: { expected_version: 3, rationale: "CI human final decision on synthetic Evidence" },
+  });
+  expect(decision.status()).toBe(200);
+  const decided = (await decision.json()) as {
+    status: string; version: number; candidate_visible?: boolean; accepted_at: string;
+  };
+  expect(decided.status).toBe("ACCEPTED");
+  expect(decided.version).toBe(4);
+  expect(decided.accepted_at).toBeTruthy();
+  // Two additional independent real-transaction CI cases exercise both
+  // human REJECTED and post-start mandate revocation, without rewriting
+  // the original human ACCEPTED case.
+  async function buildSubmittedClassroomCase(fact: string): Promise<{
+    caseId: string;
+    mandateId: string;
+  }> {
+    const recorded = await page.request.post(observationUrl, {
+      headers: observationHeaders,
+      data: { ...observationBody, observed_fact: fact, idempotency_key: crypto.randomUUID() },
+    });
+    expect(recorded.status(), `Record source for ${fact}`).toBe(201);
+    const source = (await recorded.json()) as { observation_id: string };
+    const sourceReviewEndpoint =
+      `${API}/api/v1/classroom-observations/${source.observation_id}/review-source`;
+    const readSource = await page.request.get(sourceReviewEndpoint, { headers: reviewerHeaders });
+    expect(readSource.status()).toBe(200);
+    const scoped = (await readSource.json()) as { source_sha256: string };
+    const reviewed = await page.request.post(sourceReviewEndpoint, {
+      headers: reviewerHeaders,
+      data: {
+        expected_source_sha256: scoped.source_sha256,
+        decision: "VERIFIED",
+        rationale: "Independent source attestation for an isolated CI final review path",
+      },
+    });
+    expect(reviewed.status()).toBe(201);
+    const reviewedBody = (await reviewed.json()) as { review_id: string };
+    const draftCase = await page.request.post(
+      `${API}/api/v1/classroom-observations/${source.observation_id}/evidence-draft`, {
+        headers: reviewerHeaders,
+        data: {
+          expected_review_id: reviewedBody.review_id,
+          expected_source_sha256: scoped.source_sha256,
+          submission_reason: "Independent reviewer explicitly opens a second private CI Evidence case",
+        },
+      },
+    );
+    expect(draftCase.status()).toBe(201);
+    const created = (await draftCase.json()) as { evidence_case_id: string };
+    const submitted = await page.request.post(
+      `${API}/api/v1/classroom-evidence-cases/${created.evidence_case_id}/submit`, {
+        headers: reviewerHeaders, data: humanSubmission,
+      },
+    );
+    expect(submitted.status()).toBe(200);
+    expect((await submitted.json()).status).toBe("SUBMITTED");
+    const mandate = await page.request.post(
+      `${API}/api/v1/admin/academy/classroom-evidence-cases/${created.evidence_case_id}/final-review-mandate`, {
+        headers: adminHeaders,
+        data: {
+          ...mandateBody,
+          idempotency_key: crypto.randomUUID(),
+          expected_source_sha256: scoped.source_sha256,
+          reason: "Separate Admin issuance to independent CI human reviewer",
+        },
+      },
+    );
+    expect(mandate.status()).toBe(201);
+    const mandateRecord = (await mandate.json()) as { mandate_id: string };
+    return {
+      caseId: created.evidence_case_id,
+      mandateId: mandateRecord.mandate_id,
+    };
+  }
+
+  // A genuinely distinct classroom source and human Interpretation are
+  // independently REJECTED, without ever entering accepted downstream reads.
+  const rejectedCase = await buildSubmittedClassroomCase(
+    "CI_FINAL_REJECTION_SOURCE: human assessment rejects an independent observation",
+  );
+  const rejectStart = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${rejectedCase.caseId}/review-start`, {
+      headers: finalHeaders,
+      data: { expected_version: 2, rationale: "Human starts independent reject-case review" },
+    },
+  );
+  expect(rejectStart.status()).toBe(200);
+  const rejectUrl = `${API}/api/v1/classroom-evidence-cases/${rejectedCase.caseId}/reject`;
+  const wrongActorReject = await page.request.post(rejectUrl, {
+    headers: reviewerHeaders,
+    data: { expected_version: 3, rationale: "Original Interpretation author cannot reject" },
+  });
+  expect(wrongActorReject.status()).toBe(404);
+  const rejectedDecision = await page.request.post(rejectUrl, {
+    headers: finalHeaders,
+    data: { expected_version: 3, rationale: "Separate accountable human rejection of evidence" },
+  });
+  expect(rejectedDecision.status()).toBe(200);
+  const rejectResult = (await rejectedDecision.json()) as {
+    status: string; version: number; rejected_at: string; accepted_at: string | null;
+  };
+  expect(rejectResult.status).toBe("REJECTED");
+  expect(rejectResult.version).toBe(4);
+  expect(rejectResult.rejected_at).toBeTruthy();
+  expect(rejectResult.accepted_at).toBeNull();
+  const staleReject = await page.request.post(rejectUrl, {
+    headers: finalHeaders, data: { expected_version: 3, rationale: "Repeat must fail" },
+  });
+  expect(staleReject.status()).toBe(409);
+  expect((await page.request.get(
+    `${API}/api/v1/evidence-cases/${rejectedCase.caseId}`,
+    { headers: finalHeaders },
+  )).status()).toBe(404);
+
+  // In an independent third case, revoke the Evidence-owned appointment
+  // AFTER review start but BEFORE the human final decision. Existing OIDC
+  // token, class grant and ASSESSOR role must not override this revocation.
+  const revokedDuringReview = await buildSubmittedClassroomCase(
+    "CI_FINAL_REVOKED_SOURCE: no human final decision after mandate revocation",
+  );
+  const revokeStart = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/review-start`, {
+      headers: finalHeaders,
+      data: { expected_version: 2, rationale: "Human review started prior to appointment revocation" },
+    },
+  );
+  expect(revokeStart.status()).toBe(200);
+  expect((await revokeStart.json()).status).toBe("UNDER_REVIEW");
+  const adminRevoke = await page.request.post(
+    `${API}/api/v1/admin/academy/final-review-mandates/${revokedDuringReview.mandateId}/revoke`, {
+      headers: adminHeaders,
+      data: {
+        expected_version: 1,
+        reason: "Academy Admin immediately revokes final-review authority during review",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(adminRevoke.status()).toBe(200);
+  expect((await adminRevoke.json()).revoked_at).toBeTruthy();
+  const revokedWorkspace = await page.request.get(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/final-review`,
+    { headers: finalHeaders },
+  );
+  expect(revokedWorkspace.status()).toBe(404);
+  const revokedAccept = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/accept`, {
+      headers: finalHeaders,
+      data: { expected_version: 3, rationale: "Revoked human must not decide" },
+    },
+  );
+  expect(revokedAccept.status()).toBe(404);
+  const revokedReject = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/reject`, {
+      headers: finalHeaders,
+      data: { expected_version: 3, rationale: "Revoked human must not reject either" },
+    },
+  );
+  expect(revokedReject.status()).toBe(404);
+
+  const finalReplayed = await page.request.post(acceptUrl, {
+    headers: finalHeaders,
+    data: { expected_version: 3, rationale: "Cannot decide twice" },
+  });
+  expect(finalReplayed.status()).toBe(409);
+  const finalGeneric = await page.request.get(
+    `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
+    { headers: finalHeaders },
+  );
+  expect(finalGeneric.status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const revokeFinalToken = await tokenForCurrentUser(page);
+  const revokeFinalBody = {
+    expected_version: issuedMandate.version,
+    reason: "CI admin ends the distinct final Evidence mandate",
+    idempotency_key: crypto.randomUUID(),
+  };
+  const revokedFinal = await page.request.post(
+    `${API}/api/v1/admin/academy/final-review-mandates/${issuedMandate.mandate_id}/revoke`, {
+      headers: { Authorization: `Bearer ${revokeFinalToken}` },
+      data: revokeFinalBody,
+    },
+  );
+  expect(revokedFinal.status()).toBe(200);
+  expect((await revokedFinal.json()).version).toBe(2);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const revokeReviewerToken = await tokenForCurrentUser(page);
+  const revokeReviewer = await page.request.post(
+    `${API}/api/v1/admin/academy/assessor-grants/${reviewerGrant.grant_id}/revoke`, {
+      headers: { Authorization: `Bearer ${revokeReviewerToken}` },
+      data: {
+        expected_version: reviewerGrant.version,
+        reason: "CI verification that review authorization is live only",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(revokeReviewer.status()).toBe(200);
+  await logout(page);
+
+  await login(page, "assessor-reviewer", passwords.reviewer!);
+  const revokedReviewerToken = await tokenForCurrentUser(page);
+  const revokedSource = await page.request.get(sourceReviewUrl, {
+    headers: { Authorization: `Bearer ${revokedReviewerToken}` },
+  });
+  expect(revokedSource.status()).toBe(404);
+  const revokedDraftRead = await page.request.get(privateDraftUrl, {
+    headers: { Authorization: `Bearer ${revokedReviewerToken}` },
+  });
+  expect(revokedDraftRead.status()).toBe(404);
+  const revokedDraftWrite = await page.request.post(draftUrl, {
+    headers: { Authorization: `Bearer ${revokedReviewerToken}` },
+    data: draftCommand,
+  });
+  expect(revokedDraftWrite.status()).toBe(404);
+  await logout(page);
+
+  // Human revocation closes the same grant immediately without erasing audit.
+  await login(page, "academy-admin", passwords.admin!);
+  const revocationPanel = page.getByTestId("admin-assessor-grants");
+  await expect(revocationPanel.getByTestId("selected-assessor-grant")).toContainText(ASSESSOR_ID);
+  await revocationPanel.getByLabel("دلیل تمدید یا لغو").fill("Assignment formally ended");
+  await revocationPanel.getByLabel(
+    "لغو مأموریت این ارزیاب در همین کلاس را تأیید می‌کنم."
+  ).check();
+  await revocationPanel.getByRole("button", { name: "لغو مأموریت" }).click();
+  await expect(revocationPanel).toContainText("مأموریت لغوشده قابل تمدید نیست.");
+  await logout(page);
+  await login(page, "assessor", passwords.assessor!);
+  const revokedClassView = page.getByTestId("assessor-class-workspace");
+  await expect(revokedClassView.getByText("اکنون مأموریت معتبر کلاسی ندارید.")).toBeVisible();
+  await expect(revokedClassView.getByLabel("کلاس منصوب‌شده")).toHaveCount(0);
+  await expect(revokedClassView).not.toContainText(CANDIDATE_ID);
+  const revokedAssessorToken = await tokenForCurrentUser(page);
+  const afterRevoke = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/roster`, {
+      headers: { Authorization: `Bearer ${revokedAssessorToken}` },
+    },
+  );
+  expect(afterRevoke.status()).toBe(404);
+  const revokedObservationRead = await page.request.get(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`,
+    { headers: { Authorization: `Bearer ${revokedAssessorToken}` } },
+  );
+  expect(revokedObservationRead.status()).toBe(404);
+  const revokedObservationWrite = await page.request.post(
+    `${API}/api/v1/class-offerings/${CLASS_ID}/observations`, {
+      headers: { Authorization: `Bearer ${revokedAssessorToken}` },
+      data: { ...observationBody, idempotency_key: crypto.randomUUID() },
+    },
+  );
+  expect(revokedObservationWrite.status()).toBe(404);
+
+});
+
+test("P23-12B: live cross-class grant, foreign-tenant denial and isolated revocation", async ({ page }) => {
+  test.setTimeout(180_000);
+  const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
+  const assessorPassword = process.env.PARCHAM_DEV_ASSESSOR_PASSWORD;
+  if (!adminPassword || !assessorPassword) throw new Error("CI-only OIDC passwords required");
+  const secondRoster = API + "/api/v1/class-offerings/" + SECOND_CLASS_ID + "/roster";
+  const secondObservations = API + "/api/v1/class-offerings/" + SECOND_CLASS_ID + "/observations";
+  const foreignRoster = API + "/api/v1/class-offerings/" + FOREIGN_CLASS_ID + "/roster";
+  await login(page, "assessor", assessorPassword);
+  const initiallyUnassigned = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  expect((await page.request.get(secondRoster, { headers: initiallyUnassigned })).status()).toBe(404);
+  expect((await page.request.get(foreignRoster, { headers: initiallyUnassigned })).status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", adminPassword);
+  const adminHeaders = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  const foreignGrantUrl = API + "/api/v1/admin/academy/classes/" + FOREIGN_CLASS_ID + "/assessor-grants";
+  expect((await page.request.get(foreignGrantUrl, { headers: adminHeaders })).status()).toBe(404);
+  const createBody = {
+    assessor_person_id: ASSESSOR_ID,
+    starts_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    ends_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+    idempotency_key: crypto.randomUUID(),
+  };
+  expect((await page.request.post(foreignGrantUrl, {
+    headers: adminHeaders, data: createBody,
+  })).status()).toBe(404);
+  const createUrl = API + "/api/v1/admin/academy/classes/" + SECOND_CLASS_ID + "/assessor-grants";
+  const [created, retried] = await Promise.all([
+    page.request.post(createUrl, { headers: adminHeaders, data: createBody }),
+    page.request.post(createUrl, { headers: adminHeaders, data: createBody }),
+  ]);
+  expect([created.status(), retried.status()]).toEqual([200, 200]);
+  const grant = (await created.json()) as {
+    grant_id: string; class_offering_id: string; version: number;
+  };
+  expect((await retried.json()).grant_id).toBe(grant.grant_id);
+  expect(grant.class_offering_id).toBe(SECOND_CLASS_ID);
+  expect(grant.version).toBe(1);
+  await logout(page);
+
+  await login(page, "assessor", assessorPassword);
+  const grantedHeaders = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  const roster = await page.request.get(secondRoster, { headers: grantedHeaders });
+  expect(roster.status()).toBe(200);
+  expect(JSON.stringify(await roster.json())).toContain(CANDIDATE_ID);
+  expect((await page.request.get(foreignRoster, { headers: grantedHeaders })).status()).toBe(404);
+  const secondFact = "CI_SECOND_CLASS_OBSERVATION: scoped independent session and class";
+  const observation = await page.request.post(secondObservations, {
+    headers: grantedHeaders,
+    data: {
+      session_id: SECOND_SESSION_ID,
+      candidate_person_id: CANDIDATE_ID,
+      observed_at: new Date().toISOString(),
+      observed_fact: secondFact,
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect(observation.status()).toBe(201);
+  const wrongSession = await page.request.post(secondObservations, {
+    headers: grantedHeaders,
+    data: {
+      session_id: OBSERVATION_SESSION_ID,
+      candidate_person_id: CANDIDATE_ID,
+      observed_at: new Date().toISOString(),
+      observed_fact: "Other class's Session must be forbidden",
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect([404, 409]).toContain(wrongSession.status());
+  const secondSources = await page.request.get(secondObservations, { headers: grantedHeaders });
+  expect(secondSources.status()).toBe(200);
+  expect(JSON.stringify(await secondSources.json())).toContain(secondFact);
+  await logout(page);
+
+  await login(page, "academy-admin", adminPassword);
+  const revoker = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+
+  // Race two distinct human commands against the SAME grant version.
+  // Exactly one extension must commit; the other must fail stale.
+  const extendUrl = API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/extend";
+  const extensions = [
+    {
+      expected_version: 1,
+      ends_at: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+      reason: "CI first conflicting human extension",
+      idempotency_key: crypto.randomUUID(),
+    },
+    {
+      expected_version: 1,
+      ends_at: new Date(Date.now() + 3 * 60 * 60_000).toISOString(),
+      reason: "CI second conflicting human extension",
+      idempotency_key: crypto.randomUUID(),
+    },
+  ];
+  const [firstExtension, secondExtension] = await Promise.all(
+    extensions.map(data => page.request.post(extendUrl, { headers: revoker, data })),
+  );
+  expect([firstExtension.status(), secondExtension.status()].sort()).toEqual([200, 409]);
+  const successfulExtension = firstExtension.status() === 200 ? firstExtension : secondExtension;
+  const winningCommand = firstExtension.status() === 200 ? extensions[0] : extensions[1];
+  const wonGrant = (await successfulExtension.json()) as { version: number; ends_at: string };
+  expect(wonGrant.version).toBe(2);
+  expect(new Date(wonGrant.ends_at).getTime()).toBe(new Date(winningCommand.ends_at).getTime());
+  const staleExtension = await page.request.post(extendUrl, {
+    headers: revoker,
+    data: {
+      ...winningCommand,
+      idempotency_key: crypto.randomUUID(),
+      reason: "Stale client must refresh",
+    },
+  });
+  expect(staleExtension.status()).toBe(409);
+  expect((await staleExtension.json()).code).toBe("GRANT_VERSION_CONFLICT");
+  const originalReplay = await page.request.post(extendUrl, {
+    headers: revoker, data: winningCommand,
+  });
+  expect(originalReplay.status()).toBe(200);
+  expect((await originalReplay.json()).version).toBe(2);
+
+  // Separate Session: competing first-time human attendance entries must
+  // produce one immutable revision and reject the other obsolete input.
+  const attendanceUrl = API + "/api/v1/sessions/" + SECOND_SESSION_ID
+    + "/attendance/" + CANDIDATE_ID;
+  const createAttendance = [
+    { status: "PRESENT", expected_version: 0, idempotency_key: crypto.randomUUID() },
+    { status: "ABSENT", expected_version: 0, idempotency_key: crypto.randomUUID() },
+  ];
+  const [attendanceA, attendanceB] = await Promise.all(
+    createAttendance.map(data => page.request.post(attendanceUrl, { headers: revoker, data })),
+  );
+  expect([attendanceA.status(), attendanceB.status()].sort()).toEqual([200, 409]);
+  const acceptedAttendance = attendanceA.status() === 200 ? attendanceA : attendanceB;
+  const acceptedInput = attendanceA.status() === 200 ? createAttendance[0] : createAttendance[1];
+  const firstAttendance = (await acceptedAttendance.json()) as {
+    id: string; status: string; version: number;
+  };
+  expect(firstAttendance.version).toBe(1);
+  expect(firstAttendance.status).toBe(acceptedInput.status);
+  const correction = await page.request.post(attendanceUrl, {
+    headers: revoker,
+    data: {
+      status: firstAttendance.status === "PRESENT" ? "ABSENT" : "PRESENT",
+      expected_version: 1,
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect(correction.status()).toBe(200);
+  const corrected = (await correction.json()) as { id: string; version: number; status: string };
+  expect(corrected.id).toBe(firstAttendance.id);
+  expect(corrected.version).toBe(2);
+  expect(corrected.status).not.toBe(firstAttendance.status);
+  const staleAttendance = await page.request.post(attendanceUrl, {
+    headers: revoker,
+    data: { status: firstAttendance.status, expected_version: 1, idempotency_key: crypto.randomUUID() },
+  });
+  expect(staleAttendance.status()).toBe(409);
+  expect((await staleAttendance.json()).code).toBe("ATTENDANCE_VERSION_CONFLICT");
+  const historicalAttendanceReplay = await page.request.post(attendanceUrl, {
+    headers: revoker, data: acceptedInput,
+  });
+  expect(historicalAttendanceReplay.status()).toBe(200);
+  const historic = (await historicalAttendanceReplay.json()) as { id: string; version: number; status: string };
+  expect(historic.id).toBe(firstAttendance.id);
+  expect(historic.version).toBe(1);
+  expect(historic.status).toBe(firstAttendance.status);
+  const attendanceList = await page.request.get(
+    API + "/api/v1/sessions/" + SECOND_SESSION_ID + "/attendance",
+    { headers: revoker },
+  );
+  expect(attendanceList.status()).toBe(200);
+  const persisted = (await attendanceList.json()) as {
+    items: Array<{ id: string; version: number; status: string }>;
+  };
+  expect(persisted.items).toHaveLength(1);
+  expect(persisted.items[0]).toMatchObject({
+    id: corrected.id, version: 2, status: corrected.status,
+  });
+
+  const staleRevoke = await page.request.post(
+    API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/revoke", {
+      headers: revoker,
+      data: {
+        expected_version: 1,
+        reason: "Stale revoke cannot overtake the extension",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(staleRevoke.status()).toBe(409);
+  expect((await staleRevoke.json()).code).toBe("GRANT_VERSION_CONFLICT");
+  const revoked = await page.request.post(
+    API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/revoke", {
+      headers: revoker,
+      data: {
+        expected_version: 2, reason: "End only the second-class CI appointment",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(revoked.status()).toBe(200);
+  expect((await revoked.json()).version).toBe(3);
+  const retryOldExtension = await page.request.post(extendUrl, {
+    headers: revoker, data: winningCommand,
+  });
+  expect(retryOldExtension.status()).toBe(200);
+  expect((await retryOldExtension.json()).version).toBe(2);
+  const afterRevokeGrantList = await page.request.get(createUrl, { headers: revoker });
+  expect(afterRevokeGrantList.status()).toBe(200);
+  const historicalGrants = (await afterRevokeGrantList.json()) as {
+    items: Array<{ grant_id: string; version: number; revoked_at: string | null }>;
+  };
+  const ended = historicalGrants.items.find(item => item.grant_id === grant.grant_id);
+  expect(ended).toMatchObject({ version: 3 });
+  expect(ended?.revoked_at).toBeTruthy();
+  await logout(page);
+
+  await login(page, "assessor", assessorPassword);
+  const denied = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  expect((await page.request.get(secondRoster, { headers: denied })).status()).toBe(404);
+  expect((await page.request.get(secondObservations, { headers: denied })).status()).toBe(404);
+  expect((await page.request.get(foreignRoster, { headers: denied })).status()).toBe(404);
+});

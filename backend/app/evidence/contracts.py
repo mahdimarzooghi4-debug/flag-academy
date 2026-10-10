@@ -45,6 +45,9 @@ async def load_accepted_evidence_snapshots(
                 EvidenceCase.organization_context_id == organization_context_id,
                 EvidenceCase.subject_person_id == subject_person_id,
                 EvidenceCase.status == EvidenceCaseStatus.ACCEPTED.value,
+                # Formal classroom acceptance remains disabled until an Evidence-owned
+                # independent reviewer mandate is governed and enforced.
+                EvidenceCase.source_context != "CLASSROOM_OBSERVATION",
             )
             .order_by(EvidenceCase.created_at, EvidenceCase.id)
         )
@@ -52,6 +55,10 @@ async def load_accepted_evidence_snapshots(
 
     snapshots: list[AcceptedEvidenceSnapshotContract] = []
     for case in cases:
+        # Defense in depth: reject a classroom row even if a caller/mocked DB
+        # bypasses SQL filtering. No downstream Pattern/Profile/Gate admission.
+        if case.source_context == "CLASSROOM_OBSERVATION":
+            continue
         if case.accepted_at is None:
             continue
         interpretation = (

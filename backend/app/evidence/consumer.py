@@ -30,6 +30,10 @@ async def apply_event(envelope: EventEnvelope, db) -> None:
         return
 
     payload = envelope.payload
+    # Classroom source must be created ONLY by the explicit governed human route.
+    # A legacy sealed Observation event cannot smuggle class-private Evidence in.
+    if payload.get("source_context") == "CLASSROOM_OBSERVATION":
+        return
     required = {
         "observation_id",
         "subject_person_id",

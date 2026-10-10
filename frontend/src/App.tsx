@@ -8,7 +8,9 @@ import {
   type MissionTemplateResponse,
 } from "./api/client";
 import { CandidateHome } from "./components/CandidateHome";
+import { CandidateReportWorkspace } from "./components/CandidateReportWorkspace";
 import { InstructorHome } from "./components/InstructorHome";
+import { InstructorClassWorkspace } from "./components/InstructorClassWorkspace";
 import {
   AssessorEvidenceWorkspace,
   CandidateEvidenceWorkspace,
@@ -21,6 +23,9 @@ import {
   type MissionCatalogItem,
   type MissionInstance,
 } from "./components/MissionWorkspace";
+import { AdminAcademyOperationsWorkspace } from "./components/AdminAcademyOperationsWorkspace";
+import { SeedLearningApprovalWorkspace } from "./components/SeedLearningApprovalWorkspace";
+import { AssessorClassWorkspace } from "./components/AssessorClassWorkspace";
 import {
   AcademyStudio,
   type CapabilityOption,
@@ -1198,6 +1203,13 @@ function AuthenticatedApp({
           خروج
         </button>
       </header>
+      {isAdmin && me.data ? (
+        <AdminAcademyOperationsWorkspace
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+        />
+      ) : null}
       {isAdmin &&
       capabilities.data &&
       missionTemplates.data &&
@@ -1228,6 +1240,14 @@ function AuthenticatedApp({
       ) : null}
       {isAdmin && aiGovernance.data ? (
         <AIGovernanceWorkspace data={aiGovernance.data} />
+      ) : null}
+      {isAdmin && me.data ? (
+        <SeedLearningApprovalWorkspace
+          key={`${me.data.organization_context_id}:${me.data.person_id}:decision-making-v1`}
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+        />
       ) : null}
       {!isAdmin &&
       isCandidate &&
@@ -1260,6 +1280,14 @@ function AuthenticatedApp({
               submitAssignment.isPending ? submitAssignment.variables?.assignmentId : undefined
             }
           />
+          {me.data ? (
+            <CandidateReportWorkspace
+              accessToken={accessToken}
+              organizationId={me.data.organization_context_id}
+              personId={me.data.person_id}
+              cohortId={candidate.data.cohort.id}
+            />
+          ) : null}
           <CandidateGatePanel projection={candidateGates.data ?? { gates: [] }} />
           <main className="page-shell mission-shell">
             <MissionWorkspace
@@ -1452,6 +1480,13 @@ function AuthenticatedApp({
           ) : null}
         </>
       ) : null}
+      {!isAdmin && !isCandidate && !isInstructor && isAssessor && me.data ? (
+        <AssessorClassWorkspace
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+        />
+      ) : null}
       {!isAdmin &&
       !isCandidate &&
       !isInstructor &&
@@ -1599,6 +1634,14 @@ function AuthenticatedApp({
             }
           />
         </>
+      ) : null}
+      {!isAdmin && !isCandidate && isInstructor && instructor.data && me.data ? (
+        <InstructorClassWorkspace
+          accessToken={accessToken}
+          organizationId={me.data.organization_context_id}
+          personId={me.data.person_id}
+          data={instructor.data}
+        />
       ) : null}
       {!isAdmin && !isCandidate && isInstructor && instructor.data ? (
         <InstructorHome
