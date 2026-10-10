@@ -232,6 +232,17 @@ async def issue_final_review_mandate(
                                       organization_id=actor.organization_context_id)
     old = await _revision_by_key(db, actor=actor, key=body.idempotency_key.strip())
     if old is not None:
+        # The source is immutable: an idempotent ISSUE replay must carry the
+        # identical content digest, not merely the same actor/key/reason/window.
+        if (
+            not isinstance(case.provenance, dict)
+            or body.expected_source_sha256 != case.provenance.get("source_sha256")
+            or body.expected_source_sha256 != classroom_source_digest(source)
+        ):
+            raise AppError(
+                "FINAL_MANDATE_IDEMPOTENCY_CONFLICT",
+                "Changed idempotent source digest.", status_code=409,
+            )
         _assert_replay(old, action="ISSUE", case_id=case.id,
                        reviewer_id=body.reviewer_person_id, expected_version=body.expected_case_version,
                        reason=body.reason, starts_at=body.starts_at, ends_at=body.ends_at)

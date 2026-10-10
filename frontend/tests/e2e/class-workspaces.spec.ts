@@ -636,6 +636,11 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     headers: adminHeaders, data: { ...mandateBody, reason: "Changed reason cannot replay" },
   });
   expect(changedReplay.status()).toBe(409);
+  const changedDigestReplay = await page.request.post(issueUrl, {
+    headers: adminHeaders,
+    data: { ...mandateBody, expected_source_sha256: "0".repeat(64) },
+  });
+  expect(changedDigestReplay.status()).toBe(409);
   await logout(page);
 
   await login(page, "assessor-final", passwords.finalReviewer!);

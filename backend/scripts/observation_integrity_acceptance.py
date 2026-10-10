@@ -211,8 +211,8 @@ async def main() -> None:
             .values(decision="REJECTED"),
             delete(ClassroomObservationSourceReview)
             .where(ClassroomObservationSourceReview.id == review.id),
-            # A final Evidence mandate does not exist: PostgreSQL itself must
-            # deny every premature decision, even from a privileged SQL client.
+            # Even a final human decision must not be replayed by direct SQL
+            # after its committed and irreversible transition.
             update(EvidenceCase)
             .where(EvidenceCase.id == draft.id)
             .values(status="UNDER_REVIEW", version=3),
@@ -253,6 +253,24 @@ async def main() -> None:
             .where(EvidenceLink.id == links[0].id)
             .values(target_ref="tampered"),
             delete(EvidenceLink).where(EvidenceLink.id == links[0].id),
+            update(EvidenceReview)
+            .where(EvidenceReview.evidence_case_id == draft.id)
+            .values(decision="REJECT"),
+            delete(EvidenceReview)
+            .where(EvidenceReview.evidence_case_id == draft.id),
+            update(ClassroomFinalEvidenceReviewMandate)
+            .where(ClassroomFinalEvidenceReviewMandate.id == mandate_rows[0].id)
+            .values(revoked_at=None, version=3),
+            update(ClassroomFinalEvidenceReviewMandate)
+            .where(ClassroomFinalEvidenceReviewMandate.id == mandate_rows[0].id)
+            .values(reviewer_person_id=ASSESSOR_ID),
+            delete(ClassroomFinalEvidenceReviewMandate)
+            .where(ClassroomFinalEvidenceReviewMandate.id == mandate_rows[0].id),
+            update(ClassroomFinalEvidenceMandateRevision)
+            .where(ClassroomFinalEvidenceMandateRevision.id == history[0].id)
+            .values(reason="Forged issuance history"),
+            delete(ClassroomFinalEvidenceMandateRevision)
+            .where(ClassroomFinalEvidenceMandateRevision.id == history[0].id),
         ):
             savepoint = await conn.begin_nested()
             try:
@@ -299,6 +317,14 @@ async def main() -> None:
         ))).scalars().all()
         assert len(mandates) == 1
         assert mandates[0].version == 2 and mandates[0].revoked_at is not None
+        assert mandates[0].reviewer_person_id == UUID(
+            "00000000-0000-0000-0000-000000000106"
+        )
+        original_reviews = (await db.execute(select(EvidenceReview).where(
+            EvidenceReview.evidence_case_id == draft.id,
+        ))).scalars().all()
+        assert len(original_reviews) == 2
+        assert {r.decision for r in original_reviews} == {"REVIEW_STARTED", "ACCEPT"}
         # Even after attacker-style SQL attempts, ordinary Accepted Evidence
         # projection cannot create Pattern, Profile or Gate input from this case.
         assert await load_accepted_evidence_snapshots(
