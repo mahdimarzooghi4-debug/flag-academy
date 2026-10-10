@@ -92,7 +92,10 @@ async def _verified_review(
     return review
 
 
-def _lineage_matches(case: EvidenceCase, source, review, actor: ActorContext) -> bool:
+def _lineage_matches(
+    case: EvidenceCase, source, review, actor: ActorContext,
+    *, allowed_statuses: tuple[str, ...] = ("DRAFT",),
+) -> bool:
     provenance = case.provenance
     return (
         case.organization_context_id == actor.organization_context_id
@@ -102,7 +105,7 @@ def _lineage_matches(case: EvidenceCase, source, review, actor: ActorContext) ->
         and case.observed_fact == source.observed_fact
         and case.occurred_at == source.observed_at
         and case.integrity_state == "SOURCE_REVIEWED"
-        and case.status == EvidenceCaseStatus.DRAFT.value
+        and case.status in allowed_statuses
         and case.candidate_visible is False
         and isinstance(provenance, dict)
         and provenance.get("source_review_id") == str(review.id)
@@ -277,6 +280,9 @@ async def get_classroom_evidence_draft(
         db, actor=actor, observation_id=case.source_observation_id,
     )
     review = await _verified_review(db, actor=actor, source=source, grant=grant)
-    if not _lineage_matches(case, source, review, actor):
+    if not _lineage_matches(
+        case, source, review, actor,
+        allowed_statuses=("DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED"),
+    ):
         _not_found()
     return _response(case, source, review)

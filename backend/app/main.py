@@ -22,6 +22,7 @@ from app.db import engine
 from app.errors import AppError, app_error_handler
 from app.evidence.api import router as evidence_router
 from app.evidence.classroom_evidence_draft_api import router as classroom_evidence_draft_router
+from app.evidence.classroom_evidence_submission_api import router as classroom_evidence_submission_router
 from app.evidence.classroom_source_review_api import router as classroom_source_review_router
 from app.flag_profile.api import router as flag_profile_router
 from app.gate_assessment.api import router as gate_assessment_router
@@ -49,6 +50,7 @@ app.include_router(identity_router)
 app.include_router(ai_governance_router)
 app.include_router(evidence_router)
 app.include_router(classroom_evidence_draft_router)
+app.include_router(classroom_evidence_submission_router)
 app.include_router(classroom_source_review_router)
 app.include_router(flag_profile_router)
 app.include_router(gate_assessment_router)
