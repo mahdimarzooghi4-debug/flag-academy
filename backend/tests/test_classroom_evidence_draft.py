@@ -11,12 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.evidence.classroom_source_review_api as review_module
 from app.academy.models import ClassAssessorObservation
 from app.errors import AppError
+from app.evidence.api import EvidenceSubmitRequest
 from app.evidence.classroom_evidence_draft_api import (
     ClassroomDraftCommand,
     create_classroom_evidence_draft,
     get_classroom_evidence_draft,
 )
-from app.evidence.api import EvidenceSubmitRequest
 from app.evidence.classroom_evidence_submission_api import submit_classroom_evidence
 from app.evidence.classroom_source_review_api import classroom_source_digest
 from app.evidence.consumer import apply_event
