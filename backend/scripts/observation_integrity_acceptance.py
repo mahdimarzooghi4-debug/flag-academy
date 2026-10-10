@@ -15,6 +15,7 @@ from app.academy.models import ClassAssessorObservation
 from app.db import SessionFactory, engine
 from app.evidence.contracts import load_accepted_evidence_snapshots
 from app.evidence.models import (
+    ClassroomFinalEvidenceReviewMandate,
     ClassroomObservationSourceReview,
     EvidenceCase,
     EvidenceInterpretation,
@@ -195,6 +196,21 @@ async def main() -> None:
             update(EvidenceCase)
             .where(EvidenceCase.id == draft.id)
             .values(provenance={"forged": "review authorization"}),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(source_independence_group="FORGED_INDEPENDENCE"),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(source_runtime_event_id=UUID(int=8394)),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(observation_type="FORGED_SOURCE_TYPE"),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(context_request="FORGED_PRIVATE_CONTEXT"),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(created_at=item.recorded_at),
             delete(EvidenceCase).where(EvidenceCase.id == draft.id),
             update(EvidenceInterpretation)
             .where(EvidenceInterpretation.id == interpretations[0].id)
@@ -245,6 +261,11 @@ async def main() -> None:
             EvidenceLink.id == links[0].id,
         ))).scalar_one()
         assert preserved_link.target_ref == "CI_UNAPPROVED_OPAQUE_REFERENCE"
+        # This technical schema must never seed or implicitly appoint reviewers.
+        mandates = (await db.execute(select(ClassroomFinalEvidenceReviewMandate).where(
+            ClassroomFinalEvidenceReviewMandate.evidence_case_id == draft.id,
+        ))).scalars().all()
+        assert mandates == [], "No final Evidence mandate may be auto-created"
         # Even after attacker-style SQL attempts, ordinary Accepted Evidence
         # projection cannot create Pattern, Profile or Gate input from this case.
         assert await load_accepted_evidence_snapshots(

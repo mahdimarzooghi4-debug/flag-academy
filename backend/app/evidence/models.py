@@ -148,3 +148,32 @@ class ClassroomObservationSourceReview(Base):
     decision: Mapped[str] = mapped_column(String(16))
     rationale: Mapped[str] = mapped_column(Text)
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+class ClassroomFinalEvidenceReviewMandate(Base):
+    """Inert Evidence-owned final-review mandate record; no issuance path is enabled.
+
+    Issuer authorization and revocation commands are not approved. These rows
+    cannot authorize a classroom Evidence transition under the DB safety gate.
+    """
+
+    __tablename__ = "classroom_final_evidence_review_mandates"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_classroom_final_mandate_version"),
+        CheckConstraint("ends_at > starts_at", name="ck_classroom_final_mandate_window"),
+        {"schema": "evidence"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(BigInteger, default=1)
+    organization_context_id: Mapped[UUID]
+    evidence_case_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.evidence_cases.id"))
+    class_offering_id: Mapped[UUID]
+    reviewer_person_id: Mapped[UUID]
+    issued_by_person_id: Mapped[UUID]
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
