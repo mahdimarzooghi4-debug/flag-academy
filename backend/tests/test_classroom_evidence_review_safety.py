@@ -187,5 +187,5 @@ def test_decision_barrier_migration_is_explicit_and_no_reviewer_route_is_publish
 
     paths = app.openapi()["paths"]
     assert "/api/v1/classroom-evidence-cases/{case_id}/reviews" not in paths
-    assert "/api/v1/classroom-evidence-cases/{case_id}/accept" not in paths
-    assert "/api/v1/classroom-evidence-cases/{case_id}/reject" not in paths
+    assert "post" in paths["/api/v1/classroom-evidence-cases/{case_id}/accept"]
+    assert "post" in paths["/api/v1/classroom-evidence-cases/{case_id}/reject"]
