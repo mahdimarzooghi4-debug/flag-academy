@@ -11,7 +11,13 @@ from uuid import UUID
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import DBAPIError
 
-from app.academy.models import ClassAssessorObservation
+from app.academy.models import (
+    AssessorClassGrant,
+    AssessorClassGrantRevision,
+    AttendanceRecord,
+    AttendanceRevision,
+    ClassAssessorObservation,
+)
 from app.db import SessionFactory, engine
 from app.evidence.contracts import load_accepted_evidence_snapshots
 from app.evidence.models import (
@@ -47,6 +53,43 @@ async def main() -> None:
             )
         ).scalars().all()
         assert len(items) == 1, "Concurrent requests must produce exactly one source row"
+        # The new class's real browser concurrent commands are verified
+        # again directly against committed PostgreSQL rows and audit revisions.
+        second_grants = (await db.execute(select(AssessorClassGrant).where(
+            AssessorClassGrant.class_offering_id
+            == UUID("00000000-0000-0000-0000-000000000221"),
+            AssessorClassGrant.organization_context_id == ORG_ID,
+            AssessorClassGrant.assessor_person_id == ASSESSOR_ID,
+        ))).scalars().all()
+        assert len(second_grants) == 1
+        assert second_grants[0].version == 3
+        assert second_grants[0].revoked_at is not None
+        grant_history = (await db.execute(select(AssessorClassGrantRevision).where(
+            AssessorClassGrantRevision.grant_id == second_grants[0].id,
+        ).order_by(AssessorClassGrantRevision.resulting_version))).scalars().all()
+        assert [x.action for x in grant_history] == ["CREATE", "EXTEND", "REVOKE"]
+        assert [x.resulting_version for x in grant_history] == [1, 2, 3]
+        second_attendance = (await db.execute(select(AttendanceRecord).where(
+            AttendanceRecord.session_id == UUID(
+                "00000000-0000-0000-0000-000000000244"
+            ),
+            AttendanceRecord.person_id == UUID(
+                "00000000-0000-0000-0000-000000000101"
+            ),
+            AttendanceRecord.organization_context_id == ORG_ID,
+        ))).scalars().all()
+        assert len(second_attendance) == 1
+        assert second_attendance[0].version == 2
+        attendance_history = (await db.execute(select(AttendanceRevision).where(
+            AttendanceRevision.attendance_record_id == second_attendance[0].id,
+        ).order_by(AttendanceRevision.resulting_version))).scalars().all()
+        assert [x.resulting_version for x in attendance_history] == [1, 2]
+        assert attendance_history[0].prior_status is None
+        assert attendance_history[1].prior_status == attendance_history[0].resulting_status
+        assert attendance_history[1].resulting_status == second_attendance[0].status
+        assert attendance_history[1].resulting_status != attendance_history[0].resulting_status
+        assert len({x.idempotency_key for x in attendance_history}) == 2
+
         item = items[0]
         assert item.recorded_at >= item.observed_at
         review_rows = (

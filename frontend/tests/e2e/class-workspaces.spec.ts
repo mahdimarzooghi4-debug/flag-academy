@@ -1012,16 +1012,144 @@ test("P23-12B: live cross-class grant, foreign-tenant denial and isolated revoca
 
   await login(page, "academy-admin", adminPassword);
   const revoker = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+
+  // Race two distinct human commands against the SAME grant version.
+  // Exactly one extension must commit; the other must fail stale.
+  const extendUrl = API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/extend";
+  const extensions = [
+    {
+      expected_version: 1,
+      ends_at: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+      reason: "CI first conflicting human extension",
+      idempotency_key: crypto.randomUUID(),
+    },
+    {
+      expected_version: 1,
+      ends_at: new Date(Date.now() + 3 * 60 * 60_000).toISOString(),
+      reason: "CI second conflicting human extension",
+      idempotency_key: crypto.randomUUID(),
+    },
+  ];
+  const [firstExtension, secondExtension] = await Promise.all(
+    extensions.map(data => page.request.post(extendUrl, { headers: revoker, data })),
+  );
+  expect([firstExtension.status(), secondExtension.status()].sort()).toEqual([200, 409]);
+  const successfulExtension = firstExtension.status() === 200 ? firstExtension : secondExtension;
+  const winningCommand = firstExtension.status() === 200 ? extensions[0] : extensions[1];
+  const wonGrant = (await successfulExtension.json()) as { version: number; ends_at: string };
+  expect(wonGrant.version).toBe(2);
+  expect(wonGrant.ends_at).toBe(winningCommand.ends_at);
+  const staleExtension = await page.request.post(extendUrl, {
+    headers: revoker,
+    data: {
+      ...winningCommand,
+      idempotency_key: crypto.randomUUID(),
+      reason: "Stale client must refresh",
+    },
+  });
+  expect(staleExtension.status()).toBe(409);
+  expect((await staleExtension.json()).code).toBe("GRANT_VERSION_CONFLICT");
+  const originalReplay = await page.request.post(extendUrl, {
+    headers: revoker, data: winningCommand,
+  });
+  expect(originalReplay.status()).toBe(200);
+  expect((await originalReplay.json()).version).toBe(2);
+
+  // Separate Session: competing first-time human attendance entries must
+  // produce one immutable revision and reject the other obsolete input.
+  const attendanceUrl = API + "/api/v1/sessions/" + SECOND_SESSION_ID
+    + "/attendance/" + CANDIDATE_ID;
+  const createAttendance = [
+    { status: "PRESENT", expected_version: 0, idempotency_key: crypto.randomUUID() },
+    { status: "ABSENT", expected_version: 0, idempotency_key: crypto.randomUUID() },
+  ];
+  const [attendanceA, attendanceB] = await Promise.all(
+    createAttendance.map(data => page.request.post(attendanceUrl, { headers: revoker, data })),
+  );
+  expect([attendanceA.status(), attendanceB.status()].sort()).toEqual([200, 409]);
+  const acceptedAttendance = attendanceA.status() === 200 ? attendanceA : attendanceB;
+  const acceptedInput = attendanceA.status() === 200 ? createAttendance[0] : createAttendance[1];
+  const firstAttendance = (await acceptedAttendance.json()) as {
+    id: string; status: string; version: number;
+  };
+  expect(firstAttendance.version).toBe(1);
+  expect(firstAttendance.status).toBe(acceptedInput.status);
+  const correction = await page.request.post(attendanceUrl, {
+    headers: revoker,
+    data: {
+      status: firstAttendance.status === "PRESENT" ? "ABSENT" : "PRESENT",
+      expected_version: 1,
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect(correction.status()).toBe(200);
+  const corrected = (await correction.json()) as { id: string; version: number; status: string };
+  expect(corrected.id).toBe(firstAttendance.id);
+  expect(corrected.version).toBe(2);
+  expect(corrected.status).not.toBe(firstAttendance.status);
+  const staleAttendance = await page.request.post(attendanceUrl, {
+    headers: revoker,
+    data: { status: firstAttendance.status, expected_version: 1, idempotency_key: crypto.randomUUID() },
+  });
+  expect(staleAttendance.status()).toBe(409);
+  expect((await staleAttendance.json()).code).toBe("ATTENDANCE_VERSION_CONFLICT");
+  const historicalAttendanceReplay = await page.request.post(attendanceUrl, {
+    headers: revoker, data: acceptedInput,
+  });
+  expect(historicalAttendanceReplay.status()).toBe(200);
+  const historic = (await historicalAttendanceReplay.json()) as { id: string; version: number; status: string };
+  expect(historic.id).toBe(firstAttendance.id);
+  expect(historic.version).toBe(1);
+  expect(historic.status).toBe(firstAttendance.status);
+  const attendanceList = await page.request.get(
+    API + "/api/v1/sessions/" + SECOND_SESSION_ID + "/attendance",
+    { headers: revoker },
+  );
+  expect(attendanceList.status()).toBe(200);
+  const persisted = (await attendanceList.json()) as {
+    items: Array<{ id: string; version: number; status: string }>;
+  };
+  expect(persisted.items).toHaveLength(1);
+  expect(persisted.items[0]).toMatchObject({
+    id: corrected.id, version: 2, status: corrected.status,
+  });
+
+  const staleRevoke = await page.request.post(
+    API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/revoke", {
+      headers: revoker,
+      data: {
+        expected_version: 1,
+        reason: "Stale revoke cannot overtake the extension",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(staleRevoke.status()).toBe(409);
+  expect((await staleRevoke.json()).code).toBe("GRANT_VERSION_CONFLICT");
   const revoked = await page.request.post(
     API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/revoke", {
       headers: revoker,
       data: {
-        expected_version: 1, reason: "End only the second-class CI appointment",
+        expected_version: 2, reason: "End only the second-class CI appointment",
         idempotency_key: crypto.randomUUID(),
       },
     },
   );
   expect(revoked.status()).toBe(200);
+  expect((await revoked.json()).version).toBe(3);
+  const retryOldExtension = await page.request.post(extendUrl, {
+    headers: revoker, data: winningCommand,
+  });
+  expect(retryOldExtension.status()).toBe(200);
+  expect((await retryOldExtension.json()).version).toBe(2);
+  const afterRevokeGrantList = await page.request.get(createUrl, { headers: revoker });
+  expect(afterRevokeGrantList.status()).toBe(200);
+  const historicalGrants = (await afterRevokeGrantList.json()) as {
+    items: Array<{ grant_id: string; version: number; revoked_at: string | null }>;
+  };
+  const ended = historicalGrants.items.find(item => item.grant_id === grant.grant_id);
+  expect(ended).toMatchObject({ version: 3 });
+  expect(ended?.revoked_at).toBeTruthy();
   await logout(page);
 
   await login(page, "assessor", assessorPassword);
