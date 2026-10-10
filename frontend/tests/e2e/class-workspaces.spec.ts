@@ -1038,7 +1038,7 @@ test("P23-12B: live cross-class grant, foreign-tenant denial and isolated revoca
   const winningCommand = firstExtension.status() === 200 ? extensions[0] : extensions[1];
   const wonGrant = (await successfulExtension.json()) as { version: number; ends_at: string };
   expect(wonGrant.version).toBe(2);
-  expect(wonGrant.ends_at).toBe(winningCommand.ends_at);
+  expect(new Date(wonGrant.ends_at).getTime()).toBe(new Date(winningCommand.ends_at).getTime());
   const staleExtension = await page.request.post(extendUrl, {
     headers: revoker,
     data: {
