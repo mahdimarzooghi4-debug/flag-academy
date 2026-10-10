@@ -8,9 +8,14 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.academy.models import ClassAssessorObservation
 from app.evidence.classroom_review_safety import classroom_review_lineage_independent
 from app.evidence.contracts import load_accepted_evidence_snapshots
-from app.evidence.models import EvidenceCase
+from app.evidence.models import (
+    ClassroomObservationSourceReview,
+    EvidenceCase,
+    EvidenceInterpretation,
+)
 
 ORG = UUID(int=81001)
 SOURCE_ID = UUID(int=81002)
@@ -67,8 +72,9 @@ def eligible(*, final=FINAL, expected_version=2, digest="a" * 64,
              fixture=None) -> bool:
     case, source, review, interpretation = fixture or lineage()
     return classroom_review_lineage_independent(
-        case=case, source=source, source_review=review,
-        interpretation=interpretation, final_reviewer_id=final,
+        case=cast(EvidenceCase, case), source=cast(ClassAssessorObservation, source),
+        source_review=cast(ClassroomObservationSourceReview, review),
+        interpretation=cast(EvidenceInterpretation, interpretation), final_reviewer_id=final,
         expected_version=expected_version, current_source_sha256=digest,
     )
 
