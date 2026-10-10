@@ -13,10 +13,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.academy.assessor_grants_policy import GrantWindow, active_class_grant, current_utc
-from app.academy.models import AssessorClassGrant, ClassAssessorObservation, ClassOffering, Cohort
+from app.academy.models import (
+    AssessorClassGrant,
+    ClassAssessorObservation,
+    ClassOffering,
+    Cohort,
+)
 from app.db import get_session
 from app.errors import AppError
-from app.evidence.api import CLASSROOM_SOURCE_CONTEXT, _active_interpretation, _require_expected_version
+from app.evidence.api import (
+    CLASSROOM_SOURCE_CONTEXT,
+    _active_interpretation,
+    _require_expected_version,
+)
 from app.evidence.classroom_review_safety import classroom_review_lineage_independent
 from app.evidence.classroom_source_review_api import classroom_source_digest
 from app.evidence.models import (
