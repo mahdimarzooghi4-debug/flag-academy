@@ -706,8 +706,6 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   expect((await revokedFinal.json()).version).toBe(2);
   await logout(page);
 
-  await logout(page);
-
   await login(page, "academy-admin", passwords.admin!);
   const revokeReviewerToken = await tokenForCurrentUser(page);
   const revokeReviewer = await page.request.post(
