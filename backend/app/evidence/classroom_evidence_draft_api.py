@@ -7,7 +7,7 @@ Generic organization-wide Evidence routes always deny this source context.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Never
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends
@@ -52,7 +52,7 @@ class ClassroomDraftResponse(BaseModel):
     created_at: datetime
 
 
-def _not_found() -> None:
+def _not_found() -> Never:
     raise AppError(
         "CLASSROOM_EVIDENCE_DRAFT_NOT_FOUND",
         "Classroom source or authorized Draft not found.",
