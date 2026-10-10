@@ -272,6 +272,9 @@ async def issue_final_review_mandate(
         revoked_at=None,
     )
     db.add(row)
+    # Explicit FK ordering: persist the new mandate in this transaction before
+    # inserting its immutable ISSUE revision and outbox audit.
+    await db.flush()
     _write_revision(db, row=row, actor=actor, action="ISSUE",
                     expected_version=body.expected_case_version,
                     key=body.idempotency_key, reason=body.reason, now=now)
