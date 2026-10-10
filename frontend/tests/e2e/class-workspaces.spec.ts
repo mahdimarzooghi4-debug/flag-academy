@@ -681,7 +681,7 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     headers: finalHeaders,
     data: { expected_version: 3, rationale: "Cannot decide twice" },
   });
-  expect(finalReplayed.status()).toBe(404);
+  expect(finalReplayed.status()).toBe(409);
   const finalGeneric = await page.request.get(
     `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
     { headers: finalHeaders },
