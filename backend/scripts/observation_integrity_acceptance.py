@@ -15,14 +15,13 @@ from app.academy.models import ClassAssessorObservation
 from app.db import SessionFactory, engine
 from app.evidence.contracts import load_accepted_evidence_snapshots
 from app.evidence.models import (
+    ClassroomFinalEvidenceMandateRevision,
     ClassroomFinalEvidenceReviewMandate,
     ClassroomObservationSourceReview,
     EvidenceCase,
     EvidenceInterpretation,
-    EvidenceReview,
-    ClassroomFinalEvidenceReviewMandate,
-    ClassroomFinalEvidenceMandateRevision,
     EvidenceLink,
+    EvidenceReview,
 )
 from app.platform.models import DomainEvent, OutboxEvent
 
