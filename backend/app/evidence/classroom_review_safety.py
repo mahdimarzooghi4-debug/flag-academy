@@ -24,6 +24,7 @@ def classroom_review_lineage_independent(
     final_reviewer_id: UUID,
     expected_version: int,
     current_source_sha256: str,
+    expected_case_status: str = "SUBMITTED",
 ) -> bool:
     """Check necessary immutable lineage, identity separation and version only.
 
@@ -45,7 +46,7 @@ def classroom_review_lineage_independent(
     if provenance.get("created_by_person_id") in (None, str(final_reviewer_id)):
         return False
     return (
-        case.status == "SUBMITTED"
+        case.status == expected_case_status
         and case.version == expected_version
         and case.source_context == "CLASSROOM_OBSERVATION"
         and case.integrity_state == "SOURCE_REVIEWED"

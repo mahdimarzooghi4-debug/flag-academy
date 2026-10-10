@@ -34,6 +34,7 @@ def final_review_mandate_prerequisites(
     current_source_sha256: str,
     expected_case_version: int,
     now: datetime,
+    expected_case_status: str = "SUBMITTED",
 ) -> bool:
     """Check scope, temporal validity, live class access and reviewer separation.
 
@@ -86,4 +87,5 @@ def final_review_mandate_prerequisites(
         final_reviewer_id=actor.person_id,
         expected_version=expected_case_version,
         current_source_sha256=current_source_sha256,
+        expected_case_status=expected_case_status,
     )

@@ -97,16 +97,14 @@ def necessary_only(**updates):
     return final_review_mandate_prerequisites(**values)
 
 
-def test_perfect_structural_case_is_still_not_an_issuance_or_decision() -> None:
-    assert necessary_only()  # No API is allowed to use this as permission.
+def test_structural_case_never_grants_authority_without_admin_mandate() -> None:
+    assert necessary_only()
     paths = app.openapi()["paths"]
-    assert not any(
-        p.startswith("/api/v1/classroom-final-evidence-review")
-        or "/classroom-evidence-cases/{case_id}/reviews" in p
-        or "/classroom-evidence-cases/{case_id}/accept" in p
-        or "/classroom-evidence-cases/{case_id}/reject" in p
-        for p in paths
-    )
+    assert "post" in paths["/api/v1/admin/academy/classroom-evidence-cases/{case_id}/final-review-mandate"]
+    assert "post" in paths["/api/v1/admin/academy/final-review-mandates/{mandate_id}/revoke"]
+    assert "post" in paths["/api/v1/classroom-evidence-cases/{case_id}/review-start"]
+    assert "post" in paths["/api/v1/classroom-evidence-cases/{case_id}/accept"]
+    assert "post" in paths["/api/v1/classroom-evidence-cases/{case_id}/reject"]
 
 
 @pytest.mark.parametrize("field,value", [
