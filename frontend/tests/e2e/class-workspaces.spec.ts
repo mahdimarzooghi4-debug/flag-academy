@@ -3,6 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 // These IDs belong to backend/app/seed.py's ephemeral development fixture.
 // This suite checks actual FastAPI + PostgreSQL + Keycloak permissions, not mocked routes.
 const CLASS_ID = "00000000-0000-0000-0000-000000000220";
+const SECOND_CLASS_ID = "00000000-0000-0000-0000-000000000221";
+const SECOND_SESSION_ID = "00000000-0000-0000-0000-000000000244";
+const FOREIGN_CLASS_ID = "00000000-0000-0000-0000-000000000222";
 const CANDIDATE_ID = "00000000-0000-0000-0000-000000000101";
 const ASSESSOR_ID = "00000000-0000-0000-0000-000000000104";
 const INDEPENDENT_REVIEWER_ID = "00000000-0000-0000-0000-000000000105";
@@ -930,4 +933,100 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   );
   expect(revokedObservationWrite.status()).toBe(404);
 
+});
+
+test("P23-12B: live cross-class grant, foreign-tenant denial and isolated revocation", async ({ page }) => {
+  test.setTimeout(180_000);
+  const adminPassword = process.env.PARCHAM_DEV_ADMIN_PASSWORD;
+  const assessorPassword = process.env.PARCHAM_DEV_ASSESSOR_PASSWORD;
+  if (!adminPassword || !assessorPassword) throw new Error("CI-only OIDC passwords required");
+  const secondRoster = API + "/api/v1/class-offerings/" + SECOND_CLASS_ID + "/roster";
+  const secondObservations = API + "/api/v1/class-offerings/" + SECOND_CLASS_ID + "/observations";
+  const foreignRoster = API + "/api/v1/class-offerings/" + FOREIGN_CLASS_ID + "/roster";
+  await login(page, "assessor", assessorPassword);
+  const initiallyUnassigned = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  expect((await page.request.get(secondRoster, { headers: initiallyUnassigned })).status()).toBe(404);
+  expect((await page.request.get(foreignRoster, { headers: initiallyUnassigned })).status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", adminPassword);
+  const adminHeaders = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  const foreignGrantUrl = API + "/api/v1/admin/academy/classes/" + FOREIGN_CLASS_ID + "/assessor-grants";
+  expect((await page.request.get(foreignGrantUrl, { headers: adminHeaders })).status()).toBe(404);
+  const createBody = {
+    assessor_person_id: ASSESSOR_ID,
+    starts_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    ends_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+    idempotency_key: crypto.randomUUID(),
+  };
+  expect((await page.request.post(foreignGrantUrl, {
+    headers: adminHeaders, data: createBody,
+  })).status()).toBe(404);
+  const createUrl = API + "/api/v1/admin/academy/classes/" + SECOND_CLASS_ID + "/assessor-grants";
+  const [created, retried] = await Promise.all([
+    page.request.post(createUrl, { headers: adminHeaders, data: createBody }),
+    page.request.post(createUrl, { headers: adminHeaders, data: createBody }),
+  ]);
+  expect([created.status(), retried.status()]).toEqual([200, 200]);
+  const grant = (await created.json()) as {
+    grant_id: string; class_offering_id: string; version: number;
+  };
+  expect((await retried.json()).grant_id).toBe(grant.grant_id);
+  expect(grant.class_offering_id).toBe(SECOND_CLASS_ID);
+  expect(grant.version).toBe(1);
+  await logout(page);
+
+  await login(page, "assessor", assessorPassword);
+  const grantedHeaders = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  const roster = await page.request.get(secondRoster, { headers: grantedHeaders });
+  expect(roster.status()).toBe(200);
+  expect(JSON.stringify(await roster.json())).toContain(CANDIDATE_ID);
+  expect((await page.request.get(foreignRoster, { headers: grantedHeaders })).status()).toBe(404);
+  const secondFact = "CI_SECOND_CLASS_OBSERVATION: scoped independent session and class";
+  const observation = await page.request.post(secondObservations, {
+    headers: grantedHeaders,
+    data: {
+      session_id: SECOND_SESSION_ID,
+      candidate_person_id: CANDIDATE_ID,
+      observed_at: new Date().toISOString(),
+      observed_fact: secondFact,
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect(observation.status()).toBe(201);
+  const wrongSession = await page.request.post(secondObservations, {
+    headers: grantedHeaders,
+    data: {
+      session_id: OBSERVATION_SESSION_ID,
+      candidate_person_id: CANDIDATE_ID,
+      observed_at: new Date().toISOString(),
+      observed_fact: "Other class's Session must be forbidden",
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect([404, 409]).toContain(wrongSession.status());
+  const secondSources = await page.request.get(secondObservations, { headers: grantedHeaders });
+  expect(secondSources.status()).toBe(200);
+  expect(JSON.stringify(await secondSources.json())).toContain(secondFact);
+  await logout(page);
+
+  await login(page, "academy-admin", adminPassword);
+  const revoker = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  const revoked = await page.request.post(
+    API + "/api/v1/admin/academy/assessor-grants/" + grant.grant_id + "/revoke", {
+      headers: revoker,
+      data: {
+        expected_version: 1, reason: "End only the second-class CI appointment",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(revoked.status()).toBe(200);
+  await logout(page);
+
+  await login(page, "assessor", assessorPassword);
+  const denied = { Authorization: "Bearer " + await tokenForCurrentUser(page) };
+  expect((await page.request.get(secondRoster, { headers: denied })).status()).toBe(404);
+  expect((await page.request.get(secondObservations, { headers: denied })).status()).toBe(404);
+  expect((await page.request.get(foreignRoster, { headers: denied })).status()).toBe(404);
 });
