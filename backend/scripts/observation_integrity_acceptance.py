@@ -50,11 +50,41 @@ async def main() -> None:
         assert review.observer_person_id == ASSESSOR_ID
         assert review.decision == "VERIFIED"
         assert review.source_sha256 and len(review.source_sha256) == 64
-        assert (
-            await db.execute(
-                select(EvidenceCase.id).where(EvidenceCase.source_observation_id == item.id)
-            )
-        ).scalar_one_or_none() is None, "A source review must not auto-create Evidence"
+        cases = (
+            await db.execute(select(EvidenceCase).where(
+                EvidenceCase.source_observation_id == item.id,
+                EvidenceCase.organization_context_id == ORG_ID,
+            ))
+        ).scalars().all()
+        assert len(cases) == 1, "Explicit concurrent human Draft must create exactly one case"
+        draft = cases[0]
+        assert draft.source_context == "CLASSROOM_OBSERVATION"
+        assert draft.status == "DRAFT"
+        assert draft.integrity_state == "SOURCE_REVIEWED"
+        assert draft.candidate_visible is False
+        assert draft.source_runtime_event_id is None
+        assert draft.provenance["source_review_id"] == str(review.id)
+        assert draft.provenance["source_sha256"] == review.source_sha256
+        assert draft.provenance["created_by_person_id"] == str(REVIEWER_ID)
+        assert draft.observed_fact == item.observed_fact
+        assert draft.candidate_visible_payload == {}
+        draft_events = (
+            await db.execute(select(DomainEvent).where(
+                DomainEvent.aggregate_id == draft.id,
+                DomainEvent.event_type == "evidence.classroom_draft_created.v1",
+                DomainEvent.organization_context_id == ORG_ID,
+            ))
+        ).scalars().all()
+        assert len(draft_events) == 1
+        assert draft_events[0].actor == {"type": "PERSON", "id": str(REVIEWER_ID)}
+        draft_outbox = (
+            await db.execute(select(OutboxEvent).where(
+                OutboxEvent.event_id == draft_events[0].event_id
+            ))
+        ).scalar_one()
+        for public_data in (draft_events[0].payload, draft_outbox.payload):
+            assert item.observed_fact not in str(public_data)
+            assert draft.provenance["submission_reason"] not in str(public_data)
         reviews = (
             await db.execute(select(DomainEvent).where(
                 DomainEvent.aggregate_id == review.id,

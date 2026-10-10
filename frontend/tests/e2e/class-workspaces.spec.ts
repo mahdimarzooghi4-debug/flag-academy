@@ -467,6 +467,66 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     data: { ...reviewBody, decision: "REJECTED" },
   });
   expect(conflictingSource.status()).toBe(409);
+
+  // P23-09C: a human explicitly creates a private, source-pinned Draft only
+  // AFTER independent VERIFIED review. Concurrent replay is one EvidenceCase.
+  const draftUrl = `${API}/api/v1/classroom-observations/${observation.observation_id}/evidence-draft`;
+  const draftCommand = {
+    expected_review_id: reviewResult.review_id,
+    expected_source_sha256: reviewResult.source_sha256,
+    submission_reason: "Explicit human request to open a private Draft for formal later review",
+  };
+  const [draftA, draftB] = await Promise.all([
+    page.request.post(draftUrl, { headers: reviewerHeaders, data: draftCommand }),
+    page.request.post(draftUrl, { headers: reviewerHeaders, data: draftCommand }),
+  ]);
+  expect(draftA.status()).toBe(201);
+  expect(draftB.status()).toBe(201);
+  const draft = (await draftA.json()) as {
+    evidence_case_id: string; status: string; candidate_visible: boolean;
+    source_review_id: string; source_observation_id: string; observed_fact: string;
+  };
+  expect((await draftB.json()).evidence_case_id).toBe(draft.evidence_case_id);
+  expect(draft.status).toBe("DRAFT");
+  expect(draft.candidate_visible).toBe(false);
+  expect(draft.source_review_id).toBe(reviewResult.review_id);
+  expect(draft.source_observation_id).toBe(observation.observation_id);
+  expect(draft.observed_fact).toBe(observationBody.observed_fact);
+  const privateDraftUrl = `${API}/api/v1/classroom-evidence-drafts/${draft.evidence_case_id}`;
+  const ownedDraft = await page.request.get(privateDraftUrl, { headers: reviewerHeaders });
+  expect(ownedDraft.status()).toBe(200);
+  expect((await ownedDraft.json()).evidence_case_id).toBe(draft.evidence_case_id);
+  const guessedOtherDraft = await page.request.get(
+    `${API}/api/v1/classroom-evidence-drafts/${crypto.randomUUID()}`,
+    { headers: reviewerHeaders },
+  );
+  expect(guessedOtherDraft.status()).toBe(404);
+  const authorCannotReadPrivateDraft = await page.request.get(
+    privateDraftUrl,
+    { headers: { Authorization: `Bearer ${grantedAssessorToken}` } },
+  );
+  expect(authorCannotReadPrivateDraft.status()).toBe(404);
+  const genericDetail = await page.request.get(
+    `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
+    { headers: reviewerHeaders },
+  );
+  expect(genericDetail.status()).toBe(404);
+  const genericList = await page.request.get(
+    `${API}/api/v1/evidence-cases`,
+    { headers: reviewerHeaders },
+  );
+  expect(genericList.status()).toBe(200);
+  expect(JSON.stringify(await genericList.json())).not.toContain(draft.evidence_case_id);
+  for (const changed of [
+    { ...draftCommand, expected_source_sha256: "0".repeat(64) },
+    { ...draftCommand, expected_review_id: crypto.randomUUID() },
+    { ...draftCommand, submission_reason: "Conflicting attempt to rewrite the human reason" },
+  ]) {
+    const rejected = await page.request.post(draftUrl, {
+      headers: reviewerHeaders, data: changed,
+    });
+    expect(rejected.status()).toBe(409);
+  }
   await logout(page);
 
   await login(page, "academy-admin", passwords.admin!);
@@ -490,6 +550,15 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     headers: { Authorization: `Bearer ${revokedReviewerToken}` },
   });
   expect(revokedSource.status()).toBe(404);
+  const revokedDraftRead = await page.request.get(privateDraftUrl, {
+    headers: { Authorization: `Bearer ${revokedReviewerToken}` },
+  });
+  expect(revokedDraftRead.status()).toBe(404);
+  const revokedDraftWrite = await page.request.post(draftUrl, {
+    headers: { Authorization: `Bearer ${revokedReviewerToken}` },
+    data: draftCommand,
+  });
+  expect(revokedDraftWrite.status()).toBe(404);
   await logout(page);
 
   // Human revocation closes the same grant immediately without erasing audit.
