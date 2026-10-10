@@ -517,6 +517,57 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   );
   expect(genericList.status()).toBe(200);
   expect(JSON.stringify(await genericList.json())).not.toContain(draft.evidence_case_id);
+  // A second explicit human command supplies Interpretation v1 and
+  // transitions to SUBMITTED only; no formal Evidence acceptance.
+  const humanSubmission = {
+    expected_version: 1,
+    interpretation: {
+      behaviour_code: "CLASSROOM_CI_INTERPRETATION",
+      behaviour_description: "Human interpretation of a recorded classroom fact",
+      signal: "NEUTRAL",
+      scope: "CI classroom session",
+      confidence: "LOW",
+      context_difficulty: "CI isolated",
+      prompt_contamination: "Unknown, recorded as an explicit human field",
+      ai_contribution: "NONE",
+      mode: "HUMAN",
+      rationale: "Human review of this observation, not accepted proof",
+      links: [{
+        target_type: "CAPABILITY",
+        target_ref: "CI_UNAPPROVED_OPAQUE_REFERENCE",
+        signal: "NEUTRAL",
+        scope: "CI isolated",
+        relevance: "LOW",
+        confidence: "LOW",
+      }],
+    },
+  };
+  const submitUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/submit`;
+  const submit = await page.request.post(submitUrl, {
+    headers: reviewerHeaders, data: humanSubmission,
+  });
+  expect(submit.status()).toBe(200);
+  const submission = (await submit.json()) as {
+    case_id: string; status: string; version: number;
+    candidate_visible: boolean; interpretation_id: string;
+  };
+  expect(submission.case_id).toBe(draft.evidence_case_id);
+  expect(submission.status).toBe("SUBMITTED");
+  expect(submission.version).toBe(2);
+  expect(submission.candidate_visible).toBe(false);
+  expect(submission.interpretation_id).toBeTruthy();
+  const nowSubmitted = await page.request.get(privateDraftUrl, { headers: reviewerHeaders });
+  expect(nowSubmitted.status()).toBe(200);
+  expect((await nowSubmitted.json()).status).toBe("SUBMITTED");
+  const staleSubmit = await page.request.post(submitUrl, {
+    headers: reviewerHeaders, data: humanSubmission,
+  });
+  expect(staleSubmit.status()).toBe(404);
+  const noGenericAccessAfterSubmit = await page.request.get(
+    `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
+    { headers: reviewerHeaders },
+  );
+  expect(noGenericAccessAfterSubmit.status()).toBe(404);
   for (const changed of [
     { ...draftCommand, expected_source_sha256: "0".repeat(64) },
     { ...draftCommand, expected_review_id: crypto.randomUUID() },

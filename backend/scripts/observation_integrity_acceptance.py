@@ -13,7 +13,12 @@ from sqlalchemy.exc import DBAPIError
 
 from app.academy.models import ClassAssessorObservation
 from app.db import SessionFactory, engine
-from app.evidence.models import ClassroomObservationSourceReview, EvidenceCase
+from app.evidence.models import (
+    ClassroomObservationSourceReview,
+    EvidenceCase,
+    EvidenceInterpretation,
+    EvidenceLink,
+)
 from app.platform.models import DomainEvent, OutboxEvent
 
 ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
@@ -59,7 +64,8 @@ async def main() -> None:
         assert len(cases) == 1, "Explicit concurrent human Draft must create exactly one case"
         draft = cases[0]
         assert draft.source_context == "CLASSROOM_OBSERVATION"
-        assert draft.status == "DRAFT"
+        assert draft.status == "SUBMITTED"
+        assert draft.version == 2
         assert draft.integrity_state == "SOURCE_REVIEWED"
         assert draft.candidate_visible is False
         assert draft.source_runtime_event_id is None
@@ -68,6 +74,40 @@ async def main() -> None:
         assert draft.provenance["created_by_person_id"] == str(REVIEWER_ID)
         assert draft.observed_fact == item.observed_fact
         assert draft.candidate_visible_payload == {}
+        interpretations = (
+            await db.execute(select(EvidenceInterpretation).where(
+                EvidenceInterpretation.evidence_case_id == draft.id,
+            ))
+        ).scalars().all()
+        assert len(interpretations) == 1
+        assert interpretations[0].created_by == REVIEWER_ID
+        assert interpretations[0].version_number == 1
+        assert interpretations[0].ai_contribution == "NONE"
+        links = (
+            await db.execute(select(EvidenceLink).where(
+                EvidenceLink.interpretation_id == interpretations[0].id,
+            ))
+        ).scalars().all()
+        assert len(links) == 1
+        assert links[0].target_type == "CAPABILITY"
+        assert links[0].target_ref == "CI_UNAPPROVED_OPAQUE_REFERENCE"
+        submission_events = (
+            await db.execute(select(DomainEvent).where(
+                DomainEvent.aggregate_id == draft.id,
+                DomainEvent.event_type == "evidence.interpretation_submitted.v1",
+                DomainEvent.organization_context_id == ORG_ID,
+            ))
+        ).scalars().all()
+        assert len(submission_events) == 1
+        assert submission_events[0].actor == {"type": "PERSON", "id": str(REVIEWER_ID)}
+        submission_outbox = (
+            await db.execute(select(OutboxEvent).where(
+                OutboxEvent.event_id == submission_events[0].event_id,
+            ))
+        ).scalar_one()
+        for payload in (submission_events[0].payload, submission_outbox.payload):
+            assert draft.observed_fact not in str(payload)
+            assert interpretations[0].rationale not in str(payload)
         draft_events = (
             await db.execute(select(DomainEvent).where(
                 DomainEvent.aggregate_id == draft.id,

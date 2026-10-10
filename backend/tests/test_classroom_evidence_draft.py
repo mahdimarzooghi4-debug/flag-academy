@@ -16,9 +16,16 @@ from app.evidence.classroom_evidence_draft_api import (
     create_classroom_evidence_draft,
     get_classroom_evidence_draft,
 )
+from app.evidence.api import EvidenceSubmitRequest
+from app.evidence.classroom_evidence_submission_api import submit_classroom_evidence
 from app.evidence.classroom_source_review_api import classroom_source_digest
 from app.evidence.consumer import apply_event
-from app.evidence.models import ClassroomObservationSourceReview, EvidenceCase
+from app.evidence.models import (
+    ClassroomObservationSourceReview,
+    EvidenceCase,
+    EvidenceInterpretation,
+    EvidenceLink,
+)
 from app.identity.auth import ActorContext
 from app.main import app
 from app.platform.events import EventEnvelope
@@ -66,6 +73,9 @@ class FakeDB:
 
     async def commit(self) -> None:
         self.commits += 1
+
+    async def flush(self) -> None:
+        return None
 
 
 def actor(person: UUID = REVIEWER, role: str = "ASSESSOR") -> ActorContext:
@@ -328,3 +338,94 @@ def test_private_draft_routes_are_isolated_in_openapi() -> None:
     assert "post" in paths["/api/v1/classroom-observations/{observation_id}/evidence-draft"]
     assert "get" in paths["/api/v1/classroom-evidence-drafts/{case_id}"]
     assert "post" not in paths["/api/v1/classroom-evidence-drafts/{case_id}"]
+
+
+def human_interpretation_command() -> EvidenceSubmitRequest:
+    return EvidenceSubmitRequest.model_validate({
+        "expected_version": 1,
+        "interpretation": {
+            "behaviour_code": "CLASSROOM_HUMAN_OBSERVATION",
+            "behaviour_description": "Human interpretation of an observed fact",
+            "signal": "NEUTRAL",
+            "scope": "Isolated classroom session",
+            "confidence": "LOW",
+            "context_difficulty": "Limited CI context",
+            "prompt_contamination": "Unknown, explicitly noted by the human",
+            "ai_contribution": "NONE",
+            "mode": "HUMAN",
+            "rationale": "Human review without claims of proof",
+            "links": [{
+                "target_type": "CAPABILITY",
+                "target_ref": "CI_UNAPPROVED_OPAQUE_REFERENCE",
+                "signal": "NEUTRAL",
+                "scope": "CI session",
+                "relevance": "LOW",
+                "confidence": "LOW",
+            }],
+        },
+    })
+
+
+@pytest.mark.asyncio
+async def test_classroom_interpretation_submission_is_human_and_confidential() -> None:
+    source = observation()
+    create = FakeDB(*batches(source, reviewed(source)))
+    await create_classroom_evidence_draft(
+        SOURCE, command(source), actor(), cast(AsyncSession, create),
+    )
+    case = next(x for x in create.added if isinstance(x, EvidenceCase))
+    db = FakeDB([SOURCE], *batches(source, reviewed(source))[:5], [case])
+    result = await submit_classroom_evidence(
+        case.id, human_interpretation_command(), actor(), cast(AsyncSession, db),
+    )
+    assert result.status == "SUBMITTED"
+    assert result.version == 2
+    assert result.candidate_visible is False
+    assert case.accepted_at is None
+    assert case.rejected_at is None
+    interpretations = [x for x in db.added if isinstance(x, EvidenceInterpretation)]
+    links = [x for x in db.added if isinstance(x, EvidenceLink)]
+    events = [x for x in db.added if isinstance(x, DomainEvent)]
+    outbox = [x for x in db.added if isinstance(x, OutboxEvent)]
+    assert len(interpretations) == len(links) == len(events) == len(outbox) == 1
+    assert interpretations[0].created_by == REVIEWER
+    assert interpretations[0].ai_contribution == "NONE"
+    assert links[0].interpretation_id == interpretations[0].id
+    assert events[0].event_type == "evidence.interpretation_submitted.v1"
+    assert db.commits == 1
+    for event_data in (events[0].payload, outbox[0].payload):
+        assert source.observed_fact not in str(event_data)
+        assert interpretations[0].rationale not in str(event_data)
+    scoped = FakeDB(*get_batches(source, reviewed(source), case))
+    view = await get_classroom_evidence_draft(
+        case.id, actor(), cast(AsyncSession, scoped),
+    )
+    assert view.status == "SUBMITTED"
+
+
+@pytest.mark.asyncio
+async def test_classroom_submission_denies_unreviewed_and_revoked_person() -> None:
+    source = observation()
+    case = EvidenceCase(id=UUID(int=31200), version=1)
+    missing = FakeDB([SOURCE], *batches(source, None)[:5])
+    with pytest.raises(AppError) as exc:
+        await submit_classroom_evidence(
+            case.id, human_interpretation_command(),
+            actor(), cast(AsyncSession, missing),
+        )
+    assert exc.value.status_code == 404
+    assert missing.added == [] and missing.commits == 0
+    revoked = FakeDB([SOURCE], *batches(source, reviewed(source), revoked=True)[:2])
+    with pytest.raises(AppError) as exc:
+        await submit_classroom_evidence(
+            case.id, human_interpretation_command(),
+            actor(), cast(AsyncSession, revoked),
+        )
+    assert exc.value.status_code == 404
+    assert revoked.added == [] and revoked.commits == 0
+
+
+def test_classroom_submission_openapi_does_not_expose_generic_mutations() -> None:
+    routes = app.openapi()["paths"]
+    assert "post" in routes["/api/v1/classroom-evidence-cases/{case_id}/submit"]
+    assert "accept" not in routes["/api/v1/classroom-evidence-cases/{case_id}/submit"]
