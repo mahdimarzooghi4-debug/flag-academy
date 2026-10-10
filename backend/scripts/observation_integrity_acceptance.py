@@ -13,6 +13,7 @@ from sqlalchemy.exc import DBAPIError
 
 from app.academy.models import ClassAssessorObservation
 from app.db import SessionFactory, engine
+from app.evidence.contracts import load_accepted_evidence_snapshots
 from app.evidence.models import (
     ClassroomObservationSourceReview,
     EvidenceCase,
@@ -177,6 +178,33 @@ async def main() -> None:
             .values(decision="REJECTED"),
             delete(ClassroomObservationSourceReview)
             .where(ClassroomObservationSourceReview.id == review.id),
+            # A final Evidence mandate does not exist: PostgreSQL itself must
+            # deny every premature decision, even from a privileged SQL client.
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(status="UNDER_REVIEW", version=3),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(status="ACCEPTED", version=3, accepted_at=item.recorded_at),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(status="REJECTED", version=3, rejected_at=item.recorded_at),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(candidate_visible=True),
+            update(EvidenceCase)
+            .where(EvidenceCase.id == draft.id)
+            .values(provenance={"forged": "review authorization"}),
+            delete(EvidenceCase).where(EvidenceCase.id == draft.id),
+            update(EvidenceInterpretation)
+            .where(EvidenceInterpretation.id == interpretations[0].id)
+            .values(rationale="Tampered interpretation"),
+            delete(EvidenceInterpretation)
+            .where(EvidenceInterpretation.id == interpretations[0].id),
+            update(EvidenceLink)
+            .where(EvidenceLink.id == links[0].id)
+            .values(target_ref="tampered"),
+            delete(EvidenceLink).where(EvidenceLink.id == links[0].id),
         ):
             savepoint = await conn.begin_nested()
             try:
@@ -185,7 +213,7 @@ async def main() -> None:
                 await savepoint.rollback()
             else:
                 await savepoint.rollback()
-                raise AssertionError("PostgreSQL must reject observation mutation")
+                raise AssertionError("PostgreSQL must reject private classroom history mutation")
         await trans.rollback()
 
     async with SessionFactory() as db:
@@ -201,6 +229,29 @@ async def main() -> None:
             ClassroomObservationSourceReview.id == review.id
         ))).scalar_one()
         assert persisted_review.decision == "VERIFIED"
+        preserved_case = (await db.execute(select(EvidenceCase).where(
+            EvidenceCase.id == draft.id,
+        ))).scalar_one()
+        assert preserved_case.status == "SUBMITTED"
+        assert preserved_case.version == 2
+        assert preserved_case.accepted_at is None and preserved_case.rejected_at is None
+        assert preserved_case.candidate_visible is False
+        assert preserved_case.provenance == draft.provenance
+        preserved_interpretation = (await db.execute(select(EvidenceInterpretation).where(
+            EvidenceInterpretation.id == interpretations[0].id,
+        ))).scalar_one()
+        assert preserved_interpretation.rationale == interpretations[0].rationale
+        preserved_link = (await db.execute(select(EvidenceLink).where(
+            EvidenceLink.id == links[0].id,
+        ))).scalar_one()
+        assert preserved_link.target_ref == "CI_UNAPPROVED_OPAQUE_REFERENCE"
+        # Even after attacker-style SQL attempts, ordinary Accepted Evidence
+        # projection cannot create Pattern, Profile or Gate input from this case.
+        assert await load_accepted_evidence_snapshots(
+            db, organization_context_id=ORG_ID,
+            subject_person_id=item.candidate_person_id,
+            evidence_case_ids=(draft.id,),
+        ) == []
 
 
 if __name__ == "__main__":
