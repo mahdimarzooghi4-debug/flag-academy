@@ -16,6 +16,7 @@ from app.identity.models import OrganizationMembership, Person
 CLASS_ID = UUID("00000000-0000-0000-0000-000000000220")
 CI_SESSION_ID = UUID("00000000-0000-0000-0000-000000000243")
 REVIEWER_PERSON_ID = UUID("00000000-0000-0000-0000-000000000105")
+FINAL_PERSON_ID = UUID("00000000-0000-0000-0000-000000000106")
 ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
@@ -37,6 +38,25 @@ async def main() -> None:
             OrganizationMembership(
                 id=UUID("00000000-0000-0000-0000-000000000115"),
                 person_id=REVIEWER_PERSON_ID,
+                organization_id=ORG_ID,
+                membership_role="ASSESSOR",
+                created_at=now,
+            )
+        )
+        db.add(
+            Person(
+                id=FINAL_PERSON_ID,
+                external_subject=str(UUID(os.environ["PARCHAM_CI_FINAL_REVIEWER_SUBJECT"])),
+                display_name="CI-only final Evidence reviewer",
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        await db.flush()
+        db.add(
+            OrganizationMembership(
+                id=UUID("00000000-0000-0000-0000-000000000116"),
+                person_id=FINAL_PERSON_ID,
                 organization_id=ORG_ID,
                 membership_role="ASSESSOR",
                 created_at=now,

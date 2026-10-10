@@ -127,6 +127,7 @@ jobs:
           set_secret PARCHAM_DEV_ADMIN_PASSWORD
           set_secret PARCHAM_DEV_ASSESSOR_PASSWORD
           set_secret PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD
+          set_secret PARCHAM_DEV_FINAL_REVIEWER_PASSWORD
       - name: Build database URL
         shell: bash
         run: echo "PARCHAM_DATABASE_URL=postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB" >> "$GITHUB_ENV"

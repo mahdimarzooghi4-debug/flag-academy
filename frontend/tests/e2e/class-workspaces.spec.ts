@@ -6,6 +6,7 @@ const CLASS_ID = "00000000-0000-0000-0000-000000000220";
 const CANDIDATE_ID = "00000000-0000-0000-0000-000000000101";
 const ASSESSOR_ID = "00000000-0000-0000-0000-000000000104";
 const INDEPENDENT_REVIEWER_ID = "00000000-0000-0000-0000-000000000105";
+const FINAL_REVIEWER_ID = "00000000-0000-0000-0000-000000000106";
 const INSTRUCTOR_ID = "00000000-0000-0000-0000-000000000102";
 const SESSION_ID = "00000000-0000-0000-0000-000000000241";
 // Ephemeral in-progress Session created by scripts/observation_ci_session.py ONLY in CI.
@@ -60,6 +61,7 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     instructor: process.env.PARCHAM_DEV_INSTRUCTOR_PASSWORD,
     assessor: process.env.PARCHAM_DEV_ASSESSOR_PASSWORD,
     reviewer: process.env.PARCHAM_DEV_SOURCE_REVIEWER_PASSWORD,
+    finalReviewer: process.env.PARCHAM_DEV_FINAL_REVIEWER_PASSWORD,
     admin: process.env.PARCHAM_DEV_ADMIN_PASSWORD,
   };
   if (Object.values(passwords).some((value) => !value)) {
@@ -578,6 +580,132 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
     });
     expect(rejected.status()).toBe(409);
   }
+  // CI-only FINAL Evidence: third Keycloak human, distinct from observation,
+  // source review, Interpretation author and Candidate.
+  const finalReviewUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/final-review`;
+  const notFinal = await page.request.get(finalReviewUrl, { headers: reviewerHeaders });
+  expect(notFinal.status()).toBe(404);
+  const originalCannotDecide = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/review-start`, {
+      headers: { Authorization: `Bearer ${grantedAssessorToken}` },
+      data: { expected_version: 2, rationale: "Forbidden observer self-review" },
+    },
+  );
+  expect(originalCannotDecide.status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const finalAdminToken = await tokenForCurrentUser(page);
+  const adminHeaders = { Authorization: `Bearer ${finalAdminToken}` };
+  const finalGrantStart = new Date(Date.now() - 5 * 60_000).toISOString();
+  const finalGrantEnd = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+  const finalGrantReply = await page.request.post(
+    `${API}/api/v1/admin/academy/classes/${CLASS_ID}/assessor-grants`, {
+      headers: adminHeaders,
+      data: {
+        assessor_person_id: FINAL_REVIEWER_ID,
+        starts_at: finalGrantStart,
+        ends_at: finalGrantEnd,
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(finalGrantReply.status()).toBe(200);
+  const issueUrl = `${API}/api/v1/admin/academy/classroom-evidence-cases/${draft.evidence_case_id}/final-review-mandate`;
+  const mandateBody = {
+    reviewer_person_id: FINAL_REVIEWER_ID,
+    expected_case_version: 2,
+    expected_source_sha256: scopedSource.source_sha256,
+    starts_at: new Date(Date.now() - 2 * 60_000).toISOString(),
+    ends_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+    reason: "CI human admin appoints distinct Evidence final reviewer",
+    idempotency_key: crypto.randomUUID(),
+  };
+  const issued = await page.request.post(issueUrl, {
+    headers: adminHeaders, data: mandateBody,
+  });
+  expect(issued.status()).toBe(201);
+  const issuedMandate = (await issued.json()) as { mandate_id: string; version: number };
+  expect(issuedMandate.version).toBe(1);
+  const issuedReplay = await page.request.post(issueUrl, {
+    headers: adminHeaders, data: mandateBody,
+  });
+  expect(issuedReplay.status()).toBe(201);
+  expect((await issuedReplay.json()).mandate_id).toBe(issuedMandate.mandate_id);
+  const changedReplay = await page.request.post(issueUrl, {
+    headers: adminHeaders, data: { ...mandateBody, reason: "Changed reason cannot replay" },
+  });
+  expect(changedReplay.status()).toBe(409);
+  await logout(page);
+
+  await login(page, "assessor-final", passwords.finalReviewer!);
+  const finalToken = await tokenForCurrentUser(page);
+  const finalHeaders = { Authorization: `Bearer ${finalToken}` };
+  const privateWorkspace = await page.request.get(finalReviewUrl, { headers: finalHeaders });
+  expect(privateWorkspace.status()).toBe(200);
+  const reviewWorkspace = (await privateWorkspace.json()) as {
+    status: string; observed_fact: string; interpretation: { created_by: string };
+  };
+  expect(reviewWorkspace.status).toBe("SUBMITTED");
+  expect(reviewWorkspace.observed_fact).toBe(observationBody.observed_fact);
+  expect(reviewWorkspace.interpretation.created_by).toBe(INDEPENDENT_REVIEWER_ID);
+  const startUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/review-start`;
+  const startBody = { expected_version: 2, rationale: "CI accountable independent review start" };
+  const [startA, startB] = await Promise.all([
+    page.request.post(startUrl, { headers: finalHeaders, data: startBody }),
+    page.request.post(startUrl, { headers: finalHeaders, data: startBody }),
+  ]);
+  expect([startA.status(), startB.status()].sort()).toEqual([200, 409]);
+  const started = (await (startA.status() === 200 ? startA : startB).json()) as {
+    status: string; version: number;
+  };
+  expect(started.status).toBe("UNDER_REVIEW");
+  expect(started.version).toBe(3);
+  const acceptUrl = `${API}/api/v1/classroom-evidence-cases/${draft.evidence_case_id}/accept`;
+  const staleAccept = await page.request.post(acceptUrl, {
+    headers: finalHeaders, data: { expected_version: 2, rationale: "Stale decision" },
+  });
+  expect(staleAccept.status()).toBe(409);
+  const decision = await page.request.post(acceptUrl, {
+    headers: finalHeaders,
+    data: { expected_version: 3, rationale: "CI human final decision on synthetic Evidence" },
+  });
+  expect(decision.status()).toBe(200);
+  const decided = (await decision.json()) as {
+    status: string; version: number; candidate_visible?: boolean; accepted_at: string;
+  };
+  expect(decided.status).toBe("ACCEPTED");
+  expect(decided.version).toBe(4);
+  expect(decided.accepted_at).toBeTruthy();
+  const finalReplayed = await page.request.post(acceptUrl, {
+    headers: finalHeaders,
+    data: { expected_version: 3, rationale: "Cannot decide twice" },
+  });
+  expect(finalReplayed.status()).toBe(404);
+  const finalGeneric = await page.request.get(
+    `${API}/api/v1/evidence-cases/${draft.evidence_case_id}`,
+    { headers: finalHeaders },
+  );
+  expect(finalGeneric.status()).toBe(404);
+  await logout(page);
+
+  await login(page, "academy-admin", passwords.admin!);
+  const revokeFinalToken = await tokenForCurrentUser(page);
+  const revokeFinalBody = {
+    expected_version: issuedMandate.version,
+    reason: "CI admin ends the distinct final Evidence mandate",
+    idempotency_key: crypto.randomUUID(),
+  };
+  const revokedFinal = await page.request.post(
+    `${API}/api/v1/admin/academy/final-review-mandates/${issuedMandate.mandate_id}/revoke`, {
+      headers: { Authorization: `Bearer ${revokeFinalToken}` },
+      data: revokeFinalBody,
+    },
+  );
+  expect(revokedFinal.status()).toBe(200);
+  expect((await revokedFinal.json()).version).toBe(2);
+  await logout(page);
+
   await logout(page);
 
   await login(page, "academy-admin", passwords.admin!);

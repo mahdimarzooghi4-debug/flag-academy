@@ -28,3 +28,21 @@ print(str(uuid.UUID(users[0]["id"])))
 ')
 test -n "$subject"
 echo "PARCHAM_CI_REVIEWER_SUBJECT=$subject" >> "$GITHUB_ENV"
+
+# A third, independent OIDC human for final Evidence review in CI ONLY.
+: "${PARCHAM_DEV_FINAL_REVIEWER_PASSWORD:?}"
+$COMPOSE exec -T keycloak "$KCADM" create users -r parcham \
+  -s username=assessor-final -s enabled=true \
+  -s email=assessor-final@ci.parcham.invalid -s emailVerified=true \
+  -s firstName=CI -s lastName=FinalReviewer >/dev/null
+$COMPOSE exec -T keycloak "$KCADM" set-password -r parcham \
+  --username assessor-final --new-password "$PARCHAM_DEV_FINAL_REVIEWER_PASSWORD"
+final_subject=$($COMPOSE exec -T keycloak "$KCADM" get users -r parcham \
+  -q username=assessor-final --fields id,username | python3 -c '
+import json, sys, uuid
+users=json.load(sys.stdin)
+assert len(users)==1 and users[0]["username"]=="assessor-final"
+print(str(uuid.UUID(users[0]["id"])))
+')
+test -n "$final_subject"
+echo "PARCHAM_CI_FINAL_REVIEWER_SUBJECT=$final_subject" >> "$GITHUB_ENV"

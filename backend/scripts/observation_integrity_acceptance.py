@@ -19,6 +19,9 @@ from app.evidence.models import (
     ClassroomObservationSourceReview,
     EvidenceCase,
     EvidenceInterpretation,
+    EvidenceReview,
+    ClassroomFinalEvidenceReviewMandate,
+    ClassroomFinalEvidenceMandateRevision,
     EvidenceLink,
 )
 from app.platform.models import DomainEvent, OutboxEvent
@@ -66,8 +69,8 @@ async def main() -> None:
         assert len(cases) == 1, "Explicit concurrent human Draft must create exactly one case"
         draft = cases[0]
         assert draft.source_context == "CLASSROOM_OBSERVATION"
-        assert draft.status == "SUBMITTED"
-        assert draft.version == 2
+        assert draft.status == "ACCEPTED"
+        assert draft.version == 4
         assert draft.integrity_state == "SOURCE_REVIEWED"
         assert draft.candidate_visible is False
         assert draft.source_runtime_event_id is None
@@ -76,6 +79,36 @@ async def main() -> None:
         assert draft.provenance["created_by_person_id"] == str(REVIEWER_ID)
         assert draft.observed_fact == item.observed_fact
         assert draft.candidate_visible_payload == {}
+        final_reviews = (await db.execute(select(EvidenceReview).where(
+            EvidenceReview.evidence_case_id == draft.id,
+        ).order_by(EvidenceReview.created_at, EvidenceReview.id))).scalars().all()
+        assert len(final_reviews) == 2
+        assert {x.decision for x in final_reviews} == {"REVIEW_STARTED", "ACCEPT"}
+        assert final_reviews[0].reviewer_id == final_reviews[1].reviewer_id
+        assert final_reviews[0].reviewer_id == UUID(
+            "00000000-0000-0000-0000-000000000106"
+        )
+        mandate_rows = (await db.execute(select(ClassroomFinalEvidenceReviewMandate).where(
+            ClassroomFinalEvidenceReviewMandate.evidence_case_id == draft.id,
+        ))).scalars().all()
+        assert len(mandate_rows) == 1
+        history = (await db.execute(select(ClassroomFinalEvidenceMandateRevision).where(
+            ClassroomFinalEvidenceMandateRevision.mandate_id == mandate_rows[0].id,
+        ).order_by(ClassroomFinalEvidenceMandateRevision.resulting_version))).scalars().all()
+        assert [x.action for x in history] == ["ISSUE", "REVOKE"]
+        assert [x.resulting_version for x in history] == [1, 2]
+        human_accept_events = (await db.execute(select(DomainEvent).where(
+            DomainEvent.aggregate_id == draft.id,
+            DomainEvent.event_type == "evidence.classroom_accepted.v1",
+        ))).scalars().all()
+        assert len(human_accept_events) == 1
+        assert draft.observed_fact not in str(human_accept_events[0].payload)
+        assert human_accept_events[0].payload["formal_evidence_accepted"] is True
+        human_accept_outbox = (await db.execute(select(OutboxEvent).where(
+            OutboxEvent.event_id == human_accept_events[0].event_id,
+        ))).scalar_one()
+        assert draft.observed_fact not in str(human_accept_outbox.payload)
+
         interpretations = (
             await db.execute(select(EvidenceInterpretation).where(
                 EvidenceInterpretation.evidence_case_id == draft.id,
@@ -248,9 +281,9 @@ async def main() -> None:
         preserved_case = (await db.execute(select(EvidenceCase).where(
             EvidenceCase.id == draft.id,
         ))).scalar_one()
-        assert preserved_case.status == "SUBMITTED"
-        assert preserved_case.version == 2
-        assert preserved_case.accepted_at is None and preserved_case.rejected_at is None
+        assert preserved_case.status == "ACCEPTED"
+        assert preserved_case.version == 4
+        assert preserved_case.accepted_at is not None and preserved_case.rejected_at is None
         assert preserved_case.candidate_visible is False
         assert preserved_case.provenance == draft.provenance
         preserved_interpretation = (await db.execute(select(EvidenceInterpretation).where(
@@ -265,7 +298,8 @@ async def main() -> None:
         mandates = (await db.execute(select(ClassroomFinalEvidenceReviewMandate).where(
             ClassroomFinalEvidenceReviewMandate.evidence_case_id == draft.id,
         ))).scalars().all()
-        assert mandates == [], "No final Evidence mandate may be auto-created"
+        assert len(mandates) == 1
+        assert mandates[0].version == 2 and mandates[0].revoked_at is not None
         # Even after attacker-style SQL attempts, ordinary Accepted Evidence
         # projection cannot create Pattern, Profile or Gate input from this case.
         assert await load_accepted_evidence_snapshots(
