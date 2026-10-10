@@ -41,6 +41,8 @@ async def main() -> None:
                     ClassAssessorObservation.class_offering_id == CLASS_ID,
                     ClassAssessorObservation.session_id == SESSION_ID,
                     ClassAssessorObservation.observer_person_id == ASSESSOR_ID,
+                    ClassAssessorObservation.observed_fact
+                    == "CI factual classroom observation: learner separated evidence from interpretation.",
                 )
             )
         ).scalars().all()
@@ -107,6 +109,57 @@ async def main() -> None:
             OutboxEvent.event_id == human_accept_events[0].event_id,
         ))).scalar_one()
         assert draft.observed_fact not in str(human_accept_outbox.payload)
+        # The two new isolated OIDC cases preserve separate final outcomes:
+        # a human REJECTED case and an UNDER_REVIEW case whose final
+        # appointment was revoked. Neither is formal Accepted Evidence.
+        extra_observations = (await db.execute(select(ClassAssessorObservation).where(
+            ClassAssessorObservation.organization_context_id == ORG_ID,
+            ClassAssessorObservation.class_offering_id == CLASS_ID,
+            ClassAssessorObservation.session_id == SESSION_ID,
+            ClassAssessorObservation.observed_fact.like("CI_FINAL_%_SOURCE:%"),
+        ))).scalars().all()
+        assert len(extra_observations) == 2
+        extras_by_fact = {o.observed_fact: o for o in extra_observations}
+        for prefix, expected_state, expected_decision, mandate_revoked in (
+            ("CI_FINAL_REJECTION_SOURCE:", "REJECTED", "REJECT", False),
+            ("CI_FINAL_REVOKED_SOURCE:", "UNDER_REVIEW", None, True),
+        ):
+            matched = [o for text, o in extras_by_fact.items() if text.startswith(prefix)]
+            assert len(matched) == 1
+            source = matched[0]
+            other = (await db.execute(select(EvidenceCase).where(
+                EvidenceCase.source_observation_id == source.id,
+                EvidenceCase.organization_context_id == ORG_ID,
+            ))).scalars().all()
+            assert len(other) == 1
+            case = other[0]
+            assert case.status == expected_state
+            assert case.version == (4 if expected_decision else 3)
+            assert case.candidate_visible is False
+            assert case.accepted_at is None
+            assert (case.rejected_at is not None) == (expected_decision == "REJECT")
+            human_reviews = (await db.execute(select(EvidenceReview).where(
+                EvidenceReview.evidence_case_id == case.id,
+            ))).scalars().all()
+            assert {r.decision for r in human_reviews} == (
+                {"REVIEW_STARTED", expected_decision}
+                if expected_decision else {"REVIEW_STARTED"}
+            )
+            assert all(r.reviewer_id == UUID(
+                "00000000-0000-0000-0000-000000000106",
+            ) for r in human_reviews)
+            one_mandate = (await db.execute(select(ClassroomFinalEvidenceReviewMandate).where(
+                ClassroomFinalEvidenceReviewMandate.evidence_case_id == case.id,
+            ))).scalars().all()
+            assert len(one_mandate) == 1
+            assert (one_mandate[0].revoked_at is not None) == mandate_revoked
+            assert one_mandate[0].version == (2 if mandate_revoked else 1)
+            # No rejected or revoked case may be accepted downstream.
+            assert await load_accepted_evidence_snapshots(
+                db, organization_context_id=ORG_ID,
+                subject_person_id=source.candidate_person_id,
+                evidence_case_ids=(case.id,),
+            ) == []
 
         interpretations = (
             await db.execute(select(EvidenceInterpretation).where(

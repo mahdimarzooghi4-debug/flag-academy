@@ -682,6 +682,157 @@ test("P23-12: live role-isolated class report and human-only attendance", async 
   expect(decided.status).toBe("ACCEPTED");
   expect(decided.version).toBe(4);
   expect(decided.accepted_at).toBeTruthy();
+  // Two additional independent real-transaction CI cases exercise both
+  // human REJECTED and post-start mandate revocation, without rewriting
+  // the original human ACCEPTED case.
+  async function buildSubmittedClassroomCase(fact: string): Promise<{
+    caseId: string;
+    mandateId: string;
+  }> {
+    const recorded = await page.request.post(observationUrl, {
+      headers: observationHeaders,
+      data: { ...observationBody, observed_fact: fact, idempotency_key: crypto.randomUUID() },
+    });
+    expect(recorded.status(), `Record source for ${fact}`).toBe(201);
+    const source = (await recorded.json()) as { observation_id: string };
+    const sourceReviewEndpoint =
+      `${API}/api/v1/classroom-observations/${source.observation_id}/review-source`;
+    const readSource = await page.request.get(sourceReviewEndpoint, { headers: reviewerHeaders });
+    expect(readSource.status()).toBe(200);
+    const scoped = (await readSource.json()) as { source_sha256: string };
+    const reviewed = await page.request.post(sourceReviewEndpoint, {
+      headers: reviewerHeaders,
+      data: {
+        expected_source_sha256: scoped.source_sha256,
+        decision: "VERIFIED",
+        rationale: "Independent source attestation for an isolated CI final review path",
+      },
+    });
+    expect(reviewed.status()).toBe(201);
+    const reviewedBody = (await reviewed.json()) as { review_id: string };
+    const draftCase = await page.request.post(
+      `${API}/api/v1/classroom-observations/${source.observation_id}/evidence-draft`, {
+        headers: reviewerHeaders,
+        data: {
+          expected_review_id: reviewedBody.review_id,
+          expected_source_sha256: scoped.source_sha256,
+          submission_reason: "Independent reviewer explicitly opens a second private CI Evidence case",
+        },
+      },
+    );
+    expect(draftCase.status()).toBe(201);
+    const created = (await draftCase.json()) as { evidence_case_id: string };
+    const submitted = await page.request.post(
+      `${API}/api/v1/classroom-evidence-cases/${created.evidence_case_id}/submit`, {
+        headers: reviewerHeaders, data: humanSubmission,
+      },
+    );
+    expect(submitted.status()).toBe(200);
+    expect((await submitted.json()).status).toBe("SUBMITTED");
+    const mandate = await page.request.post(
+      `${API}/api/v1/admin/academy/classroom-evidence-cases/${created.evidence_case_id}/final-review-mandate`, {
+        headers: adminHeaders,
+        data: {
+          ...mandateBody,
+          idempotency_key: crypto.randomUUID(),
+          expected_source_sha256: scoped.source_sha256,
+          reason: "Separate Admin issuance to independent CI human reviewer",
+        },
+      },
+    );
+    expect(mandate.status()).toBe(201);
+    const mandateRecord = (await mandate.json()) as { mandate_id: string };
+    return {
+      caseId: created.evidence_case_id,
+      mandateId: mandateRecord.mandate_id,
+    };
+  }
+
+  // A genuinely distinct classroom source and human Interpretation are
+  // independently REJECTED, without ever entering accepted downstream reads.
+  const rejectedCase = await buildSubmittedClassroomCase(
+    "CI_FINAL_REJECTION_SOURCE: human assessment rejects an independent observation",
+  );
+  const rejectStart = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${rejectedCase.caseId}/review-start`, {
+      headers: finalHeaders,
+      data: { expected_version: 2, rationale: "Human starts independent reject-case review" },
+    },
+  );
+  expect(rejectStart.status()).toBe(200);
+  const rejectUrl = `${API}/api/v1/classroom-evidence-cases/${rejectedCase.caseId}/reject`;
+  const wrongActorReject = await page.request.post(rejectUrl, {
+    headers: reviewerHeaders,
+    data: { expected_version: 3, rationale: "Original Interpretation author cannot reject" },
+  });
+  expect(wrongActorReject.status()).toBe(404);
+  const rejectedDecision = await page.request.post(rejectUrl, {
+    headers: finalHeaders,
+    data: { expected_version: 3, rationale: "Separate accountable human rejection of evidence" },
+  });
+  expect(rejectedDecision.status()).toBe(200);
+  const rejectResult = (await rejectedDecision.json()) as {
+    status: string; version: number; rejected_at: string; accepted_at: string | null;
+  };
+  expect(rejectResult.status).toBe("REJECTED");
+  expect(rejectResult.version).toBe(4);
+  expect(rejectResult.rejected_at).toBeTruthy();
+  expect(rejectResult.accepted_at).toBeNull();
+  const staleReject = await page.request.post(rejectUrl, {
+    headers: finalHeaders, data: { expected_version: 3, rationale: "Repeat must fail" },
+  });
+  expect(staleReject.status()).toBe(409);
+  expect((await page.request.get(
+    `${API}/api/v1/evidence-cases/${rejectedCase.caseId}`,
+    { headers: finalHeaders },
+  )).status()).toBe(404);
+
+  // In an independent third case, revoke the Evidence-owned appointment
+  // AFTER review start but BEFORE the human final decision. Existing OIDC
+  // token, class grant and ASSESSOR role must not override this revocation.
+  const revokedDuringReview = await buildSubmittedClassroomCase(
+    "CI_FINAL_REVOKED_SOURCE: no human final decision after mandate revocation",
+  );
+  const revokeStart = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/review-start`, {
+      headers: finalHeaders,
+      data: { expected_version: 2, rationale: "Human review started prior to appointment revocation" },
+    },
+  );
+  expect(revokeStart.status()).toBe(200);
+  expect((await revokeStart.json()).status).toBe("UNDER_REVIEW");
+  const adminRevoke = await page.request.post(
+    `${API}/api/v1/admin/academy/final-review-mandates/${revokedDuringReview.mandateId}/revoke`, {
+      headers: adminHeaders,
+      data: {
+        expected_version: 1,
+        reason: "Academy Admin immediately revokes final-review authority during review",
+        idempotency_key: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(adminRevoke.status()).toBe(200);
+  expect((await adminRevoke.json()).revoked_at).toBeTruthy();
+  const revokedWorkspace = await page.request.get(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/final-review`,
+    { headers: finalHeaders },
+  );
+  expect(revokedWorkspace.status()).toBe(404);
+  const revokedAccept = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/accept`, {
+      headers: finalHeaders,
+      data: { expected_version: 3, rationale: "Revoked human must not decide" },
+    },
+  );
+  expect(revokedAccept.status()).toBe(404);
+  const revokedReject = await page.request.post(
+    `${API}/api/v1/classroom-evidence-cases/${revokedDuringReview.caseId}/reject`, {
+      headers: finalHeaders,
+      data: { expected_version: 3, rationale: "Revoked human must not reject either" },
+    },
+  );
+  expect(revokedReject.status()).toBe(404);
+
   const finalReplayed = await page.request.post(acceptUrl, {
     headers: finalHeaders,
     data: { expected_version: 3, rationale: "Cannot decide twice" },
