@@ -1,6 +1,7 @@
 """Inert final Evidence mandate prerequisites: never automatic permission."""
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -24,7 +25,7 @@ OBSERVER, SOURCE_REVIEWER, FINAL, LEARNER = (
 DIGEST = "a" * 64
 
 
-def example():
+def example() -> dict[str, Any]:
     source = ClassAssessorObservation(
         id=SOURCE, organization_context_id=ORG,
         class_offering_id=CLASS, session_id=UUID(int=72009),
